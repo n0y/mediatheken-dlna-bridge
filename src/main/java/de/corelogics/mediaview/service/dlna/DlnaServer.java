@@ -24,6 +24,7 @@
 
 package de.corelogics.mediaview.service.dlna;
 
+import com.netflix.governator.annotations.Configuration;
 import de.corelogics.mediaview.repository.clip.ClipRepository;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -32,10 +33,12 @@ import org.fourthline.cling.binding.annotations.AnnotationLocalServiceBinder;
 import org.fourthline.cling.model.DefaultServiceManager;
 import org.fourthline.cling.model.ValidationException;
 import org.fourthline.cling.model.meta.*;
+import org.fourthline.cling.model.types.DLNACaps;
 import org.fourthline.cling.model.types.UDADeviceType;
 import org.fourthline.cling.model.types.UDN;
 
 import javax.inject.Inject;
+import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
 
@@ -43,6 +46,9 @@ public class DlnaServer {
     private final Logger logger = LogManager.getLogger();
 
     private final ClipRepository clipRepository;
+
+    @Configuration("DISPLAY_NAME")
+    private String displayName;
 
     @Inject
     public DlnaServer(ClipRepository clipRepository) {
@@ -53,9 +59,9 @@ public class DlnaServer {
         logger.debug("Starting DLNA server");
         var type = new UDADeviceType("MediaServer", 1);
         var details = new DeviceDetails(
-                "Mediatheken",
-                new ManufacturerDetails("Corelogics Mediathek Gateway"),
-                new ModelDetails("First", "Mein Erstes Modell", "v1"));
+                displayName,
+                new ManufacturerDetails("Mediatheken DLNA Gateway"),
+                new ModelDetails("Mediatheken", "v1", "v.1.0.0", "https://github.com/n0y/mediatheken-dlna-bridge"));
         var service = (LocalService<ContentDirectory>) new AnnotationLocalServiceBinder().read(ContentDirectory.class);
         service.setManager(new DefaultServiceManager<>(service, ContentDirectory.class) {
             @Override
@@ -65,13 +71,13 @@ public class DlnaServer {
         });
 
         var localDevice = new LocalDevice(
-                new DeviceIdentity(new UDN(UUID.nameUUIDFromBytes("Corelogics Mediathek Gateway".getBytes()))),
+                new DeviceIdentity(new UDN(UUID.nameUUIDFromBytes(displayName.getBytes(StandardCharsets.UTF_8)))),
                 type,
                 details,
                 service);
 
         var upnpService = new UpnpServiceImpl();
         upnpService.getRegistry().addDevice(localDevice);
-        logger.info("Successfully started DLNA server. It may take some time for it to become visible in the network.");
+        logger.info(String.format("Successfully started DLNA server '%s'. It may take some time for it to become visible in the network.", displayName));
     }
 }

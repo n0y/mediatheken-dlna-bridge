@@ -12,4 +12,4 @@ COPY --from=0 /src/target/libraries/* /app/libraries/
 COPY --from=0 /src/target/*.jar /app/
 WORKDIR /app
 ENTRYPOINT ["/init"]
-CMD ["java", "-cp", "*:libraries/*", "de.corelogics.mediaview.Main"]
+CMD ["java", "-XX:MaxRAMPercentage=80", "-cp", "*:libraries/*", "de.corelogics.mediaview.Main"]

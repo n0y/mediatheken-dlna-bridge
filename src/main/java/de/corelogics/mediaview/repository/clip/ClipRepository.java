@@ -50,11 +50,11 @@ public class ClipRepository {
     @PostConstruct
     private void initialize() {
         try {
+            var cacheSize = Math.min(Math.max(16_000_000L, Runtime.getRuntime().maxMemory() - 150_000_000), 1_500_000_000L);
             logger.debug("initializing database at {}", () -> new File(databaseLocation).getAbsolutePath());
-            this.pool = JdbcConnectionPool.create(
-                    MessageFormat.format("jdbc:h2:{0}", databaseLocation),
-                    "sa", "sa");
-            logger.info("Successfully opened database at {}", () -> new File(databaseLocation).getAbsolutePath());
+            var jdbcUrl = String.format("jdbc:h2:%s;CACHE_SIZE=%d", databaseLocation, cacheSize / 1024);
+            this.pool = JdbcConnectionPool.create(jdbcUrl, "sa", "sa");
+            logger.info("Successfully opened database at {} with {}", () -> new File(databaseLocation).getAbsolutePath(), () -> jdbcUrl);
             try (var conn = pool.getConnection()) {
                 try (var statement = conn.createStatement()) {
                     logger.debug("ensuring table clip exists");
