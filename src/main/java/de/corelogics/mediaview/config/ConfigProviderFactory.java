@@ -49,9 +49,10 @@ public class ConfigProviderFactory {
         logger.debug("Initializing configuration provider");
 
         var provider = new CompositeConfigurationProvider();
-        provider.add(new SystemConfigurationProvider());
-        loadClasspathProperties().map(PropertiesConfigurationProvider::new).ifPresent(provider::add);
         loadFsProperties().map(PropertiesConfigurationProvider::new).ifPresent(provider::add);
+        loadClasspathProperties().map(PropertiesConfigurationProvider::new).ifPresent(provider::add);
+        provider.add(new EnvironmentProvider());
+        provider.add(new SystemConfigurationProvider());
 
         return provider;
     }
