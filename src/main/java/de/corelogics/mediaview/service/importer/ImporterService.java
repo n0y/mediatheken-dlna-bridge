@@ -81,6 +81,7 @@ public class ImporterService {
 
     private void fullImport() {
         logger.info("Starting a full import");
+        var startedAt = ZonedDateTime.now();
         try {
             var entryUpdateList = new ArrayList<ClipEntry>(1000);
             var numImported = new AtomicInteger();
@@ -92,12 +93,13 @@ public class ImporterService {
                     }
                     entryUpdateList.add(e);
                     if (entryUpdateList.size() > 999) {
-                        clipRepository.addClips(entryUpdateList);
+                        clipRepository.addClips(entryUpdateList, startedAt);
                         entryUpdateList.clear();
                     }
                 });
-                clipRepository.addClips(entryUpdateList);
+                clipRepository.addClips(entryUpdateList, startedAt);
                 clipRepository.updateLastFullImport(ZonedDateTime.now());
+                clipRepository.deleteClipsNotImportedAt(startedAt);
                 logger.info("Successfully performed a full import, yielding {} clips", numImported::get);
                 scheduleNextFullImport();
             }

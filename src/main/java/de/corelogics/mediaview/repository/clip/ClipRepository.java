@@ -72,11 +72,13 @@ public class ClipRepository {
                                     "url varchar(512)," +
                                     "urlhd varchar(512)," +
                                     "size long," +
-                                    "broadcasted_at timestamp with time zone)");
+                                    "broadcasted_at timestamp with time zone," +
+                                    "imported_at timestamp with time zone)");
                     logger.debug("ensuring clip indexes exist");
                     statement.execute("create index if not exists idx_clip_channelname on clip(channelname)");
                     statement.execute("create index if not exists idx_clip_containedin on clip(containedin)");
                     statement.execute("create index if not exists idx_clip_broadcasted_at on clip(broadcasted_at)");
+                    statement.execute("create index if not exists idx_clip_imported_at on clip(imported_at)");
 
                     logger.debug("ensuring table imports exists");
                     statement.execute(
@@ -190,25 +192,26 @@ public class ClipRepository {
     }
 
 
-    public void addClips(Iterable<ClipEntry> clipEntries) {
+    public void addClips(Iterable<ClipEntry> clipEntries, ZonedDateTime importedAt) {
         logger.debug("Adding ClipEntries");
         try {
             try (var conn = pool.getConnection()) {
                 try (var stmt = conn.prepareStatement(
-                        "merge into clip (id, channelname, containedin, description, duration, title, url, urlhd, size, broadcasted_at) " +
-                                "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
+                        "merge into clip (id, channelname, containedin, description, duration, title, url, urlhd, size, broadcasted_at, imported_at) " +
+                                "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
                     for (var c : clipEntries) {
                         logger.debug("Adding ClipEntry {}", c);
-                        stmt.setString(1, c.getChannelName() + ":" + c.getBroadcastedAt().toEpochSecond());
-                        stmt.setString(2, strip(c.getChannelName()));
-                        stmt.setString(3, strip(c.getContainedIn()));
-                        stmt.setString(4, strip(c.getDescription()));
+                        stmt.setString(1, limit(MessageFormat.format("{0}:{1}", c.getUrl(), c.getUrlHd())));
+                        stmt.setString(2, limit(c.getChannelName()));
+                        stmt.setString(3, limit(c.getContainedIn()));
+                        stmt.setString(4, limit(c.getDescription()));
                         stmt.setString(5, c.getDuration());
-                        stmt.setString(6, strip(c.getTitle()));
+                        stmt.setString(6, limit(c.getTitle()));
                         stmt.setString(7, c.getUrl());
                         stmt.setString(8, c.getUrlHd());
                         stmt.setLong(9, c.getSize());
                         stmt.setObject(10, c.getBroadcastedAt());
+                        stmt.setObject(11, importedAt);
                         stmt.addBatch();
                     }
                     stmt.executeBatch();
@@ -220,7 +223,7 @@ public class ClipRepository {
         }
     }
 
-    private String strip(String in) {
+    private String limit(String in) {
         if (in.length() < 254) {
             return in;
         }
@@ -254,6 +257,19 @@ public class ClipRepository {
                 }
             }
             return list;
+        } catch (final SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public void deleteClipsNotImportedAt(ZonedDateTime startedAt) {
+        logger.debug("Deleting all clips not imported at {}", startedAt);
+        try (var conn = pool.getConnection()) {
+            try (var stmt = conn.prepareStatement("delete from clip where imported_at <> ?")) {
+                stmt.setObject(1, startedAt);
+                var numDeleted = stmt.executeUpdate();
+                logger.debug("Deleted {} clips not imported at {}", numDeleted, startedAt);
+            }
         } catch (final SQLException e) {
             throw new RuntimeException(e);
         }
