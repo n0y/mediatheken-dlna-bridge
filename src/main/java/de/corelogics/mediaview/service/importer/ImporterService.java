@@ -72,7 +72,7 @@ public class ImporterService {
         var nextFullUpdateAt = clipRepository
                 .findLastFullImport()
                 .map(t -> t.plus(updateIntervalFullHours, ChronoUnit.HOURS))
-                .filter(now::isAfter)
+                .filter(now::isBefore)
                 .orElseGet(() -> now.plus(10, ChronoUnit.SECONDS));
         long inSeconds = ChronoUnit.SECONDS.between(now, nextFullUpdateAt);
         logger.info("Scheduling next full import at {} (in {} seconds from now)", nextFullUpdateAt, inSeconds);
