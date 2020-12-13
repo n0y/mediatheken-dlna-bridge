@@ -36,10 +36,7 @@ import java.io.File;
 import java.sql.SQLException;
 import java.text.MessageFormat;
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
-import java.util.Optional;
+import java.util.*;
 
 @Singleton
 public class ClipRepository {
@@ -65,18 +62,23 @@ public class ClipRepository {
                             "create table if not exists clip (" +
                                     "id varchar(255) primary key, " +
                                     "channelname varchar(255), " +
+                                    "channelname_lo varchar(255) as lower(channelname)," +
                                     "containedin varchar(255)," +
+                                    "containedin_lo varchar(255) as lower(containedin)," +
                                     "description text," +
                                     "duration varchar(32)," +
                                     "title varchar(255)," +
-                                    "url varchar(512)," +
+                                    "title_lo varchar(255) as lower(title)," +
+                                    "url_normal varchar(512)," +
                                     "urlhd varchar(512)," +
                                     "size long," +
                                     "broadcasted_at timestamp with time zone," +
                                     "imported_at timestamp with time zone)");
                     logger.debug("ensuring clip indexes exist");
                     statement.execute("create index if not exists idx_clip_channelname on clip(channelname)");
+                    statement.execute("create index if not exists idx_clip_channelname_lo on clip(channelname_lo)");
                     statement.execute("create index if not exists idx_clip_containedin on clip(containedin)");
+                    statement.execute("create index if not exists idx_clip_containedin_lo on clip(containedin_lo)");
                     statement.execute("create index if not exists idx_clip_broadcasted_at on clip(broadcasted_at)");
                     statement.execute("create index if not exists idx_clip_imported_at on clip(imported_at)");
 
@@ -146,18 +148,22 @@ public class ClipRepository {
         }
     }
 
-    public List<String> findAllContainedIns(String channelName) {
+    /**
+     * @return name to number of clips
+     */
+    public Map<String, Integer> findAllContainedIns(String channelName) {
         logger.debug("Finding all containedIns for channel '{}'", channelName);
         try {
-            var containedIns = new ArrayList<String>();
+            var containedIns = new HashMap<String, Integer>();
             try (var conn = pool.getConnection()) {
-                try (var stmt = conn.prepareStatement("select containedin, count(*) as clipcount from clip where channelname=? group by containedin order by containedin asc")) {
+                try (var stmt = conn.prepareStatement("select containedin, count(*) as clipcount from clip where channelname=? group by containedin")) {
                     stmt.setString(1, channelName);
                     try (var result = stmt.executeQuery()) {
                         while (result.next()) {
-                            var v = result.getString(1);
-                            logger.debug("Found containedIn '{}'", v);
-                            containedIns.add(v);
+                            var name = result.getString(1);
+                            var count = result.getInt(2);
+                            logger.debug("Found containedIn '{}' ({} clips)", name, count);
+                            containedIns.put(name, count);
                         }
                     }
                 }
@@ -168,19 +174,23 @@ public class ClipRepository {
         }
     }
 
-    public List<String> findAllContainedIns(String channelName, String startingWith) {
+    /**
+     * @return name to number of clips
+     */
+    public Map<String, Integer> findAllContainedIns(String channelName, String startingWith) {
         logger.debug("Finding all containedIns for channel '{}' starting with '{}'", channelName, startingWith);
         try {
-            var containedIns = new ArrayList<String>();
+            var containedIns = new HashMap<String, Integer>();
             try (var conn = pool.getConnection()) {
-                try (var stmt = conn.prepareStatement("select containedin, count(*) as clipcount from clip where channelname=? and lower(containedin) like ? group by containedin order by containedin asc")) {
+                try (var stmt = conn.prepareStatement("select containedin, count(*) as clipcount from clip where channelname=? and containedin_lo like ? group by containedin")) {
                     stmt.setString(1, channelName);
                     stmt.setString(2, startingWith.toLowerCase(Locale.GERMAN) + "%");
                     try (var result = stmt.executeQuery()) {
                         while (result.next()) {
-                            var v = result.getString(1);
-                            logger.debug("found containedIn '{}'", v);
-                            containedIns.add(v);
+                            var name = result.getString(1);
+                            var count = result.getInt(2);
+                            logger.debug("Found containedIn '{}' ({} clips)", name, count);
+                            containedIns.put(name, count);
                         }
                     }
                 }
@@ -197,16 +207,16 @@ public class ClipRepository {
         try {
             try (var conn = pool.getConnection()) {
                 try (var stmt = conn.prepareStatement(
-                        "merge into clip (id, channelname, containedin, description, duration, title, url, urlhd, size, broadcasted_at, imported_at) " +
+                        "merge into clip (id, channelname, containedin, description, duration, title, url_normal, urlhd, size, broadcasted_at, imported_at) " +
                                 "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
                     for (var c : clipEntries) {
                         logger.debug("Adding ClipEntry {}", c);
-                        stmt.setString(1, limit(MessageFormat.format("{0}:{1}", c.getUrl(), c.getUrlHd())));
-                        stmt.setString(2, limit(c.getChannelName()));
-                        stmt.setString(3, limit(c.getContainedIn()));
-                        stmt.setString(4, limit(c.getDescription()));
+                        stmt.setString(1, limitShort(MessageFormat.format("{0}:{1}", c.getUrl(), c.getUrlHd())));
+                        stmt.setString(2, limitShort(c.getChannelName()));
+                        stmt.setString(3, limitShort(c.getContainedIn()));
+                        stmt.setString(4, limitLong(c.getDescription()));
                         stmt.setString(5, c.getDuration());
-                        stmt.setString(6, limit(c.getTitle()));
+                        stmt.setString(6, limitShort(c.getTitle()));
                         stmt.setString(7, c.getUrl());
                         stmt.setString(8, c.getUrlHd());
                         stmt.setLong(9, c.getSize());
@@ -223,21 +233,30 @@ public class ClipRepository {
         }
     }
 
-    private String limit(String in) {
-        if (in.length() < 254) {
+    private String limitShort(String in) {
+        return limit(in, 254);
+    }
+
+    private String limitLong(String in) {
+        return limit(in, 4000);
+    }
+
+    private String limit(String in, int length) {
+        if (in.length() < length) {
             return in;
         }
         return in.substring(0, 254);
     }
 
-    public List<ClipEntry> listClips(String channelId, String containedIn) {
+
+    public List<ClipEntry> findAllClips(String channelId, String containedIn) {
         logger.debug("Finding all clips for channel '{}' and containedIn '{}'", channelId, containedIn);
         try {
             var list = new ArrayList<ClipEntry>();
             try (var conn = pool.getConnection()) {
-                try (var stmt = conn.prepareStatement("select title, broadcasted_at, description, size, url, urlhd, duration from clip where channelname=? and containedin=? order by broadcasted_at desc")) {
-                    stmt.setString(1, channelId);
-                    stmt.setString(2, containedIn);
+                try (var stmt = conn.prepareStatement("select title, broadcasted_at, description, size, url_normal, urlhd, duration from clip where channelname_lo=? and containedin_lo=? order by broadcasted_at desc")) {
+                    stmt.setString(1, channelId.toLowerCase(Locale.GERMAN));
+                    stmt.setString(2, containedIn.toLowerCase(Locale.GERMAN));
                     try (var result = stmt.executeQuery()) {
                         while (result.next()) {
                             var v = new ClipEntry(
