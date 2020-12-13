@@ -24,16 +24,14 @@
 
 package de.corelogics.mediaview.client.mediathekview;
 
+import java.util.Optional;
+
 public class FilmlisteMetaData {
-    private String validUntil;
-
-    private String createdAt;
-
-    private String version;
-
-    private String creator;
-
-    private String hash;
+    private final String validUntil;
+    private final String createdAt;
+    private final String version;
+    private final String creator;
+    private final String hash;
 
     public FilmlisteMetaData(String validUntil, String createdAt, String version, String creator, String hash) {
         this.validUntil = validUntil;
@@ -43,24 +41,24 @@ public class FilmlisteMetaData {
         this.hash = hash;
     }
 
-    public String getValidUntil() {
-        return validUntil;
+    public Optional<String> getValidUntil() {
+        return Optional.ofNullable(validUntil);
     }
 
-    public String getCreatedAt() {
-        return createdAt;
+    public Optional<String> getCreatedAt() {
+        return Optional.ofNullable(createdAt);
     }
 
-    public String getVersion() {
-        return version;
+    public Optional<String> getVersion() {
+        return Optional.ofNullable(version);
     }
 
-    public String getCreator() {
-        return creator;
+    public Optional<String> getCreator() {
+        return Optional.ofNullable(creator);
     }
 
-    public String getHash() {
-        return hash;
+    public Optional<String> getHash() {
+        return Optional.ofNullable(hash);
     }
 
     @Override

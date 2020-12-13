@@ -24,26 +24,22 @@
 
 package de.corelogics.mediaview.client.mediathekview;
 
-import org.tukaani.xz.XZInputStream;
-
 import javax.inject.Singleton;
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Spliterator;
 import java.util.Spliterators;
-import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 @Singleton
 public class MediathekViewImporter {
-    public Stream<ClipEntry> iterateEntries(InputStream input) throws IOException {
-//        var iterator = new ClipIterator(new XZInputStream(new FileInputStream(new File("orig-Filmliste-akt.json.xz"))));
+    public MediathekListe createList(InputStream input) throws IOException {
         var iterator = new ClipIterator(input);
-        return StreamSupport.stream(
-                Spliterators.spliteratorUnknownSize(iterator,
-                        Spliterator.ORDERED),
-                false);
+        return new MediathekListe(
+                StreamSupport.stream(
+                        Spliterators.spliteratorUnknownSize(iterator,
+                                Spliterator.ORDERED),
+                        false),
+                iterator.getMetaData());
     }
 }

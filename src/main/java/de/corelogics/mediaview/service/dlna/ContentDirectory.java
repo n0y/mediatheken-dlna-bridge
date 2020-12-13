@@ -25,6 +25,8 @@
 package de.corelogics.mediaview.service.dlna;
 
 import de.corelogics.mediaview.repository.clip.ClipRepository;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.fourthline.cling.support.contentdirectory.AbstractContentDirectoryService;
 import org.fourthline.cling.support.contentdirectory.ContentDirectoryErrorCode;
 import org.fourthline.cling.support.contentdirectory.ContentDirectoryException;
@@ -45,6 +47,8 @@ import java.util.stream.Collectors;
 import static java.util.Optional.ofNullable;
 
 public class ContentDirectory extends AbstractContentDirectoryService {
+    private final Logger logger = LogManager.getLogger();
+
     private final ClipRepository clipRepository;
     private final DateTimeFormatter dateTimeFormat = DateTimeFormatter.ofPattern("dd.MM.");
 
@@ -59,8 +63,7 @@ public class ContentDirectory extends AbstractContentDirectoryService {
                                SortCriterion[] orderby)
             throws ContentDirectoryException {
         try {
-
-            DIDLContent didl = new DIDLContent();
+            var didl = new DIDLContent();
             if ("0".equals(objectID)) {
                 addFavorites(objectID, didl);
                 didl.addContainer(new StorageFolder(
@@ -70,7 +73,7 @@ public class ContentDirectory extends AbstractContentDirectoryService {
                         100,
                         null));
             } else if (objectID.startsWith("urn:corelogics.de:mediaview:sendungaz")) {
-                clipRepository.listChannels().stream().map(channelName ->
+                clipRepository.findAllChannels().stream().map(channelName ->
                         new StorageFolder(
                                 "urn:corelogics.de:mediaview:channel:" + encodeB64(channelName),
                                 objectID,
@@ -81,7 +84,7 @@ public class ContentDirectory extends AbstractContentDirectoryService {
                         .forEach(didl::addContainer);
             } else if (objectID.startsWith("urn:corelogics.de:mediaview:channel:")) {
                 var channelId = decodeB64(objectID.substring("urn:corelogics.de:mediaview:channel:".length()));
-                final List<String> containedIns = clipRepository.listContainedIn(channelId);
+                final List<String> containedIns = clipRepository.findAllContainedIns(channelId);
                 if (containedIns.size() < 200) {
                     containedIns.stream().map(containedIn ->
                             containedInToStorageFolder(objectID, channelId, containedIn))
@@ -102,7 +105,7 @@ public class ContentDirectory extends AbstractContentDirectoryService {
                 var split = objectID.split(":");
                 var channelId = decodeB64(split[split.length - 2]);
                 var startingWith = decodeB64(split[split.length - 1]);
-                clipRepository.listContainedIn(channelId, startingWith).stream()
+                clipRepository.findAllContainedIns(channelId, startingWith).stream()
                         .map(containedIn -> containedInToStorageFolder(objectID, channelId, containedIn))
                         .forEach(didl::addContainer);
             } else if (objectID.startsWith("urn:corelogics.de:mediaview:show:")) {
@@ -112,7 +115,7 @@ public class ContentDirectory extends AbstractContentDirectoryService {
                 clipRepository.listClips(channelId, containedIn).stream().map(entry -> new VideoItem(
                         "urn:corelogics.de:mediaview:clip:" + entry.getTitle().hashCode(),
                         objectID,
-                        dateTimeFormat.format(entry.getBroadcastedAt()) +" " + lengthLimit(entry.getTitle()),
+                        dateTimeFormat.format(entry.getBroadcastedAt()) + " " + lengthLimit(entry.getTitle()),
                         "",
                         new Res(new MimeType("video", "mp4"), entry.getSize(), entry.getDuration(), 2000L, ofNullable(entry.getUrlHd()).orElse(entry.getUrl()))))
                         .forEach(didl::addItem);
@@ -120,11 +123,10 @@ public class ContentDirectory extends AbstractContentDirectoryService {
 
             return new BrowseResult(new DIDLParser().generate(didl), didl.getCount(), didl.getCount());
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.warn("Error creating a browse response", e);
             throw new ContentDirectoryException(
                     ContentDirectoryErrorCode.CANNOT_PROCESS,
-                    e.toString()
-            );
+                    e.toString());
         }
     }
 

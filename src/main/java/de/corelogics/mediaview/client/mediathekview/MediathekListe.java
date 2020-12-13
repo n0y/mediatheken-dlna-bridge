@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020 corelogics.de
+ * Copyright (c) 2020 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,29 +22,24 @@
  * SOFTWARE.
  */
 
-package de.corelogics.mediaview.client.mediatheklist;
+package de.corelogics.mediaview.client.mediathekview;
 
-import com.google.inject.AbstractModule;
-import com.google.inject.Provides;
-import com.google.inject.Singleton;
-import retrofit2.Retrofit;
-import retrofit2.converter.jaxb.JaxbConverterFactory;
+import java.util.stream.Stream;
 
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
-import java.util.List;
+public class MediathekListe {
+    private final Stream<ClipEntry> stream;
+    private final FilmlisteMetaData metaData;
 
-public class MediathekListClientBuilder extends AbstractModule {
-	@Provides
-	@Singleton
-	MediathekListeClient createClient() {
-		var retrofit =
-				new Retrofit.Builder()
-						.baseUrl("https://res.mediathekview.de/")
-						.addConverterFactory(JaxbConverterFactory.create())
-						.build();
-		return retrofit.create(MediathekListeClient.class);
-	}
+    public MediathekListe(Stream<ClipEntry> stream, FilmlisteMetaData metaData) {
+        this.stream = stream;
+        this.metaData = metaData;
+    }
+
+    public FilmlisteMetaData getMetaData() {
+        return this.metaData;
+    }
+
+    public Stream<ClipEntry> stream() {
+        return stream;
+    }
 }

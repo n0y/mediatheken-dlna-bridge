@@ -24,27 +24,38 @@
 
 package de.corelogics.mediaview.service.importer;
 
-import de.corelogics.mediaview.client.mediatheklist.MediathekListeClient;
+import com.netflix.governator.annotations.Configuration;
+import de.corelogics.mediaview.client.mediatheklist.MediathekListClient;
 import de.corelogics.mediaview.client.mediathekview.ClipEntry;
 import de.corelogics.mediaview.client.mediathekview.MediathekViewImporter;
 import de.corelogics.mediaview.repository.clip.ClipRepository;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import java.time.ZonedDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Singleton
 public class ImporterService {
-    private final MediathekListeClient mediathekListeClient;
+    private final Logger logger = LogManager.getLogger();
+
+    @Configuration("UPDATEINTERVAL_FULL_HOURS")
+    private int updateIntervalFullHours = 24;
+
+    private final MediathekListClient mediathekListeClient;
     private final MediathekViewImporter importer;
     private final ClipRepository clipRepository;
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
     @Inject
-    public ImporterService(MediathekListeClient mediathekListeClient, MediathekViewImporter importer, ClipRepository clipRepository) {
+    public ImporterService(MediathekListClient mediathekListeClient, MediathekViewImporter importer, ClipRepository clipRepository) {
         this.mediathekListeClient = mediathekListeClient;
         this.importer = importer;
         this.clipRepository = clipRepository;
@@ -52,24 +63,45 @@ public class ImporterService {
 
 
     public void scheduleImport() {
-        scheduler.scheduleAtFixedRate(this::importNow, 1, 1, TimeUnit.DAYS);
+        logger.info("Starting import scheduler. Update interval: {} hours", updateIntervalFullHours);
+        scheduleNextFullImport();
     }
 
-    private void importNow() {
+    private void scheduleNextFullImport() {
+        var now = ZonedDateTime.now();
+        var nextFullUpdateAt = clipRepository
+                .findLastFullImport()
+                .map(t -> t.plus(updateIntervalFullHours, ChronoUnit.HOURS))
+                .filter(now::isAfter)
+                .orElseGet(() -> now.plus(10, ChronoUnit.SECONDS));
+        long inSeconds = ChronoUnit.SECONDS.between(now, nextFullUpdateAt);
+        logger.info("Scheduling next full import at {} (in {} seconds from now)", nextFullUpdateAt, inSeconds);
+        scheduler.schedule(this::fullImport, inSeconds, TimeUnit.SECONDS);
+    }
+
+    private void fullImport() {
+        logger.info("Starting a full import");
         try {
-            var list = new ArrayList<ClipEntry>(1000);
+            var entryUpdateList = new ArrayList<ClipEntry>(1000);
+            var numImported = new AtomicInteger();
             try (var input = mediathekListeClient.openMediathekListeFull()) {
-                this.importer.iterateEntries(input).forEach(e -> {
-                    list.add(e);
-                    if (list.size() > 999) {
-                        System.out.println(e);
-                        clipRepository.addClips(list);
-                        list.clear();
+                var list = importer.createList(input);
+                list.stream().forEach(e -> {
+                    if (numImported.incrementAndGet() % 10000 == 0) {
+                        logger.info("Full imported yielded {} clips until now", numImported::get);
+                    }
+                    entryUpdateList.add(e);
+                    if (entryUpdateList.size() > 999) {
+                        clipRepository.addClips(entryUpdateList);
+                        entryUpdateList.clear();
                     }
                 });
-                clipRepository.addClips(list);
+                clipRepository.addClips(entryUpdateList);
+                clipRepository.updateLastFullImport(ZonedDateTime.now());
+                logger.info("Successfully performed a full import, yielding {} clips", numImported::get);
+                scheduleNextFullImport();
             }
-        } catch(final Exception e) {
+        } catch (final Exception e) {
             e.printStackTrace();
         }
     }

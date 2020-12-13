@@ -22,30 +22,20 @@
  * SOFTWARE.
  */
 
-package de.corelogics.mediaview;
+package de.corelogics.mediaview.client.mediatheklist;
 
-import com.netflix.governator.LifecycleManager;
-import com.netflix.governator.guice.LifecycleInjector;
-import de.corelogics.mediaview.config.ConfigProviderFactory;
-import de.corelogics.mediaview.service.dlna.DlnaServer;
-import de.corelogics.mediaview.service.importer.ImporterService;
-import org.fourthline.cling.model.ValidationException;
+import org.junit.jupiter.api.Test;
 
-public class Main {
-    public static void main(String[] args) throws InterruptedException, ValidationException {
-        System.setProperty("java.util.logging.manager", "org.apache.logging.log4j.jul.LogManager");
+import java.io.IOException;
 
-        var injector = LifecycleInjector.builder()
-                .withBootstrapModule(bootstrapBinder ->
-                        bootstrapBinder.bindConfigurationProvider().toInstance(new ConfigProviderFactory().createConfigurationProvider()))
-                .build()
-                .createInjector();
-        injector.getInstance(LifecycleManager.class).notifyStarted();
+class MediathekListClientTest {
+    private MediathekListClient sut = new MediathekListClient();
 
-        injector.getInstance(ImporterService.class).scheduleImport();
-        injector.getInstance(DlnaServer.class).start();
-        Thread.currentThread().join();
+    @Test
+    void run() throws IOException {
+        try (var in = sut.openMediathekListeFull()) {
+
+        }
     }
-
 
 }

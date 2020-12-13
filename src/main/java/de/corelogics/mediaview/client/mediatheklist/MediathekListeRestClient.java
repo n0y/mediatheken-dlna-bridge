@@ -24,21 +24,16 @@
 
 package de.corelogics.mediaview.client.mediatheklist;
 
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import de.corelogics.mediaview.client.mediatheklist.model.MediathekListeMetadata;
+import okhttp3.ResponseBody;
+import retrofit2.Call;
+import retrofit2.http.GET;
+import retrofit2.http.Url;
 
-import java.io.IOException;
+interface MediathekListeRestClient {
+    @GET("/akt.xml")
+    Call<MediathekListeMetadata> getMediathekListeMetadata();
 
-import static org.junit.jupiter.api.Assertions.*;
-
-class MediathekListClientBuilderTest {
-    private MediathekListeClient sut = new MediathekListClientBuilder().createClient();
-
-    @Test
-    void run() throws IOException {
-        try (var in = sut.openMediathekListeFull()) {
-
-        }
-    }
-
+    @GET
+    Call<ResponseBody> downloadFromUrl(@Url String fileUrl);
 }

@@ -24,35 +24,41 @@
 
 package de.corelogics.mediaview.client.mediatheklist;
 
+import com.google.inject.Singleton;
+import com.netflix.governator.annotations.Configuration;
 import de.corelogics.mediaview.client.mediatheklist.model.MediathekListeMetadata;
-import okhttp3.ResponseBody;
 import org.tukaani.xz.XZInputStream;
-import retrofit2.Call;
 import retrofit2.Response;
-import retrofit2.http.GET;
-import retrofit2.http.Url;
+import retrofit2.Retrofit;
+import retrofit2.converter.jaxb.JaxbConverterFactory;
 
+import javax.annotation.PostConstruct;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
 
-import static java.util.Optional.ofNullable;
+@Singleton
+public class MediathekListClient {
+    @Configuration("MEDIATHEKVIEW_LIST_BASEURL")
+    private String mediathekViewListBaseUrl;
+    private MediathekListeRestClient restClient;
 
-public interface MediathekListeClient {
-    @GET("/akt.xml")
-    Call<MediathekListeMetadata> getMediathekListeMetadata();
+    @PostConstruct
+    MediathekListeRestClient createClient() {
+        this.restClient = new Retrofit.Builder()
+                .baseUrl(mediathekViewListBaseUrl)
+                .addConverterFactory(JaxbConverterFactory.create())
+                .build()
+                .create(MediathekListeRestClient.class);
+        return this.restClient;
+    }
 
-    @GET
-    Call<ResponseBody> downloadFromUrl(@Url String fileUrl);
-
-    default InputStream openMediathekListeFull() throws IOException {
-        Response<MediathekListeMetadata> response = this.getMediathekListeMetadata().execute();
+    public InputStream openMediathekListeFull() throws IOException {
+        Response<MediathekListeMetadata> response = restClient.getMediathekListeMetadata().execute();
         if (response.body() == null) {
             throw new IOException("Could not load MediathekListe: " + response.code());
         }
-        for (var server: response.body().getServers()) {
-            var binaryResponse = this.downloadFromUrl(server.getUrl()).execute();
+        for (var server : response.body().getServers()) {
+            var binaryResponse = restClient.downloadFromUrl(server.getUrl()).execute();
             if (binaryResponse.isSuccessful()) {
                 return new XZInputStream(binaryResponse.body().byteStream());
             }

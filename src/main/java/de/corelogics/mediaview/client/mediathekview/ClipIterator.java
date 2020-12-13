@@ -72,6 +72,10 @@ class ClipIterator implements Iterator<ClipEntry> {
         }
     }
 
+    public FilmlisteMetaData getMetaData() {
+        return this.metaData;
+    }
+
     @Override
     public boolean hasNext() {
         return currentEntry.isPresent();

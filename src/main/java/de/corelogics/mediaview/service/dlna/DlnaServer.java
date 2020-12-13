@@ -25,6 +25,8 @@
 package de.corelogics.mediaview.service.dlna;
 
 import de.corelogics.mediaview.repository.clip.ClipRepository;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.fourthline.cling.UpnpServiceImpl;
 import org.fourthline.cling.binding.annotations.AnnotationLocalServiceBinder;
 import org.fourthline.cling.model.DefaultServiceManager;
@@ -38,6 +40,8 @@ import java.util.UUID;
 
 
 public class DlnaServer {
+    private final Logger logger = LogManager.getLogger();
+
     private final ClipRepository clipRepository;
 
     @Inject
@@ -46,6 +50,7 @@ public class DlnaServer {
     }
 
     public void start() throws ValidationException {
+        logger.debug("Starting DLNA server");
         var type = new UDADeviceType("MediaServer", 1);
         var details = new DeviceDetails(
                 "Mediatheken",
@@ -67,5 +72,6 @@ public class DlnaServer {
 
         var upnpService = new UpnpServiceImpl();
         upnpService.getRegistry().addDevice(localDevice);
+        logger.info("Successfully started DLNA server. It may take some time for it to become visible in the network.");
     }
 }
