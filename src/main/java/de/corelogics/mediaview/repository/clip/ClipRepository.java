@@ -32,29 +32,44 @@ import org.apache.logging.log4j.Logger;
 import org.h2.jdbcx.JdbcConnectionPool;
 
 import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
 import java.io.File;
 import java.sql.SQLException;
 import java.text.MessageFormat;
 import java.time.ZonedDateTime;
 import java.util.*;
+import java.util.function.Supplier;
 
 @Singleton
 public class ClipRepository {
     private final Logger logger = LogManager.getLogger();
 
     @Configuration("DATABASE_LOCATION")
-    private String databaseLocation;
+    String databaseLocation;
+
+    Supplier<Long> maxMemorySupplier = Runtime.getRuntime()::maxMemory;
 
     private JdbcConnectionPool pool;
 
     @PostConstruct
-    private void initialize() {
+    void initialize() {
+        var jdbcUrl = calcJdbcUrl(calcCacheSize());
+        initialize(jdbcUrl);
+        logger.info("Successfully opened database at {} with {}", () -> null == databaseLocation ? "<in-mem>" : new File(databaseLocation).getAbsolutePath(), () -> jdbcUrl);
+    }
+
+    String calcJdbcUrl(long cacheSize) {
+        logger.debug("initializing database at {}", () -> null == databaseLocation ? "<in-mem>" : new File(databaseLocation).getAbsolutePath());
+        return String.format("jdbc:h2:%s;CACHE_SIZE=%d", databaseLocation, cacheSize / 1024);
+    }
+
+    long calcCacheSize() {
+        return Math.min(Math.max(16_000_000L, maxMemorySupplier.get() - 150_000_000), 1_500_000_000L);
+    }
+
+    void initialize(String jdbcUrl) {
         try {
-            var cacheSize = Math.min(Math.max(16_000_000L, Runtime.getRuntime().maxMemory() - 150_000_000), 1_500_000_000L);
-            logger.debug("initializing database at {}", () -> new File(databaseLocation).getAbsolutePath());
-            var jdbcUrl = String.format("jdbc:h2:%s;CACHE_SIZE=%d", databaseLocation, cacheSize / 1024);
             this.pool = JdbcConnectionPool.create(jdbcUrl, "sa", "sa");
-            logger.info("Successfully opened database at {} with {}", () -> new File(databaseLocation).getAbsolutePath(), () -> jdbcUrl);
             try (var conn = pool.getConnection()) {
                 try (var statement = conn.createStatement()) {
                     logger.debug("ensuring table clip exists");
@@ -92,6 +107,11 @@ public class ClipRepository {
         } catch (final SQLException e) {
             throw new RuntimeException("Could not initialize database", e);
         }
+    }
+
+    @PreDestroy
+    void destroy() {
+        this.pool.dispose();
     }
 
     public Optional<ZonedDateTime> findLastFullImport() {
@@ -260,15 +280,12 @@ public class ClipRepository {
                     try (var result = stmt.executeQuery()) {
                         while (result.next()) {
                             var v = new ClipEntry(
-                                    result.getString(1),
-                                    containedIn,
-                                    result.getObject(2, ZonedDateTime.class),
+                                    channelId, containedIn, result.getObject(2, ZonedDateTime.class), result.getString(1),
                                     result.getString(3),
-                                    channelId,
-                                    result.getLong(4),
+                                    result.getString(7), result.getLong(4),
                                     result.getString(5),
-                                    result.getString(6),
-                                    result.getString(7));
+                                    result.getString(6)
+                            );
                             logger.debug("Found clipEntry {}", v);
                             list.add(v);
                         }

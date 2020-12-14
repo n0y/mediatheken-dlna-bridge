@@ -155,15 +155,12 @@ class ClipIterator implements Iterator<ClipEntry> {
                                     .orElseGet(() -> LocalDateTime.now().atZone(ZONE_BERLIN))));
             var broadcastTime = LocalDateTime.from(dateTimeFormat.parse(date + " " + time)).atZone(ZONE_BERLIN);
             return Optional.of(new ClipEntry(
-                    ofNullable(res.get("Titel")).orElseGet(() -> currentEntry.map(ClipEntry::getTitle).orElse("")),
-                    ofNullable(res.get("Thema")).orElseGet(() -> currentEntry.map(ClipEntry::getContainedIn).orElse("")),
-                    broadcastTime,
+                    ofNullable(res.get("Sender")).orElseGet(() -> currentEntry.map(ClipEntry::getChannelName).orElse("")), ofNullable(res.get("Thema")).orElseGet(() -> currentEntry.map(ClipEntry::getContainedIn).orElse("")), broadcastTime, ofNullable(res.get("Titel")).orElseGet(() -> currentEntry.map(ClipEntry::getTitle).orElse("")),
                     ofNullable(res.get("Beschreibung")).orElseGet(() -> currentEntry.map(ClipEntry::getDescription).orElse("")),
-                    ofNullable(res.get("Sender")).orElseGet(() -> currentEntry.map(ClipEntry::getChannelName).orElse("")),
-                    parseLong(res.getOrDefault("Größe [MB]", "0")) * 1024 * 1024,
+                    res.getOrDefault("Dauer", ""), parseLong(res.getOrDefault("Größe [MB]", "0")) * 1024 * 1024,
                     url,
-                    patchUrl(url, res.getOrDefault("Url HD", "")),
-                    res.getOrDefault("Dauer", "")));
+                    patchUrl(url, res.getOrDefault("Url HD", ""))
+            ));
         } catch (final RuntimeException e) {
             System.out.println(e.getClass().getSimpleName() + ": " + e.getMessage() + "\n" + res);
         }

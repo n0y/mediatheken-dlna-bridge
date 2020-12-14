@@ -25,6 +25,7 @@
 package de.corelogics.mediaview.client.mediathekview;
 
 import java.time.ZonedDateTime;
+import java.util.Objects;
 import java.util.StringJoiner;
 
 public class ClipEntry {
@@ -38,7 +39,7 @@ public class ClipEntry {
     private final String urlHd;
     private final String duration;
 
-    public ClipEntry(String title, String containedIn, ZonedDateTime broadcastedAt, String description, String channelName, long size, String url, String urlHd, String duration) {
+    public ClipEntry(String channelName, String containedIn, ZonedDateTime broadcastedAt, String title, String description, String duration, long size, String url, String urlHd) {
         this.containedIn = containedIn;
         this.title = title;
         this.broadcastedAt = broadcastedAt;
@@ -84,6 +85,27 @@ public class ClipEntry {
 
     public String getDuration() {
         return duration;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof ClipEntry)) return false;
+        ClipEntry clipEntry = (ClipEntry) o;
+        return size == clipEntry.size &&
+                Objects.equals(title, clipEntry.title) &&
+                Objects.equals(containedIn, clipEntry.containedIn) &&
+                Objects.equals(broadcastedAt.toEpochSecond(), clipEntry.broadcastedAt.toEpochSecond()) &&
+                Objects.equals(description, clipEntry.description) &&
+                Objects.equals(channelName, clipEntry.channelName) &&
+                Objects.equals(url, clipEntry.url) &&
+                Objects.equals(urlHd, clipEntry.urlHd) &&
+                Objects.equals(duration, clipEntry.duration);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(title, containedIn, broadcastedAt.toEpochSecond(), description, channelName, size, url, urlHd, duration);
     }
 
     @Override
