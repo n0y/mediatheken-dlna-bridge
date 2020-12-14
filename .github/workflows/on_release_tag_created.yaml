@@ -47,7 +47,10 @@ jobs:
           tag_name: ${{ github.ref }}
           release_name: Release ${{ github.ref }}
           body: |
-            Change logs are still a TODO in this project
+            Release ${{ github.ref }}
+            Changelogs are still a TODO for this project.
+            If you know how to create changelogs from git commits in a nice way, then let me know.
+            Or feel free to create a pull request for it.
           draft: true
           prerelease: true
 
