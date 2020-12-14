@@ -84,10 +84,11 @@ jobs:
           tags: |
             corelogicsde/mediatheken-dlna-bridge:latest
             corelogicsde/mediatheken-dlna-bridge:${{ steps.get_version.outputs.version-without-v }}
-
-      - name: Docker Hub Description
-        uses: peter-evans/dockerhub-description@v2
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_PASSWORD }}
-          repository: corelogicsde/mediatheken-dlna-bridge
+#
+# Doesn't work yet. A permission problem?
+#      - name: Docker Hub Description
+#        uses: peter-evans/dockerhub-description@v2
+#        with:
+#          username: ${{ secrets.DOCKERHUB_USERNAME }}
+#          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+#          repository: corelogicsde/mediatheken-dlna-bridge
