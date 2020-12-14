@@ -1,6 +1,5 @@
 FROM openjdk:16-jdk-slim-buster
-ADD https://github.com/just-containers/s6-overlay/releases/download/v2.1.0.2/s6-overlay-amd64-installer /tmp/
-RUN chmod +x /tmp/s6-overlay-amd64-installer && /tmp/s6-overlay-amd64-installer /
+COPY --from=arpaulnet/s6-overlay-stage:2.0 / /
 ADD target/libraries/* /app/libraries/
 ADD target/*.jar /app/
 WORKDIR /app
