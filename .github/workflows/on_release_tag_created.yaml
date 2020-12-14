@@ -48,8 +48,11 @@ jobs:
           release_name: Release ${{ github.ref }}
           body: |
             Change logs are still a TODO in this project
-          draft: false
+          draft: true
           prerelease: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
 
       - name: Upload Release Asset
         id: upload-release-asset
