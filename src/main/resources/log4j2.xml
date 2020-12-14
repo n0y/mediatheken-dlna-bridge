@@ -32,6 +32,7 @@
         </Console>
     </Appenders>
     <Loggers>
+        <Logger name="org.fourthline.cling.protocol.RetrieveRemoteDescriptors" level="error"/>
         <Logger name="de.corelogics.mediaview" level="info"/>
         <Root level="warn">
             <AppenderRef ref="Console"/>
