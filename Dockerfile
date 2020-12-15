@@ -1,4 +1,4 @@
-FROM openjdk:16-jdk-slim-buster
+FROM openjdk:11-slim-buster
 COPY --from=arpaulnet/s6-overlay-stage:2.0 / /
 
 RUN groupadd --gid 1000 medlna && useradd --gid 1000 --no-create-home --uid 1000 --shell /bin/false medlna
