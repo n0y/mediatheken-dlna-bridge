@@ -166,7 +166,7 @@ class ClipRepositoryTest {
                 a.assertThat(sut.findAllClips("channel:A", "show:1")).extracting(ClipEntry::getTitle)
                         .containsExactlyInAnyOrder("title:o1", "title:o2", "title:n1", "title:n2");
 
-                sut.deleteClipsNotImportedAt(newImportTime);
+                sut.deleteClipsImportedBefore(newImportTime);
 
                 a.assertThat(sut.findAllClips("channel:A", "show:1")).extracting(ClipEntry::getTitle)
                         .containsExactlyInAnyOrder("title:n1", "title:n2");
@@ -226,7 +226,6 @@ class ClipRepositoryTest {
                 "show:" + show,
                 REF_TIME.minusDays(daysBefore),
                 "title:" + title,
-                "desc:" + channel + "," + show + "," + title,
                 "04:12:00",
                 100L,
                 "https://" + show + "." + channel + ".test/" + title + ".mp4",

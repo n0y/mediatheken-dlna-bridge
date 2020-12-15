@@ -32,18 +32,16 @@ public class ClipEntry {
     private final String title;
     private final String containedIn;
     private final ZonedDateTime broadcastedAt;
-    private final String description;
     private final String channelName;
     private final long size;
     private final String url;
     private final String urlHd;
     private final String duration;
 
-    public ClipEntry(String channelName, String containedIn, ZonedDateTime broadcastedAt, String title, String description, String duration, long size, String url, String urlHd) {
+    public ClipEntry(String channelName, String containedIn, ZonedDateTime broadcastedAt, String title, String duration, long size, String url, String urlHd) {
         this.containedIn = containedIn;
         this.title = title;
         this.broadcastedAt = broadcastedAt;
-        this.description = description;
         this.channelName = channelName;
         this.size = size;
         this.url = url;
@@ -61,10 +59,6 @@ public class ClipEntry {
 
     public ZonedDateTime getBroadcastedAt() {
         return broadcastedAt;
-    }
-
-    public String getDescription() {
-        return description;
     }
 
     public String getChannelName() {
@@ -96,7 +90,6 @@ public class ClipEntry {
                 Objects.equals(title, clipEntry.title) &&
                 Objects.equals(containedIn, clipEntry.containedIn) &&
                 Objects.equals(broadcastedAt.toEpochSecond(), clipEntry.broadcastedAt.toEpochSecond()) &&
-                Objects.equals(description, clipEntry.description) &&
                 Objects.equals(channelName, clipEntry.channelName) &&
                 Objects.equals(url, clipEntry.url) &&
                 Objects.equals(urlHd, clipEntry.urlHd) &&
@@ -105,7 +98,7 @@ public class ClipEntry {
 
     @Override
     public int hashCode() {
-        return Objects.hash(title, containedIn, broadcastedAt.toEpochSecond(), description, channelName, size, url, urlHd, duration);
+        return Objects.hash(title, containedIn, broadcastedAt.toEpochSecond(), channelName, size, url, urlHd, duration);
     }
 
     @Override
@@ -114,7 +107,6 @@ public class ClipEntry {
                 .add("title='" + title + "'")
                 .add("containedIn='" + containedIn + "'")
                 .add("broadcastedAt=" + broadcastedAt)
-                .add("description='" + description + "'")
                 .add("channelName='" + channelName + "'")
                 .add("size=" + size)
                 .add("url='" + url + "'")

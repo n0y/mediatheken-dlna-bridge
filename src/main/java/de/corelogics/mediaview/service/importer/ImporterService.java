@@ -99,7 +99,7 @@ public class ImporterService {
                 });
                 clipRepository.addClips(entryUpdateList, startedAt);
                 clipRepository.updateLastFullImport(ZonedDateTime.now());
-                clipRepository.deleteClipsNotImportedAt(startedAt);
+                clipRepository.deleteClipsImportedBefore(startedAt);
                 logger.info("Successfully performed a full import, yielding {} clips", numImported::get);
                 scheduleNextFullImport();
             }
