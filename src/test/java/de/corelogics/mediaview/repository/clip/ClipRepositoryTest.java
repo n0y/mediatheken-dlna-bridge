@@ -226,7 +226,6 @@ class ClipRepositoryTest {
                 "show:" + show,
                 REF_TIME.minusDays(daysBefore),
                 "title:" + title,
-                "desc:" + channel + "," + show + "," + title,
                 "04:12:00",
                 100L,
                 "https://" + show + "." + channel + ".test/" + title + ".mp4",
