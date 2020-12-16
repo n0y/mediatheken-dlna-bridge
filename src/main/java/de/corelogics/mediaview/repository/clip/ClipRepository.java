@@ -24,6 +24,8 @@
 
 package de.corelogics.mediaview.repository.clip;
 
+import com.google.common.hash.HashFunction;
+import com.google.common.hash.Hashing;
 import com.google.inject.Singleton;
 import com.netflix.governator.annotations.Configuration;
 import de.corelogics.mediaview.client.mediathekview.ClipEntry;
@@ -34,15 +36,27 @@ import org.h2.jdbcx.JdbcConnectionPool;
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import java.io.File;
+import java.sql.Connection;
 import java.sql.SQLException;
-import java.text.MessageFormat;
 import java.time.ZonedDateTime;
 import java.util.*;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Supplier;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 @Singleton
 public class ClipRepository {
+    @FunctionalInterface
+    private interface SqlFunction<T> {
+        T execute(Connection conn) throws SQLException;
+    }
+
+    private static final Base64.Encoder BASE64ENC = Base64.getEncoder().withoutPadding();
+    private static final HashFunction HASHING = Hashing.sipHash24();
     private final Logger logger = LogManager.getLogger();
+    private ReadWriteLock dbLock = new ReentrantReadWriteLock();
 
     @Configuration("DATABASE_LOCATION")
     String databaseLocation;
@@ -52,10 +66,43 @@ public class ClipRepository {
     private JdbcConnectionPool pool;
 
     @PostConstruct
-    void initialize() {
-        var jdbcUrl = calcJdbcUrl(calcCacheSize());
-        initialize(jdbcUrl);
-        logger.info("Successfully opened database at {} with {}", () -> null == databaseLocation ? "<in-mem>" : new File(databaseLocation).getAbsolutePath(), () -> jdbcUrl);
+    void openAndInitialize() {
+        dbLock.writeLock().lock();
+        try {
+            openConnection(calcJdbcUrl(calcCacheSize()));
+            initialize();
+            logger.info("Successfully opened database at {} with {}", () -> null == databaseLocation ? "<in-mem>" : new File(databaseLocation).getAbsolutePath(), () -> calcJdbcUrl(calcCacheSize()));
+        } finally {
+            dbLock.writeLock().unlock();
+        }
+    }
+
+    private <T> T withConnection(SqlFunction<T> function) {
+        dbLock.readLock().lock();
+        try (var conn = pool.getConnection()) {
+            return function.execute(conn);
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        } finally {
+            dbLock.readLock().unlock();
+        }
+    }
+
+    public void compact() {
+        dbLock.writeLock().lock();
+        try {
+            try(var conn = pool.getConnection()) {
+                try (var stmt = conn.createStatement()) {
+                    stmt.execute("shutdown compact");
+                }
+            }
+            this.pool.dispose();
+            openConnection(calcJdbcUrl(calcCacheSize()));
+        } catch(SQLException e) {
+            throw new RuntimeException(e);
+        } finally {
+            dbLock.writeLock().unlock();
+        }
     }
 
     String calcJdbcUrl(long cacheSize) {
@@ -67,50 +114,51 @@ public class ClipRepository {
         return Math.min(Math.max(16_000_000L, maxMemorySupplier.get() - 150_000_000), 1_500_000_000L);
     }
 
-    void initialize(String jdbcUrl) {
-        try {
-            this.pool = JdbcConnectionPool.create(jdbcUrl, "sa", "sa");
-            try (var conn = pool.getConnection()) {
-                try (var statement = conn.createStatement()) {
-                    logger.debug("ensuring table clip exists");
-                    statement.execute(
-                            "create table if not exists clip (" +
-                                    "id varchar(255) primary key, " +
-                                    "channelname varchar(255), " +
-                                    "channelname_lo varchar(255) as lower(channelname)," +
-                                    "containedin varchar(255)," +
-                                    "containedin_lo varchar(255) as lower(containedin)," +
-                                    "duration varchar(32)," +
-                                    "title varchar(255)," +
-                                    "title_lo varchar(255) as lower(title)," +
-                                    "url_normal varchar(512)," +
-                                    "urlhd varchar(512)," +
-                                    "size long," +
-                                    "broadcasted_at timestamp with time zone," +
-                                    "imported_at timestamp with time zone)");
-                    statement.execute("alter table clip drop column if exists description");
-                    logger.debug("ensuring clip indexes exist");
-                    statement.execute("create index if not exists idx_clip_channelname on clip(channelname)");
-                    statement.execute("create index if not exists idx_clip_channelname_lo on clip(channelname_lo)");
-                    statement.execute("create index if not exists idx_clip_containedin on clip(containedin)");
-                    statement.execute("create index if not exists idx_clip_containedin_lo on clip(containedin_lo)");
-                    statement.execute("create index if not exists idx_clip_broadcasted_at on clip(broadcasted_at)");
-                    statement.execute("create index if not exists idx_clip_imported_at on clip(imported_at)");
-                    statement.execute("create index if not exists idx_clip_chanwithlocontainer on clip(channelname_lo,containedin)");
-                    statement.execute("create index if not exists idx_clip_chanlowithcontainerlo on clip(channelname_lo, containedin_lo)");
+    void initialize() {
+        withConnection(conn -> {
+            try (var statement = conn.createStatement()) {
+                logger.debug("ensuring table clip exists");
+                statement.execute(
+                        "create table if not exists clip (" +
+                                "id varchar(255) primary key, " +
+                                "channelname varchar(255), " +
+                                "channelname_lo varchar(255) as lower(channelname)," +
+                                "containedin varchar(255)," +
+                                "containedin_lo varchar(255) as lower(containedin)," +
+                                "duration varchar(32)," +
+                                "title varchar(255)," +
+                                "title_lo varchar(255) as lower(title)," +
+                                "url_normal varchar(512)," +
+                                "urlhd varchar(512)," +
+                                "size long," +
+                                "broadcasted_at timestamp with time zone," +
+                                "imported_at timestamp with time zone)");
+                statement.execute("alter table clip drop column if exists description");
 
-                    logger.debug("ensuring table imports exists");
-                    statement.execute(
-                            "create table if not exists imports(" +
-                                    "update_type varchar(30) primary key," +
-                                    "import_finished_at timestamp with time zone not null)");
+                logger.debug("ensuring clip indexes exist");
+                statement.execute("create index if not exists idx_clip_channelname on clip(channelname)");
+                statement.execute("create index if not exists idx_clip_channelname_lo on clip(channelname_lo)");
+                statement.execute("create index if not exists idx_clip_containedin on clip(containedin)");
+                statement.execute("create index if not exists idx_clip_containedin_lo on clip(containedin_lo)");
+                statement.execute("create index if not exists idx_clip_broadcasted_at on clip(broadcasted_at)");
+                statement.execute("create index if not exists idx_clip_imported_at on clip(imported_at)");
+                statement.execute("create index if not exists idx_clip_chanwithlocontainer on clip(channelname_lo,containedin)");
+                statement.execute("create index if not exists idx_clip_chanlowithcontainerlo on clip(channelname_lo, containedin_lo)");
 
-                    statement.execute("analyze table clip");
-                }
+                logger.debug("ensuring table imports exists");
+                statement.execute(
+                        "create table if not exists imports(" +
+                                "update_type varchar(30) primary key," +
+                                "import_finished_at timestamp with time zone not null)");
+
+                statement.execute("analyze table clip");
             }
-        } catch (final SQLException e) {
-            throw new RuntimeException("Could not initialize database", e);
-        }
+            return true;
+        });
+    }
+
+    void openConnection(String jdbcUrl) {
+        this.pool = JdbcConnectionPool.create(jdbcUrl, "sa", "sa");
     }
 
     @PreDestroy
@@ -120,7 +168,7 @@ public class ClipRepository {
 
     public Optional<ZonedDateTime> findLastFullImport() {
         logger.debug("finding last full import");
-        try (var conn = pool.getConnection()) {
+        return withConnection(conn -> {
             try (var stmt = conn.prepareStatement("select import_finished_at from imports where update_type=?")) {
                 stmt.setString(1, "full");
                 try (var res = stmt.executeQuery()) {
@@ -133,14 +181,12 @@ public class ClipRepository {
             }
             logger.debug("No last full import found in db");
             return Optional.empty();
-        } catch (final SQLException e) {
-            throw new RuntimeException(e);
-        }
+        });
     }
 
     public void updateLastFullImport(ZonedDateTime dateTime) {
         logger.debug("Updating last full import time to {}", dateTime);
-        try (var conn = pool.getConnection()) {
+        withConnection(conn -> {
             try (var stmt = conn.prepareStatement("merge into imports (update_type, import_finished_at) values (?,?)")) {
                 stmt.setString(1, "full");
                 stmt.setObject(2, dateTime);
@@ -149,30 +195,25 @@ public class ClipRepository {
             try (var stmt = conn.createStatement()) {
                 stmt.execute("analyze table clip");
             }
-        } catch (final SQLException e) {
-            throw new RuntimeException(e);
-        }
+            return true;
+        });
     }
 
     public List<String> findAllChannels() {
         logger.debug("Finding all channels");
-        try {
-            var channels = new ArrayList<String>();
-            try (var conn = pool.getConnection()) {
-                try (var stmt = conn.prepareStatement("select channelname, count(*) as clipcount from clip group by channelname order by clipcount desc")) {
-                    try (var result = stmt.executeQuery()) {
-                        while (result.next()) {
-                            var channelName = result.getString(1);
-                            logger.debug("Found channel '{}'", channelName);
-                            channels.add(channelName);
-                        }
+        var channels = new ArrayList<String>();
+        return withConnection(conn -> {
+            try (var stmt = conn.prepareStatement("select channelname, count(*) as clipcount from clip group by channelname order by clipcount desc")) {
+                try (var result = stmt.executeQuery()) {
+                    while (result.next()) {
+                        var channelName = result.getString(1);
+                        logger.debug("Found channel '{}'", channelName);
+                        channels.add(channelName);
                     }
                 }
             }
             return channels;
-        } catch (final SQLException e) {
-            throw new RuntimeException(e);
-        }
+        });
     }
 
     /**
@@ -180,25 +221,21 @@ public class ClipRepository {
      */
     public Map<String, Integer> findAllContainedIns(String channelName) {
         logger.debug("Finding all containedIns for channel '{}'", channelName);
-        try {
+        return withConnection(conn -> {
             var containedIns = new HashMap<String, Integer>();
-            try (var conn = pool.getConnection()) {
-                try (var stmt = conn.prepareStatement("select containedin, count(*) as clipcount from clip where channelname_lo=? group by containedin")) {
-                    stmt.setString(1, channelName.toLowerCase(Locale.GERMANY));
-                    try (var result = stmt.executeQuery()) {
-                        while (result.next()) {
-                            var name = result.getString(1);
-                            var count = result.getInt(2);
-                            logger.debug("Found containedIn '{}' ({} clips)", name, count);
-                            containedIns.put(name, count);
-                        }
+            try (var stmt = conn.prepareStatement("select containedin, count(*) as clipcount from clip where channelname_lo=? group by containedin")) {
+                stmt.setString(1, channelName.toLowerCase(Locale.GERMANY));
+                try (var result = stmt.executeQuery()) {
+                    while (result.next()) {
+                        var name = result.getString(1);
+                        var count = result.getInt(2);
+                        logger.debug("Found containedIn '{}' ({} clips)", name, count);
+                        containedIns.put(name, count);
                     }
                 }
             }
             return containedIns;
-        } catch (final SQLException e) {
-            throw new RuntimeException(e);
-        }
+        });
     }
 
     /**
@@ -206,57 +243,49 @@ public class ClipRepository {
      */
     public Map<String, Integer> findAllContainedIns(String channelName, String startingWith) {
         logger.debug("Finding all containedIns for channel '{}' starting with '{}'", channelName, startingWith);
-        try {
+        return withConnection(conn -> {
             var containedIns = new HashMap<String, Integer>();
-            try (var conn = pool.getConnection()) {
-                try (var stmt = conn.prepareStatement("select containedin, count(*) as clipcount from clip where channelname_lo=? and containedin_lo like ? group by containedin")) {
-                    stmt.setString(1, channelName.toLowerCase(Locale.GERMANY));
-                    stmt.setString(2, startingWith.toLowerCase(Locale.GERMANY) + "%");
-                    try (var result = stmt.executeQuery()) {
-                        while (result.next()) {
-                            var name = result.getString(1);
-                            var count = result.getInt(2);
-                            logger.debug("Found containedIn '{}' ({} clips)", name, count);
-                            containedIns.put(name, count);
-                        }
+            try (var stmt = conn.prepareStatement("select containedin, count(*) as clipcount from clip where channelname_lo=? and containedin_lo like ? group by containedin")) {
+                stmt.setString(1, channelName.toLowerCase(Locale.GERMANY));
+                stmt.setString(2, startingWith.toLowerCase(Locale.GERMANY) + "%");
+                try (var result = stmt.executeQuery()) {
+                    while (result.next()) {
+                        var name = result.getString(1);
+                        var count = result.getInt(2);
+                        logger.debug("Found containedIn '{}' ({} clips)", name, count);
+                        containedIns.put(name, count);
                     }
                 }
             }
             return containedIns;
-        } catch (final SQLException e) {
-            throw new RuntimeException(e);
-        }
+        });
     }
 
 
     public void addClips(Iterable<ClipEntry> clipEntries, ZonedDateTime importedAt) {
         logger.debug("Adding ClipEntries");
-        try {
-            try (var conn = pool.getConnection()) {
-                try (var stmt = conn.prepareStatement(
-                        "merge into clip (id, channelname, containedin, duration, title, url_normal, urlhd, size, broadcasted_at, imported_at) " +
-                                "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
-                    for (var c : clipEntries) {
-                        logger.debug("Adding ClipEntry {}", c);
-                        stmt.setString(1, limitShort(MessageFormat.format("{0}:{1}", c.getUrl(), c.getUrlHd())));
-                        stmt.setString(2, limitShort(c.getChannelName()));
-                        stmt.setString(3, limitShort(c.getContainedIn()));
-                        stmt.setString(4, c.getDuration());
-                        stmt.setString(5, limitShort(c.getTitle()));
-                        stmt.setString(6, c.getUrl());
-                        stmt.setString(7, c.getUrlHd());
-                        stmt.setLong(8, c.getSize());
-                        stmt.setObject(9, c.getBroadcastedAt());
-                        stmt.setObject(10, importedAt);
-                        stmt.addBatch();
-                    }
-                    stmt.executeBatch();
-
+        withConnection(conn -> {
+            try (var stmt = conn.prepareStatement(
+                    "merge into clip (id, channelname, containedin, duration, title, url_normal, urlhd, size, broadcasted_at, imported_at) " +
+                            "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
+                for (var c : clipEntries) {
+                    logger.debug("Adding ClipEntry {}", c);
+                    stmt.setString(1, createId(c));
+                    stmt.setString(2, limitShort(c.getChannelName()));
+                    stmt.setString(3, limitShort(c.getContainedIn()));
+                    stmt.setString(4, c.getDuration());
+                    stmt.setString(5, limitShort(c.getTitle()));
+                    stmt.setString(6, c.getUrl());
+                    stmt.setString(7, c.getUrlHd());
+                    stmt.setLong(8, c.getSize());
+                    stmt.setObject(9, c.getBroadcastedAt());
+                    stmt.setObject(10, importedAt);
+                    stmt.addBatch();
                 }
+                stmt.executeBatch();
             }
-        } catch (final SQLException e) {
-            throw new RuntimeException(e);
-        }
+            return true;
+        });
     }
 
     private String limitShort(String in) {
@@ -277,45 +306,48 @@ public class ClipRepository {
 
     public List<ClipEntry> findAllClips(String channelId, String containedIn) {
         logger.debug("Finding all clips for channel '{}' and containedIn '{}'", channelId, containedIn);
-        try {
+        return withConnection(conn -> {
             var list = new ArrayList<ClipEntry>();
-            try (var conn = pool.getConnection()) {
-                try (var stmt = conn.prepareStatement("select title, broadcasted_at, size, url_normal, urlhd, duration from clip where channelname_lo=? and containedin_lo=? order by broadcasted_at desc")) {
-                    stmt.setString(1, channelId.toLowerCase(Locale.GERMAN));
-                    stmt.setString(2, containedIn.toLowerCase(Locale.GERMAN));
-                    try (var result = stmt.executeQuery()) {
-                        while (result.next()) {
-                            var v = new ClipEntry(
-                                    channelId, containedIn,
-                                    result.getObject(2, ZonedDateTime.class),
-                                    result.getString(1),
-                                    result.getString(6),
-                                    result.getLong(3),
-                                    result.getString(4),
-                                    result.getString(5)
-                            );
-                            logger.debug("Found clipEntry {}", v);
-                            list.add(v);
-                        }
+            try (var stmt = conn.prepareStatement("select title, broadcasted_at, size, url_normal, urlhd, duration from clip where channelname_lo=? and containedin_lo=? order by broadcasted_at desc")) {
+                stmt.setString(1, channelId.toLowerCase(Locale.GERMAN));
+                stmt.setString(2, containedIn.toLowerCase(Locale.GERMAN));
+                try (var result = stmt.executeQuery()) {
+                    while (result.next()) {
+                        var v = new ClipEntry(
+                                channelId, containedIn,
+                                result.getObject(2, ZonedDateTime.class),
+                                result.getString(1),
+                                result.getString(6),
+                                result.getLong(3),
+                                result.getString(4),
+                                result.getString(5)
+                        );
+                        logger.debug("Found clipEntry {}", v);
+                        list.add(v);
                     }
                 }
             }
             return list;
-        } catch (final SQLException e) {
-            throw new RuntimeException(e);
-        }
+        });
+    }
+
+    public String createId(ClipEntry clipEntry) {
+        return BASE64ENC.encodeToString(
+                HASHING.newHasher()
+                        .putString(clipEntry.getChannelName(), UTF_8)
+                        .putString(clipEntry.getBestUrl(), UTF_8)
+                        .hash().asBytes());
     }
 
     public void deleteClipsImportedBefore(ZonedDateTime startedAt) {
         logger.debug("Deleting all clips not imported at {}", startedAt);
-        try (var conn = pool.getConnection()) {
+        withConnection(conn -> {
             try (var stmt = conn.prepareStatement("delete from clip where imported_at < ?")) {
                 stmt.setObject(1, startedAt);
                 var numDeleted = stmt.executeUpdate();
                 logger.debug("Deleted {} clips not imported at {}", numDeleted, startedAt);
             }
-        } catch (final SQLException e) {
-            throw new RuntimeException(e);
-        }
+            return true;
+        });
     }
 }

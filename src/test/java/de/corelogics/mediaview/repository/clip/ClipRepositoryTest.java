@@ -46,7 +46,8 @@ class ClipRepositoryTest {
     @BeforeEach
     void createDatabase() {
         sut = new ClipRepository();
-        sut.initialize("jdbc:h2:mem:test");
+        sut.openConnection("jdbc:h2:mem:test");
+        sut.initialize();
     }
 
     @AfterEach

@@ -77,6 +77,10 @@ public class ClipEntry {
         return urlHd;
     }
 
+    public String getBestUrl() {
+        return null != urlHd && !urlHd.isBlank() ? urlHd : url;
+    }
+
     public String getDuration() {
         return duration;
     }
