@@ -1,7 +1,6 @@
 package de.corelogics.mediaview.service.proxy;
 
 import de.corelogics.mediaview.repository.clip.ClipRepository;
-import org.eclipse.jetty.http.HttpStatus;
 import spark.Request;
 import spark.Response;
 import spark.Spark;
@@ -27,8 +26,9 @@ public class ForwardingProxyServer {
                     response.header("Content-Length", Long.toString(clip.getSize()));
                 },
                 () -> {
-                    response.status(HttpStatus.NOT_FOUND_404);
+                    response.status(404);
                 }
         );
+        return null;
     }
 }
