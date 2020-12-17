@@ -27,25 +27,22 @@ package de.corelogics.mediaview;
 import com.netflix.governator.LifecycleManager;
 import com.netflix.governator.guice.LifecycleInjector;
 import de.corelogics.mediaview.config.ConfigProviderFactory;
-import de.corelogics.mediaview.service.dlna.DlnaServer;
+import de.corelogics.mediaview.service.dlna.DlnaServiceModule;
 import de.corelogics.mediaview.service.importer.ImporterService;
 import org.fourthline.cling.model.ValidationException;
 
 public class Main {
-    public static void main(String[] args) throws InterruptedException, ValidationException {
-        System.setProperty("java.util.logging.manager", "org.apache.logging.log4j.jul.LogManager");
+	public static void main(String[] args) throws InterruptedException, ValidationException {
+		System.setProperty("java.util.logging.manager", "org.apache.logging.log4j.jul.LogManager");
 
-        var injector = LifecycleInjector.builder()
-                .withBootstrapModule(bootstrapBinder ->
-                        bootstrapBinder.bindConfigurationProvider().toInstance(new ConfigProviderFactory().createConfigurationProvider()))
-                .build()
-                .createInjector();
-        injector.getInstance(LifecycleManager.class).notifyStarted();
-
-        injector.getInstance(ImporterService.class).scheduleImport();
-        injector.getInstance(DlnaServer.class).start();
-        Thread.currentThread().join();
-    }
-
-
+		var injector = LifecycleInjector.builder()
+				.withBootstrapModule(bootstrapBinder ->
+						bootstrapBinder.bindConfigurationProvider().toInstance(new ConfigProviderFactory().createConfigurationProvider()))
+				.withModules(new DlnaServiceModule())
+				.build()
+				.createInjector();
+		injector.getInstance(LifecycleManager.class).notifyStarted();
+		injector.getInstance(ImporterService.class).scheduleImport();
+		Thread.currentThread().join();
+	}
 }
