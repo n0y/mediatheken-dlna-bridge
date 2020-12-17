@@ -48,7 +48,6 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 @Singleton
 public class ClipRepository {
-	@FunctionalInterface
 	private interface SqlFunction<T> {
 		T execute(Connection conn) throws SQLException;
 	}
@@ -337,6 +336,27 @@ public class ClipRepository {
 				}
 			}
 			return list;
+		});
+	}
+
+	public Optional<ClipEntry> findClipById(String id) {
+		return withConnection(conn -> {
+			try (var stmt = conn.prepareStatement("select * from clip where id = ?")) {
+				try (var result = stmt.executeQuery()) {
+					while (result.next()) {
+						return Optional.of(ClipEntry(
+								result.getString("channelname"),,
+								result.getString("containedIn"),
+								result.getObject("broadcasted_at", ZonedDateTime.class),
+								result.getString("title"),
+								result.getString("duration"),
+								result.getLong("size"),
+								result.getString("url_normal"),
+								result.getString("urlhd")))));
+					}
+				}
+			}
+			return Optional.empty();
 		});
 	}
 
