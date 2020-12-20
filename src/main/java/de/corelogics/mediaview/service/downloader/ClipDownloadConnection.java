@@ -37,20 +37,19 @@ import java.time.temporal.ChronoUnit;
 import java.util.concurrent.TimeUnit;
 
 class ClipDownloadConnection extends Thread implements Closeable {
-    private static final double REQ_MB_PER_SECOND = 1.5D;
     private final Logger logger = LogManager.getLogger();
     private final OkHttpClient httpClient;
     private final String connectionId;
     private final ClipDownloader downloader;
     private boolean stopped = false;
 
-    public ClipDownloadConnection(String connectionId, long chunkSizeBytes, ClipDownloader downloader) {
+    public ClipDownloadConnection(String connectionId, long chunkSizeBytes, ClipDownloader downloader, double reqMbPerSeconds) {
         super(connectionId);
         this.connectionId = connectionId;
         this.downloader = downloader;
         // require at least 1.5 MB/sec download rate
         var chunkSizeMb = chunkSizeBytes / (1024D * 1024D);
-        var timeoutSecs = chunkSizeMb / REQ_MB_PER_SECOND;
+        var timeoutSecs = chunkSizeMb / reqMbPerSeconds;
         var callTimeout = Duration.of((long) (timeoutSecs * 1000), ChronoUnit.MILLIS);
         logger.debug("Setting call timeout to {}", callTimeout);
 
