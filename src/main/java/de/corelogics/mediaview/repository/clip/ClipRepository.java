@@ -24,8 +24,6 @@
 
 package de.corelogics.mediaview.repository.clip;
 
-import com.google.common.hash.HashFunction;
-import com.google.common.hash.Hashing;
 import com.google.inject.Singleton;
 import com.netflix.governator.annotations.Configuration;
 import de.corelogics.mediaview.client.mediathekview.ClipEntry;
@@ -37,6 +35,7 @@ import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import java.io.File;
 import java.sql.Connection;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.ZonedDateTime;
 import java.util.*;
@@ -44,17 +43,11 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Supplier;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-
 @Singleton
 public class ClipRepository {
     private interface SqlFunction<T> {
         T execute(Connection conn) throws SQLException;
     }
-
-    private static final Base64.Encoder BASE64ENC = Base64.getEncoder().withoutPadding();
-
-    private static final HashFunction HASHING = Hashing.sipHash24();
 
     private final Logger logger = LogManager.getLogger();
 
@@ -278,11 +271,11 @@ public class ClipRepository {
                             "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
                 for (var c : clipEntries) {
                     logger.debug("Adding ClipEntry {}", c);
-                    stmt.setString(1, createId(c));
-                    stmt.setString(2, limitShort(c.getChannelName()));
-                    stmt.setString(3, limitShort(c.getContainedIn()));
+                    stmt.setString(1, c.getId());
+                    stmt.setString(2, limit(c.getChannelName(), 254));
+                    stmt.setString(3, limit(c.getContainedIn(), 254));
                     stmt.setString(4, c.getDuration());
-                    stmt.setString(5, limitShort(c.getTitle()));
+                    stmt.setString(5, limit(c.getTitle(), 254));
                     stmt.setString(6, c.getUrl());
                     stmt.setString(7, c.getUrlHd());
                     stmt.setLong(8, c.getSize());
@@ -294,14 +287,6 @@ public class ClipRepository {
             }
             return true;
         });
-    }
-
-    private String limitShort(String in) {
-        return limit(in, 254);
-    }
-
-    private String limitLong(String in) {
-        return limit(in, 4000);
     }
 
     private String limit(String in, int length) {
@@ -316,20 +301,12 @@ public class ClipRepository {
         return withConnection(conn -> {
             var list = new ArrayList<ClipEntry>();
             try (var stmt = conn.prepareStatement(
-                    "select title, broadcasted_at, size, url_normal, urlhd, duration from clip where channelname_lo=? and containedin_lo=? order by broadcasted_at desc, char_length(title) asc")) {
+                    "select * from clip where channelname_lo=? and containedin_lo=? order by broadcasted_at desc, char_length(title) asc")) {
                 stmt.setString(1, channelId.toLowerCase(Locale.GERMAN));
                 stmt.setString(2, containedIn.toLowerCase(Locale.GERMAN));
                 try (var result = stmt.executeQuery()) {
                     while (result.next()) {
-                        var v = new ClipEntry(
-                                channelId, containedIn,
-                                result.getObject("broadcasted_at", ZonedDateTime.class),
-                                result.getString("title"),
-                                result.getString("duration"),
-                                result.getLong("size"),
-                                result.getString("url_normal"),
-                                result.getString("urlhd")
-                        );
+                        var v = clipEntryFromResultSet(result);
                         logger.debug("Found clipEntry {}", v);
                         list.add(v);
                     }
@@ -342,21 +319,14 @@ public class ClipRepository {
     public Optional<ClipEntry> findClipById(String id) {
         return withConnection(conn -> {
             try (var stmt = conn.prepareStatement("select * from clip where id = ?")) {
+                stmt.setString(1, id);
                 try (var result = stmt.executeQuery()) {
-                    while (result.next()) {
-                        return Optional.of(new ClipEntry(
-                                result.getString("channelname"),
-                                result.getString("containedIn"),
-                                result.getObject("broadcasted_at", ZonedDateTime.class),
-                                result.getString("title"),
-                                result.getString("duration"),
-                                result.getLong("size"),
-                                result.getString("url_normal"),
-                                result.getString("urlhd")));
+                    if (result.next()) {
+                        return Optional.of(clipEntryFromResultSet(result));
                     }
+                    return Optional.empty();
                 }
             }
-            return Optional.empty();
         });
     }
 
@@ -370,15 +340,7 @@ public class ClipRepository {
                 stmt.setObject(3, endDate);
                 try (var result = stmt.executeQuery()) {
                     while (result.next()) {
-                        ret.add(new ClipEntry(
-                                channelName,
-                                result.getString("containedIn"),
-                                result.getObject("broadcasted_at", ZonedDateTime.class),
-                                result.getString("title"),
-                                result.getString("duration"),
-                                result.getLong("size"),
-                                result.getString("url_normal"),
-                                result.getString("urlhd")));
+                        ret.add(clipEntryFromResultSet(result));
                     }
                 }
             }
@@ -386,13 +348,16 @@ public class ClipRepository {
         });
     }
 
-
-    public String createId(ClipEntry clipEntry) {
-        return BASE64ENC.encodeToString(
-                HASHING.newHasher()
-                        .putString(clipEntry.getChannelName(), UTF_8)
-                        .putString(clipEntry.getBestUrl(), UTF_8)
-                        .hash().asBytes());
+    private ClipEntry clipEntryFromResultSet(ResultSet result) throws SQLException {
+        return new ClipEntry(
+                result.getString("channelname"),
+                result.getString("containedIn"),
+                result.getObject("broadcasted_at", ZonedDateTime.class),
+                result.getString("title"),
+                result.getString("duration"),
+                result.getLong("size"),
+                result.getString("url_normal"),
+                result.getString("urlhd"));
     }
 
     public void deleteClipsImportedBefore(ZonedDateTime startedAt) {
