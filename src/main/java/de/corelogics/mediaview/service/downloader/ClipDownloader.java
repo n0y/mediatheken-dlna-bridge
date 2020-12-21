@@ -38,7 +38,7 @@ class ClipDownloader implements Closeable {
     private final RandomAccessFile contentFile;
     private ClipMetadata metadata;
     private BitSet chunksAvailableForDownload;
-    private long lastReadPosition = 0;
+    private int lastReadInChunk = 0;
     private boolean stopped = false;
 
     public ClipDownloader(String clipId, String url) throws IOException {
@@ -46,6 +46,12 @@ class ClipDownloader implements Closeable {
         this.clipId = clipId;
         if (!cacheDir.exists() && !cacheDir.mkdirs()) {
             throw new IllegalStateException("");
+        }
+        try {
+            this.metaDataFile = new RandomAccessFile(new File(this.cacheDir, this.clipId + ".metadata"), "rw");
+            this.contentFile = new RandomAccessFile(new File(this.cacheDir, this.clipId), "rw");
+        } catch(final IOException e) {
+            throw new RuntimeException(e);
         }
         this.httpClient = new OkHttpClient.Builder()
                 .connectionPool(new ConnectionPool(1, 10, TimeUnit.SECONDS))
@@ -56,20 +62,11 @@ class ClipDownloader implements Closeable {
 
         logger.debug("Starting download for {}", this.url);
         this.metadata = loadOrFetchMetaData();
-        try {
-            this.metaDataFile = new RandomAccessFile(new File(this.cacheDir, this.clipId + ".metadata"), "rw");
-            this.contentFile = new RandomAccessFile(new File(this.cacheDir, this.clipId), "rw");
-
-            logger.debug("Initialized metadata to {}", this.metadata);
-            initializeBitsets();
-            updateMetadataFile();
-            updateContentFile();
-            ensureDownloadersPresent();
-        } catch (
-                final IOException e) {
-            throw new RuntimeException(e);
-        }
-
+        logger.debug("Initialized metadata to {}", this.metadata);
+        initializeBitsets();
+        updateMetadataFile();
+        updateContentFile();
+        ensureDownloadersPresent();
     }
 
     public synchronized void onChunkReceived(String connectionId, ClipChunk clipChunk, byte[] bytes, long timeMs) {
@@ -94,10 +91,12 @@ class ClipDownloader implements Closeable {
     }
 
     public synchronized Optional<ClipChunk> nextChunk(String connectionId) {
-        if (stopped) {
-            return Optional.empty();
-        } else {
-            var chunkNum = this.chunksAvailableForDownload.nextSetBit((int) (lastReadPosition / CHUNK_SIZE_BYTES));
+        if (!stopped) {
+            var chunkNum = this.chunksAvailableForDownload.nextSetBit(lastReadInChunk);
+            if (this.chunksAvailableForDownload.get(this.metadata.getNumberOfChunks() - 1)) {
+                // first DL latest chunk, for meta data queried by various players
+                chunkNum = this.metadata.getNumberOfChunks() - 1;
+            }
             if (chunkNum < 0 || chunkNum >= this.metadata.getNumberOfChunks()) {
                 chunkNum = this.chunksAvailableForDownload.nextSetBit(0);
             }
@@ -108,8 +107,8 @@ class ClipDownloader implements Closeable {
                 return Optional.of(chunk);
             }
             logger.debug("no more chunks reported to {}", connectionId);
-            return Optional.empty();
         }
+        return Optional.empty();
     }
 
     public synchronized void onConnectionTerminated(String connectionId) {
@@ -155,12 +154,14 @@ class ClipDownloader implements Closeable {
 
     private void updateMetadataFile() {
         logger.debug("updating metadata file");
-        try {
-            this.metaDataFile.seek(0);
-            objectMapper.writeValue(this.metaDataFile, this.metadata);
-            this.metaDataFile.setLength(this.metaDataFile.getFilePointer());
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+        if (!stopped) {
+            try {
+                this.metaDataFile.seek(0);
+                objectMapper.writeValue(this.metaDataFile, this.metadata);
+                this.metaDataFile.setLength(this.metaDataFile.getFilePointer());
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 
@@ -216,8 +217,8 @@ class ClipDownloader implements Closeable {
         }
     }
 
-    protected void updateRead(long pos) {
-        this.lastReadPosition = pos;
+    protected void updateLastReadChunk(int chunkNo) {
+        this.lastReadInChunk = chunkNo;
         ensureDownloadersPresent();
     }
 
@@ -225,7 +226,6 @@ class ClipDownloader implements Closeable {
         if (position < 0 || position > metadata.getSize()) {
             throw new IOException(String.format("Position %d outside of allowed range: [0-%d]", position, metadata.getSize()));
         }
-        lastReadPosition = position;
         return new InputStream() {
             long currentPosition = position;
 
@@ -233,8 +233,8 @@ class ClipDownloader implements Closeable {
             public int read() throws IOException {
                 var timeoutAt = System.currentTimeMillis() + readTimeout.toMillis();
                 while (System.currentTimeMillis() < timeoutAt) {
-                    updateRead(currentPosition);
                     var chunkNo = (int) (currentPosition / CHUNK_SIZE_BYTES);
+                    updateLastReadChunk(chunkNo);
                     if (metadata.getBitSet().get(chunkNo)) {
                         synchronized (contentFile) {
                             //logger.debug("Chunk {} is present. Handing out data", chunkNo);
@@ -257,8 +257,11 @@ class ClipDownloader implements Closeable {
                 // we only read to the chunk limit...
                 var timeoutAt = System.currentTimeMillis() + readTimeout.toMillis();
                 while (System.currentTimeMillis() < timeoutAt) {
-                    updateRead(currentPosition);
                     var chunkNo = (int) (currentPosition / CHUNK_SIZE_BYTES);
+                    if (chunkNo >= metadata.getNumberOfChunks()) {
+                        throw new EOFException(String.format("Read position %d is beyond size of %d", currentPosition, metadata.getSize()));
+                    }
+                    updateLastReadChunk(chunkNo);
                     if (metadata.getBitSet().get(chunkNo)) {
                         synchronized (contentFile) {
                             var availableBytesInChunk = (chunkNo + 1) * CHUNK_SIZE_BYTES - currentPosition;
@@ -271,8 +274,9 @@ class ClipDownloader implements Closeable {
                             return readBytesFromFile;
                         }
                     } else {
+                        logger.debug("Waiting for chunk #{}", chunkNo);
                         try {
-                            Thread.sleep(100);
+                            Thread.sleep(500);
                         } catch (InterruptedException e) {
                             throw new IOException("Interrupted while waiting for data");
                         }
@@ -286,6 +290,7 @@ class ClipDownloader implements Closeable {
     @Override
     public synchronized void close() {
         try {
+            this.stopped = true;
             this.connections.values().forEach(ClipDownloadConnection::close);
             this.connections.clear();
 
@@ -295,5 +300,9 @@ class ClipDownloader implements Closeable {
         } catch (final IOException e) {
             throw new RuntimeException();
         }
+    }
+
+    public ClipMetadata getMetaData() {
+        return this.metadata;
     }
 }

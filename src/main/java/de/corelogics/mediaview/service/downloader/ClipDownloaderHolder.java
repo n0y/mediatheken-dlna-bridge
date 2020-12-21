@@ -26,7 +26,6 @@ package de.corelogics.mediaview.service.downloader;
 
 import java.io.FilterInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -43,33 +42,38 @@ class ClipDownloaderHolder {
         return numberOfOpenStreams.get();
     }
 
-    public InputStream openInputStreamStartingFrom(long position, Duration readTimeout) throws IOException {
+    public OpenedStream openInputStreamStartingFrom(long position, Duration readTimeout) throws IOException {
         numberOfOpenStreams.incrementAndGet();
-        return new FilterInputStream(clipDownloader.openInputStreamStartingFrom(position, readTimeout)) {
-            @Override
-            public int read() throws IOException {
-                try {
-                    return super.read();
-                } finally {
-                    lastReadTs = System.currentTimeMillis();
-                }
-            }
+        var metadata = clipDownloader.getMetaData();
+        return new OpenedStream(
+                metadata.getContentType(),
+                metadata.getSize(),
 
-            @Override
-            public int read(byte[] b, int off, int len) throws IOException {
-                try {
-                    return super.read(b, off, len);
-                } finally {
-                    lastReadTs = System.currentTimeMillis();
-                }
-            }
+                new FilterInputStream(clipDownloader.openInputStreamStartingFrom(position, readTimeout)) {
+                    @Override
+                    public int read() throws IOException {
+                        try {
+                            return super.read();
+                        } finally {
+                            lastReadTs = System.currentTimeMillis();
+                        }
+                    }
 
-            @Override
-            public void close() throws IOException {
-                numberOfOpenStreams.updateAndGet(i -> Math.max(i - 1, 0));
-                super.close();
-            }
-        };
+                    @Override
+                    public int read(byte[] b, int off, int len) throws IOException {
+                        try {
+                            return super.read(b, off, len);
+                        } finally {
+                            lastReadTs = System.currentTimeMillis();
+                        }
+                    }
+
+                    @Override
+                    public void close() throws IOException {
+                        numberOfOpenStreams.updateAndGet(i -> Math.max(i - 1, 0));
+                        super.close();
+                    }
+                });
     }
 
     public void close() {

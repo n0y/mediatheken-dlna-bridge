@@ -27,7 +27,6 @@ package de.corelogics.mediaview.service.downloader;
 import com.google.common.io.ByteStreams;
 import com.google.inject.Singleton;
 import de.corelogics.mediaview.client.mediathekview.ClipEntry;
-import de.corelogics.mediaview.service.retriever.ByteRange;
 import okhttp3.ConnectionPool;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -38,7 +37,6 @@ import org.h2.util.IOUtils;
 import javax.annotation.PostConstruct;
 import java.io.FilterInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
@@ -83,7 +81,7 @@ public class DownloadManager {
                 .forEach(clipIdToDl::remove);
     }
 
-    public synchronized Optional<InputStream> openStreamFor(ClipEntry clip, ByteRange byteRange) throws IOException {
+    public synchronized Optional<OpenedStream> openStreamFor(ClipEntry clip, ByteRange byteRange) throws IOException {
         logger.debug("Requested input stream for {} of {}", clip::getId, byteRange::toString);
 
         var clipDownloaderHolder = clipIdToDl.get(clip.getId());
@@ -95,29 +93,33 @@ public class DownloadManager {
             // too many parallel dls. Open the stream directly, no prefetching
             return fetchDirectly(clip, byteRange);
         } else {
-            var inputStream = clipDownloaderHolder.openInputStreamStartingFrom(byteRange.getFirstPosition(), Duration.ofSeconds(20));
+            var openedStream = clipDownloaderHolder.openInputStreamStartingFrom(byteRange.getFirstPosition(), Duration.ofSeconds(20));
             if (byteRange.getLastPosition().isPresent()) {
                 var length = byteRange.getLastPosition().get() - byteRange.getFirstPosition();
-                inputStream = ByteStreams.limit(inputStream, length);
+                openedStream.setStream(ByteStreams.limit(openedStream.getStream(), length));
             }
-            return Optional.of(inputStream);
+            return Optional.of(openedStream);
         }
     }
 
-    private Optional<InputStream> fetchDirectly(ClipEntry clip, ByteRange byteRange) throws IOException {
+    private Optional<OpenedStream> fetchDirectly(ClipEntry clip, ByteRange byteRange) throws IOException {
         var request = new Request.Builder()
                 .url(clip.getBestUrl())
                 .addHeader("Range", "bytes=" + byteRange.getFirstPosition() + "-" + byteRange.getLastPosition().map(Object::toString).orElse(""))
                 .build();
         try (var response = this.httpClient.newCall(request).execute()) {
             if (response.isSuccessful()) {
-                return Optional.of(new FilterInputStream(response.body().byteStream()) {
-                    @Override
-                    public void close() throws IOException {
-                        IOUtils.closeSilently(response);
-                        super.close();
-                    }
-                });
+                var range = response.header("Content-Range");
+                return Optional.of(new OpenedStream(
+                        response.header("Content-Type"),
+                        Long.parseLong(range.substring(range.indexOf('/') + 1)),
+                        new FilterInputStream(response.body().byteStream()) {
+                            @Override
+                            public void close() throws IOException {
+                                IOUtils.closeSilently(response);
+                                super.close();
+                            }
+                        }));
             }
             if (response.code() == 404) {
                 return Optional.empty();

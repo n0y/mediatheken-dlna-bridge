@@ -3,21 +3,20 @@ package de.corelogics.mediaview.service.proxy;
 import de.corelogics.mediaview.client.mediathekview.ClipEntry;
 import de.corelogics.mediaview.repository.clip.ClipRepository;
 import de.corelogics.mediaview.service.ClipContentUrlGenerator;
-import de.corelogics.mediaview.service.retriever.ByteRange;
-import de.corelogics.mediaview.service.retriever.ClipPart;
-import de.corelogics.mediaview.service.retriever.ClipRetriever;
+import de.corelogics.mediaview.service.downloader.ByteRange;
+import de.corelogics.mediaview.service.downloader.DownloadManager;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import spark.Request;
 import spark.Response;
 import spark.Spark;
-import spark.utils.IOUtils;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.stream.Collectors;
 
 @Singleton
@@ -25,16 +24,16 @@ public class ForwardingProxyServer implements ClipContentUrlGenerator {
     private final Logger logger = LogManager.getLogger();
 
     private final ClipRepository clipRepository;
-    private final ClipRetriever clipRetriever;
+    private final DownloadManager downloadManager;
 
     @Inject
-    public ForwardingProxyServer(ClipRetriever clipRetriever, ClipRepository clipRepository) {
-        this.clipRetriever = clipRetriever;
+    public ForwardingProxyServer(ClipRepository clipRepository, DownloadManager downloadManager) {
+        this.downloadManager = downloadManager;
         this.clipRepository = clipRepository;
     }
 
     public String createLinkTo(ClipEntry e) {
-        return "http://hurricane.lan.corelogics.de:8080/api/v1/clips/" + e.getId();
+        return "http://storm.lan.corelogics.de:8080/api/v1/clips/" + e.getId();
     }
 
     @PostConstruct
@@ -53,34 +52,41 @@ public class ForwardingProxyServer implements ClipContentUrlGenerator {
     private Object handleGetClip(Request request, Response response) {
         var clipId = request.params("clipId");
         logger.debug("Received request for clip {}", clipId);
-        logger.debug("Request: {}", String.join(",", request.host(), request.pathInfo(), request.headers().stream().map(request::headers).collect(Collectors.joining(","))));
+        logger.debug("Request: {}", String.join("\n",
+                "   H:" + request.host(),
+                "   P:" + request.pathInfo(),
+                request.headers().stream().map(h -> "   " + h + ": " + request.headers(h)).collect(Collectors.joining("\n"))));
         clipRepository.findClipById(clipId).ifPresentOrElse(
                 clip -> {
                     var byteRange = new ByteRange(request.headers("Range"));
-                    try (var clipPart = clipRetriever.fetchClipRange(clip, byteRange)) {
-                        switch (clipPart.getStatus()) {
-                            case OK:
-                                response.type(clipPart.getContentTyp());
-                                response.header("Accept-Ranges", "bytes");
-                                if (byteRange.isPartial()) {
-                                    response.header("Content-Length", Long.toString(byteRange.rangeSize(clipPart.getCompleteSize())));
-                                    response.header(
-                                            "Content-Range",
-                                            "bytes " + byteRange.getFirstPosition() + "-" + byteRange.getLastPosition() + "/" + clipPart.getCompleteSize());
-                                } else {
-                                    response.header("Content-Length", Long.toString(clipPart.getPartSize()));
+                    try {
+                        downloadManager.openStreamFor(clip, byteRange).ifPresentOrElse(
+                                stream -> {
+                                    try {
+                                        if (byteRange.getFirstPosition() >= stream.getMaxSize()) {
+                                            response.status(416);
+                                        } else {
+                                            response.header("Content-Type", stream.getContentType());
+                                            response.header("Accept-Ranges", "bytes");
+                                            if (request.headers("Range") != null) {
+                                                response.header("Content-Range", "bytes " + byteRange.getFirstPosition() + "-" + byteRange.getLastPosition().orElse(stream.getMaxSize() - 1) + "/" + stream.getMaxSize());
+                                                response.header("Content-Length", Long.toString(byteRange.getLastPosition().orElse(stream.getMaxSize()) - byteRange.getFirstPosition()));
+                                            } else {
+                                                response.header("Content-Length", Long.toString(stream.getMaxSize()));
+                                            }
+                                            copyBytes(stream.getStream(), response.raw());
+                                        }
+                                    } finally {
+                                        logger.debug("Closing consumer stream");
+                                        org.h2.util.IOUtils.closeSilently(stream.getStream());
+                                    }
+                                },
+                                () -> {
+                                    response.status(404);
                                 }
-                                copyBytes(clipPart, response.raw());
-                                break;
-                            case NOT_SATISFIABLE:
-                                response.status(416);
-                                break;
-                            case NOT_FOUND:
-                                response.status(404);
-                                break;
-                            default:
-                                response.status(500);
-                        }
+                        );
+                    } catch (final IOException e) {
+                        response.status(500);
                     }
                 },
                 () -> response.status(404)
@@ -88,9 +94,13 @@ public class ForwardingProxyServer implements ClipContentUrlGenerator {
         return null;
     }
 
-    private void copyBytes(ClipPart from, HttpServletResponse to) {
-        try {
-            IOUtils.copy(from.getInputStream(), to.getOutputStream());
+    private void copyBytes(InputStream from, HttpServletResponse to) {
+        try (var toStream = to.getOutputStream()) {
+            byte[] buffer = new byte[256_000];
+            for (var bytesRead = from.read(buffer, 0, buffer.length); bytesRead >= 0; bytesRead = from.read(buffer, 0, buffer.length)) {
+                toStream.write(buffer, 0, bytesRead);
+                logger.debug("Written {} bytes to consumer", bytesRead);
+            }
         } catch (final IOException e) {
             throw new RuntimeException(e);
         }
