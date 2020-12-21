@@ -4,6 +4,7 @@ import de.corelogics.mediaview.client.mediathekview.ClipEntry;
 import de.corelogics.mediaview.repository.clip.ClipRepository;
 import de.corelogics.mediaview.service.ClipContentUrlGenerator;
 import de.corelogics.mediaview.service.downloader.*;
+import de.corelogics.mediaview.util.IdUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import spark.Request;
@@ -17,6 +18,8 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.stream.Collectors;
 
 @Singleton
@@ -33,7 +36,7 @@ public class ForwardingProxyServer implements ClipContentUrlGenerator {
     }
 
     public String createLinkTo(ClipEntry e) {
-        return "http://storm.lan.corelogics.de:8080/api/v1/clips/" + e.getId();
+        return "http://storm.lan.corelogics.de:8080/api/v1/clips/" + IdUtils.encodeId(e.getId());
     }
 
     @PostConstruct
@@ -50,7 +53,7 @@ public class ForwardingProxyServer implements ClipContentUrlGenerator {
     }
 
     private Object handleGetClip(Request request, Response response) {
-        var clipId = request.params("clipId");
+        var clipId = new String(Base64.getDecoder().decode(request.params("clipId")), StandardCharsets.UTF_8);
         logger.debug("Request for clip {}\n{}", clipId::toString, () ->
                 String.join("\n",
                         "   H:" + request.host(),
@@ -111,7 +114,6 @@ public class ForwardingProxyServer implements ClipContentUrlGenerator {
             byte[] buffer = new byte[256_000];
             for (var bytesRead = from.read(buffer, 0, buffer.length); bytesRead >= 0; bytesRead = from.read(buffer, 0, buffer.length)) {
                 toStream.write(buffer, 0, bytesRead);
-                logger.debug("Written {} bytes to consumer", bytesRead);
             }
         } catch (final IOException e) {
             throw new RuntimeException(e);

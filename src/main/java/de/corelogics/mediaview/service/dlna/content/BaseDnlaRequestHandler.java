@@ -6,8 +6,6 @@ import org.fourthline.cling.support.contentdirectory.DIDLParser;
 import org.fourthline.cling.support.model.BrowseResult;
 import org.fourthline.cling.support.model.DIDLContent;
 
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 import java.util.stream.Collectors;
 
 abstract class BaseDnlaRequestHandler implements DlnaRequestHandler {
@@ -25,12 +23,4 @@ abstract class BaseDnlaRequestHandler implements DlnaRequestHandler {
 	}
 
 	protected abstract DIDLContent respondWithException(DlnaRequest request) throws Exception;
-
-	protected String encodeB64(String in) {
-		return Base64.getEncoder().withoutPadding().encodeToString(in.getBytes(StandardCharsets.UTF_8));
-	}
-
-	protected String decodeB64(String in) {
-		return new String(Base64.getDecoder().decode(in), StandardCharsets.UTF_8);
-	}
 }

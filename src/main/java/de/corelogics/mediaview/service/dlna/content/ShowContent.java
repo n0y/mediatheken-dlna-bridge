@@ -2,6 +2,7 @@ package de.corelogics.mediaview.service.dlna.content;
 
 import de.corelogics.mediaview.repository.clip.ClipRepository;
 import de.corelogics.mediaview.service.dlna.DlnaRequest;
+import de.corelogics.mediaview.util.IdUtils;
 import org.fourthline.cling.support.model.DIDLContent;
 import org.fourthline.cling.support.model.container.StorageFolder;
 
@@ -47,8 +48,8 @@ public class ShowContent extends BaseDnlaRequestHandler {
 		var didl = new DIDLContent();
 		if (request.getObjectId().startsWith(URN_PREFIX_SHOW)) {
 			var split = request.getObjectId().split(":");
-			var channelId = decodeB64(split[split.length - 2]);
-			var containedIn = decodeB64(split[split.length - 1]);
+			var channelId = IdUtils.decodeId(split[split.length - 2]);
+			var containedIn = IdUtils.decodeId(split[split.length - 1]);
 			clipRepository.findAllClips(channelId, containedIn).stream()
 					.map(e -> clipContent.createLinkWithDatePrefix(request, e))
 					.forEach(didl::addItem);
@@ -57,6 +58,6 @@ public class ShowContent extends BaseDnlaRequestHandler {
 	}
 
 	private String idShow(String channelId, String containedIn) {
-		return URN_PREFIX_SHOW + encodeB64(channelId) + ":" + encodeB64(containedIn);
+		return URN_PREFIX_SHOW + IdUtils.encodeId(channelId) + ":" + IdUtils.encodeId(containedIn);
 	}
 }

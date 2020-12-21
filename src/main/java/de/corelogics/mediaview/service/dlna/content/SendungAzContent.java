@@ -3,6 +3,7 @@ package de.corelogics.mediaview.service.dlna.content;
 import com.google.common.collect.Ordering;
 import de.corelogics.mediaview.repository.clip.ClipRepository;
 import de.corelogics.mediaview.service.dlna.DlnaRequest;
+import de.corelogics.mediaview.util.IdUtils;
 import org.fourthline.cling.support.model.DIDLContent;
 import org.fourthline.cling.support.model.container.StorageFolder;
 
@@ -72,7 +73,7 @@ public class SendungAzContent extends BaseDnlaRequestHandler {
 									null))
 					.forEach(didl::addContainer);
 		} else if (request.getObjectId().startsWith(URN_PREFIX_CHANNEL)) {
-			var channelId = decodeB64(request.getObjectId().substring(URN_PREFIX_CHANNEL.length()));
+			var channelId = IdUtils.decodeId(request.getObjectId().substring(URN_PREFIX_CHANNEL.length()));
 			var containedIns = clipRepository.findAllContainedIns(channelId);
 			if (containedIns.size() < 200) {
 				containedIns.entrySet().stream()
@@ -100,8 +101,8 @@ public class SendungAzContent extends BaseDnlaRequestHandler {
 			}
 		} else if (request.getObjectId().startsWith(URN_PREFIX_SHOWGROUP)) {
 			var split = request.getObjectId().split(":");
-			var channelId = decodeB64(split[split.length - 2]);
-			var startingWith = decodeB64(split[split.length - 1]);
+			var channelId = IdUtils.decodeId(split[split.length - 2]);
+			var startingWith = IdUtils.decodeId(split[split.length - 1]);
 			clipRepository.findAllContainedIns(channelId, startingWith).entrySet().stream()
 					.sorted(ORD_ALPHA_STRINGENTRY)
 					.map(containedIn -> showContent.createAsLink(
@@ -113,10 +114,10 @@ public class SendungAzContent extends BaseDnlaRequestHandler {
 	}
 
 	private String idChannel(String channelName) {
-		return URN_PREFIX_CHANNEL + encodeB64(channelName);
+		return URN_PREFIX_CHANNEL + IdUtils.encodeId(channelName);
 	}
 
 	private String idShowGroup(String channelId, Map.Entry<Character, Integer> letterEntry) {
-		return URN_PREFIX_SHOWGROUP + encodeB64(channelId) + ":" + encodeB64(letterEntry.getKey().toString());
+		return URN_PREFIX_SHOWGROUP + IdUtils.encodeId(channelId) + ":" + IdUtils.encodeId(letterEntry.getKey().toString());
 	}
 }

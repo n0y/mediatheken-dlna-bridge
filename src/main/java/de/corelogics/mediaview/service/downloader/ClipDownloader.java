@@ -229,8 +229,8 @@ class ClipDownloader implements Closeable {
                     updateLastReadChunk(chunkNo);
                     if (metadata.getBitSet().get(chunkNo)) {
                         var availableBytesInChunk = (chunkNo + 1) * CHUNK_SIZE_BYTES - currentPosition;
-                        var toRead = Math.min(len, availableBytesInChunk);
-                        var readBytesFromFile = cacheDir.readContentBytes(clipId, currentPosition, b, off, len);
+                        var toRead = (int) Math.min(len, availableBytesInChunk);
+                        var readBytesFromFile = cacheDir.readContentBytes(clipId, currentPosition, b, off, toRead);
                         currentPosition += readBytesFromFile;
                         return readBytesFromFile;
                     } else {

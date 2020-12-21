@@ -31,6 +31,7 @@ import com.google.common.cache.LoadingCache;
 import com.google.common.cache.RemovalNotification;
 import com.google.inject.Singleton;
 import com.netflix.governator.annotations.Configuration;
+import de.corelogics.mediaview.util.IdUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.h2.util.IOUtils;
@@ -99,11 +100,11 @@ public class CacheDirectory {
     }
 
     private String contentFilename(String clipId) {
-        return clipId + ".mp4";
+        return IdUtils.encodeId(clipId) + ".mp4";
     }
 
     private String metaFilename(String clipId) {
-        return clipId + ".json";
+        return IdUtils.encodeId(clipId) + ".json";
     }
 
 
@@ -206,6 +207,7 @@ public class CacheDirectory {
                 return Optional.empty();
             }
             var metaFileAccess = this.openFiles.get(metaFilename(clipId));
+            metaFileAccess.seek(0);
             return Optional.of(objectMapper.readValue(metaFileAccess, ClipMetadata.class));
         } catch (ExecutionException e) {
             throw new IOException(e);
