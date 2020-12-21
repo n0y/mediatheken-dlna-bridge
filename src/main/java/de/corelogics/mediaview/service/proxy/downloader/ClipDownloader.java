@@ -1,4 +1,4 @@
-package de.corelogics.mediaview.service.downloader;
+package de.corelogics.mediaview.service.proxy.downloader;
 
 import okhttp3.ConnectionPool;
 import okhttp3.OkHttpClient;
@@ -19,7 +19,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 class ClipDownloader implements Closeable {
-    private static final int NUM_PARALLEL_CONNECTIONS = 2;
     private static final double REQUIRED_MB_PER_SECONDS = 1.3D;
 
     private static final long CHUNK_SIZE_BYTES = 5_000_000;
@@ -32,16 +31,18 @@ class ClipDownloader implements Closeable {
     private final CacheDirectory cacheDir;
     private final String url;
     private final String clipId;
+    private final int numParallelConnections;
     private final OkHttpClient httpClient;
     private ClipMetadata metadata;
     private BitSet chunksAvailableForDownload;
     private int lastReadInChunk = 0;
     private boolean stopped = false;
 
-    public ClipDownloader(CacheDirectory cacheDir, String clipId, String url) throws UpstreamNotFoundException, UpstreamReadFailedException, CacheSizeExhaustedException {
+    public ClipDownloader(CacheDirectory cacheDir, String clipId, String url, int numParallelConnections) throws UpstreamNotFoundException, UpstreamReadFailedException, CacheSizeExhaustedException {
         this.cacheDir = cacheDir;
         this.url = url;
         this.clipId = clipId;
+        this.numParallelConnections = numParallelConnections;
         this.httpClient = new OkHttpClient.Builder()
                 .connectionPool(new ConnectionPool(1, 10, TimeUnit.SECONDS))
                 .callTimeout(10, TimeUnit.SECONDS)
@@ -106,10 +107,10 @@ class ClipDownloader implements Closeable {
     }
 
     private synchronized void ensureDownloadersPresent() {
-        while (this.connections.size() < NUM_PARALLEL_CONNECTIONS && this.chunksAvailableForDownload.nextSetBit(0) < this.metadata.getNumberOfChunks()) {
+        while (this.connections.size() < numParallelConnections && this.chunksAvailableForDownload.nextSetBit(0) < this.metadata.getNumberOfChunks()) {
             var connectionId = "dl-thrd-" + currentConnectionId.incrementAndGet();
             logger.debug("Starting new connection {}", connectionId);
-            this.connections.put(connectionId, new ClipDownloadConnection(connectionId, CHUNK_SIZE_BYTES, this, REQUIRED_MB_PER_SECONDS / NUM_PARALLEL_CONNECTIONS));
+            this.connections.put(connectionId, new ClipDownloadConnection(connectionId, CHUNK_SIZE_BYTES, this, REQUIRED_MB_PER_SECONDS / numParallelConnections));
             this.connections.get(connectionId).start();
         }
     }

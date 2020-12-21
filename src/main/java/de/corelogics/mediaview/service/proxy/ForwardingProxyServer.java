@@ -1,9 +1,10 @@
 package de.corelogics.mediaview.service.proxy;
 
+import com.netflix.governator.annotations.Configuration;
 import de.corelogics.mediaview.client.mediathekview.ClipEntry;
 import de.corelogics.mediaview.repository.clip.ClipRepository;
 import de.corelogics.mediaview.service.ClipContentUrlGenerator;
-import de.corelogics.mediaview.service.downloader.*;
+import de.corelogics.mediaview.service.proxy.downloader.*;
 import de.corelogics.mediaview.util.IdUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -26,8 +27,15 @@ import java.util.stream.Collectors;
 public class ForwardingProxyServer implements ClipContentUrlGenerator {
     private final Logger logger = LogManager.getLogger();
 
+    @Configuration("PUBLIC_BASE_URL")
+    private String publicBaseUrl;
+
+    @Configuration("PUBLIC_HTTP_PORT")
+    private int publicHttpPort = 8080;
+
     private final ClipRepository clipRepository;
     private final DownloadManager downloadManager;
+
 
     @Inject
     public ForwardingProxyServer(ClipRepository clipRepository, DownloadManager downloadManager) {
@@ -36,20 +44,62 @@ public class ForwardingProxyServer implements ClipContentUrlGenerator {
     }
 
     public String createLinkTo(ClipEntry e) {
-        return "http://storm.lan.corelogics.de:8080/api/v1/clips/" + IdUtils.encodeId(e.getId());
+        return publicBaseUrl + (publicBaseUrl.endsWith("/") ? "" : "/") + "/api/v1/clips/" + IdUtils.encodeId(e.getId());
     }
 
     @PostConstruct
     void setupServer() {
         logger.debug("Starting HTTP proxy server on port 8080");
-        Spark.port(8080);
+        Spark.port(publicHttpPort);
         Spark.get("/api/v1/clips/:clipId", this::handleGetClip);
-        Spark.head("/api/v1/clips/:clipId", (req, resp) -> {
-            logger.debug("Head for clip '{}': {}", req.params("clipId"), req);
-            resp.status(404);
-            return null;
-        });
-        logger.info("Started HTTP proxy server on port 8080");
+        Spark.head("/api/v1/clips/:clipId", this::handleHead);
+        logger.info("Started prefetching HTTP proxy server on port 8080");
+    }
+
+    private Object handleHead(Request request, Response response) {
+        var clipId = new String(Base64.getDecoder().decode(request.params("clipId")), StandardCharsets.UTF_8);
+        logger.debug("HEAD Request for clip {}\n{}", clipId::toString, () ->
+                String.join("\n",
+                        "   H:" + request.host(),
+                        "   P:" + request.pathInfo(),
+                        request.headers().stream().map(h -> "   " + h + ": " + request.headers(h)).collect(Collectors.joining("\n"))));
+        clipRepository.findClipById(clipId).ifPresentOrElse(
+                clip -> {
+                    var byteRange = new ByteRange(0, 1);
+                    try (var stream = downloadManager.openStreamFor(clip, byteRange)) {
+                        try {
+                            response.header("Content-Type", stream.getContentType());
+                            response.header("Accept-Ranges", "bytes");
+                            response.header("Content-Length", Long.toString(stream.getMaxSize()));
+                        } finally {
+                            logger.debug("Closing consumer stream");
+                            org.h2.util.IOUtils.closeSilently(stream.getStream());
+                        }
+                    } catch (UpstreamNotFoundException e) {
+                        logger.info("Clip {} wasn't found at upstream url {}", clip::getTitle, clip::getBestUrl);
+                        response.status(404);
+                    } catch (EOFException e) {
+                        logger.info("Requested range {} of clip {} is beyond clip. Redirecting client to original url: {}", byteRange, clip.getId(), clip.getBestUrl());
+                        logger.debug("e");
+                        response.status(416);
+                    } catch (UpstreamReadFailedException e) {
+                        logger.info("Upstream server failed for clip {}[{}]. Redirecting client to original url: {}", clip.getId(), byteRange, clip.getBestUrl());
+                        logger.debug(e);
+                        response.redirect(clip.getBestUrl());
+                    } catch (TooManyConcurrentConnectionsException e) {
+                        logger.info("Can't proxy clip {}[{}], because there are too many concurrent connections open. Redirecting client to original url: {}", clip.getId(), byteRange, clip.getBestUrl());
+                        response.redirect(clip.getBestUrl());
+                    } catch (CacheSizeExhaustedException e) {
+                        logger.info("Cache size exhausted when requesting clip {}[{}]. Redirecting client to original url: {}", clip.getId(), byteRange, clip.getBestUrl());
+                        logger.debug(e);
+                        response.redirect(clip.getBestUrl());
+                    }
+                },
+                () -> {
+                    logger.debug("Head request for {}: not found", clipId);
+                    response.status(404);
+                });
+        return null;
     }
 
     private Object handleGetClip(Request request, Response response) {

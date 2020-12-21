@@ -22,42 +22,10 @@
  * SOFTWARE.
  */
 
-package de.corelogics.mediaview.service.downloader;
+package de.corelogics.mediaview.service.proxy.downloader;
 
-import org.h2.util.IOUtils;
-
-import java.io.Closeable;
-import java.io.InputStream;
-
-public class OpenedStream implements Closeable {
-    private final String contentType;
-    private final long maxSize;
-    private InputStream stream;
-
-    public OpenedStream(String contentType, long maxSize, InputStream stream) {
-        this.contentType = contentType;
-        this.maxSize = maxSize;
-        this.stream = stream;
-    }
-
-    public String getContentType() {
-        return contentType;
-    }
-
-    public long getMaxSize() {
-        return maxSize;
-    }
-
-    public InputStream getStream() {
-        return stream;
-    }
-
-    public void setStream(InputStream stream) {
-        this.stream = stream;
-    }
-
-    @Override
-    public void close() {
-        IOUtils.closeSilently(stream);
+public class TooManyConcurrentConnectionsException extends Exception {
+    public TooManyConcurrentConnectionsException(String message) {
+        super(message);
     }
 }

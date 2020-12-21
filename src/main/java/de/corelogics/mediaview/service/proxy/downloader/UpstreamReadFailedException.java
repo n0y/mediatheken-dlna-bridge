@@ -22,10 +22,14 @@
  * SOFTWARE.
  */
 
-package de.corelogics.mediaview.service.downloader;
+package de.corelogics.mediaview.service.proxy.downloader;
 
-public class CacheSizeExhaustedException extends Exception {
-    public CacheSizeExhaustedException(String message) {
+public class UpstreamReadFailedException extends Exception {
+    public UpstreamReadFailedException(String message) {
         super(message);
+    }
+
+    public UpstreamReadFailedException(String message, Throwable cause) {
+        super(message, cause);
     }
 }

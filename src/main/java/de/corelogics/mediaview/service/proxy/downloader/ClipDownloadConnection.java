@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-package de.corelogics.mediaview.service.downloader;
+package de.corelogics.mediaview.service.proxy.downloader;
 
 import okhttp3.ConnectionPool;
 import okhttp3.OkHttpClient;
@@ -47,7 +47,6 @@ class ClipDownloadConnection extends Thread implements Closeable {
         super(connectionId);
         this.connectionId = connectionId;
         this.downloader = downloader;
-        // require at least 1.5 MB/sec download rate
         var chunkSizeMb = chunkSizeBytes / (1024D * 1024D);
         var timeoutSecs = chunkSizeMb / reqMbPerSeconds;
         var callTimeout = Duration.of((long) (timeoutSecs * 1000), ChronoUnit.MILLIS);

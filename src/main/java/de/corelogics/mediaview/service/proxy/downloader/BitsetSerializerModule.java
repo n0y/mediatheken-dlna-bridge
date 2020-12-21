@@ -1,4 +1,4 @@
-package de.corelogics.mediaview.service.downloader;
+package de.corelogics.mediaview.service.proxy.downloader;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;

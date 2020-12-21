@@ -22,11 +22,12 @@
  * SOFTWARE.
  */
 
-package de.corelogics.mediaview.service.downloader;
+package de.corelogics.mediaview.service.proxy.downloader;
 
 import com.google.common.io.ByteStreams;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import com.netflix.governator.annotations.Configuration;
 import de.corelogics.mediaview.client.mediathekview.ClipEntry;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -44,12 +45,17 @@ import java.util.stream.Collectors;
 
 @Singleton
 public class DownloadManager {
-    private static final int MAX_PARALLEL_DL = 4;
+    @Configuration("CACHE_MAX_PARALLEL_DOWNLOADS")
+    private int maxParallelDownloads = 4;
+
+    @Configuration("CACHE_DOWNLODERS_PER_VIDEO")
+    private int numParallelDownloaders;
 
     private final Logger logger = LogManager.getLogger();
     private final Map<String, ClipDownloaderHolder> clipIdToDl = new HashMap<>();
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
     private final CacheDirectory cacheDirectory;
+
 
     @Inject
     public DownloadManager(CacheDirectory cacheDirectory) {
@@ -97,16 +103,16 @@ public class DownloadManager {
 
         var clipDownloaderHolder = clipIdToDl.get(clip.getId());
         if (null == clipDownloaderHolder) {
-            if (clipIdToDl.size() >= MAX_PARALLEL_DL) {
+            if (clipIdToDl.size() >= maxParallelDownloads) {
                 tryToRemoveOneIdlingDownloader();
             }
-            if (clipIdToDl.size() < MAX_PARALLEL_DL) {
+            if (clipIdToDl.size() < maxParallelDownloads) {
                 clipDownloaderHolder = new ClipDownloaderHolder(createClipDownloader(clip));
                 clipIdToDl.put(clip.getId(), clipDownloaderHolder);
             }
         }
         if (null == clipDownloaderHolder) {
-            throw new TooManyConcurrentConnectionsException("More then " + MAX_PARALLEL_DL + " connections active. Can't proxy more.");
+            throw new TooManyConcurrentConnectionsException("More then " + maxParallelDownloads + " connections active. Can't proxy more.");
         } else {
             var openedStream = clipDownloaderHolder.openInputStreamStartingFrom(byteRange.getFirstPosition(), Duration.ofSeconds(20));
             if (byteRange.getLastPosition().isPresent()) {
@@ -121,7 +127,7 @@ public class DownloadManager {
         CacheSizeExhaustedException exh = null;
         for (var maybeBytesAreFree = true; maybeBytesAreFree; maybeBytesAreFree = this.cacheDirectory.tryCleanupCacheDir(this.clipIdToDl.keySet())) {
             try {
-                return new ClipDownloader(this.cacheDirectory, clip.getId(), clip.getBestUrl());
+                return new ClipDownloader(this.cacheDirectory, clip.getId(), clip.getBestUrl(), this.numParallelDownloaders);
             } catch (final CacheSizeExhaustedException e) {
                 logger.debug("Cache size exhausted. Trying to clean up");
                 exh = e;

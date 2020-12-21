@@ -36,12 +36,13 @@ public class Main {
 	public static void main(String[] args) throws InterruptedException, ValidationException {
 		System.setProperty("java.util.logging.manager", "org.apache.logging.log4j.jul.LogManager");
 
+		var configurationProvider = new ConfigProviderFactory().createConfigurationProvider();
 		var injector = LifecycleInjector.builder()
 				.withBootstrapModule(bootstrapBinder ->
-						bootstrapBinder.bindConfigurationProvider().toInstance(new ConfigProviderFactory().createConfigurationProvider()))
+						bootstrapBinder.bindConfigurationProvider().toInstance(configurationProvider))
 				.withModules(
 						new DlnaServiceModule(),
-						new ForwardingProxyModule())
+						new ForwardingProxyModule(configurationProvider))
 				.build()
 				.createInjector();
 		injector.getInstance(LifecycleManager.class).notifyStarted();

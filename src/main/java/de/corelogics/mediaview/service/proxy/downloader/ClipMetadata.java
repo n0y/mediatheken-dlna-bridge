@@ -22,33 +22,56 @@
  * SOFTWARE.
  */
 
-package de.corelogics.mediaview.service.downloader;
+package de.corelogics.mediaview.service.proxy.downloader;
 
-class ClipChunk {
-    private final int chunkNumber;
-    private final long from;
-    private final long to;
+import java.util.BitSet;
+import java.util.StringJoiner;
 
-    public ClipChunk(int chunkNumber, long from, long to) {
-        this.chunkNumber = chunkNumber;
-        this.from = from;
-        this.to = to;
+class ClipMetadata {
+    private String contentType;
+    private long size;
+    private BitSet bitSet;
+    private int numberOfChunks;
+
+    public String getContentType() {
+        return contentType;
     }
 
-    public long getFrom() {
-        return from;
+    public void setContentType(String contentType) {
+        this.contentType = contentType;
     }
 
-    public long getTo() {
-        return to;
+    public long getSize() {
+        return size;
     }
 
-    public int getChunkNumber() {
-        return chunkNumber;
+    public void setSize(long size) {
+        this.size = size;
+    }
+
+    public void setBitSet(BitSet bitSet) {
+        this.bitSet = bitSet;
+    }
+
+    public BitSet getBitSet() {
+        return bitSet;
+    }
+
+    public void setNumberOfChunks(int numberOfChunks) {
+        this.numberOfChunks = numberOfChunks;
+    }
+
+    public int getNumberOfChunks() {
+        return numberOfChunks;
     }
 
     @Override
     public String toString() {
-        return String.format("{#%d: %d-%d}", chunkNumber, from, to);
+        return new StringJoiner(", ", ClipMetadata.class.getSimpleName() + "[", "]")
+                .add("contentType='" + contentType + "'")
+                .add("size=" + size)
+                .add("bitSet=" + bitSet)
+                .add("numberOfChunks=" + numberOfChunks)
+                .toString();
     }
 }

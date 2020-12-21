@@ -22,12 +22,10 @@
  * SOFTWARE.
  */
 
-package de.corelogics.mediaview.service.downloader;
+package de.corelogics.mediaview.service.proxy.downloader;
 
 import javax.annotation.Nullable;
 import java.util.Optional;
-import java.util.OptionalLong;
-import java.util.StringJoiner;
 
 public class ByteRange {
     private final boolean partial;
@@ -48,6 +46,12 @@ public class ByteRange {
             this.firstPosition = 0L;
             this.lastPosition = Optional.empty();
         }
+    }
+
+    public ByteRange(long firstPosition, long lastPosition) {
+        partial = true;
+        this.firstPosition = firstPosition;
+        this.lastPosition = Optional.of(lastPosition);
     }
 
     public boolean isPartial() {

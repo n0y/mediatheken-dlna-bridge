@@ -22,10 +22,14 @@
  * SOFTWARE.
  */
 
-package de.corelogics.mediaview.service.downloader;
+package de.corelogics.mediaview.service.proxy.downloader;
 
-public class TooManyConcurrentConnectionsException extends Exception {
-    public TooManyConcurrentConnectionsException(String message) {
-        super(message);
+public class UpstreamNotFoundException extends Exception {
+    public UpstreamNotFoundException(String url, int statusCode) {
+        super(String.format("Upstream not found, status %d at [%s]", statusCode, url));
+    }
+
+    public UpstreamNotFoundException(String url, int statusCode, Throwable cause) {
+        super(String.format("Upstream not found, status %d at [%s]", statusCode, url), cause);
     }
 }
