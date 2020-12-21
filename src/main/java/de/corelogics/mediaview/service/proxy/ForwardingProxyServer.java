@@ -3,8 +3,7 @@ package de.corelogics.mediaview.service.proxy;
 import de.corelogics.mediaview.client.mediathekview.ClipEntry;
 import de.corelogics.mediaview.repository.clip.ClipRepository;
 import de.corelogics.mediaview.service.ClipContentUrlGenerator;
-import de.corelogics.mediaview.service.downloader.ByteRange;
-import de.corelogics.mediaview.service.downloader.DownloadManager;
+import de.corelogics.mediaview.service.downloader.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import spark.Request;
@@ -15,6 +14,7 @@ import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import javax.servlet.http.HttpServletResponse;
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.stream.Collectors;
@@ -51,45 +51,57 @@ public class ForwardingProxyServer implements ClipContentUrlGenerator {
 
     private Object handleGetClip(Request request, Response response) {
         var clipId = request.params("clipId");
-        logger.debug("Received request for clip {}", clipId);
-        logger.debug("Request: {}", String.join("\n",
-                "   H:" + request.host(),
-                "   P:" + request.pathInfo(),
-                request.headers().stream().map(h -> "   " + h + ": " + request.headers(h)).collect(Collectors.joining("\n"))));
+        logger.debug("Request for clip {}\n{}", clipId::toString, () ->
+                String.join("\n",
+                        "   H:" + request.host(),
+                        "   P:" + request.pathInfo(),
+                        request.headers().stream().map(h -> "   " + h + ": " + request.headers(h)).collect(Collectors.joining("\n"))));
         clipRepository.findClipById(clipId).ifPresentOrElse(
                 clip -> {
                     var byteRange = new ByteRange(request.headers("Range"));
-                    try {
-                        downloadManager.openStreamFor(clip, byteRange).ifPresentOrElse(
-                                stream -> {
-                                    try {
-                                        if (byteRange.getFirstPosition() >= stream.getMaxSize()) {
-                                            response.status(416);
-                                        } else {
-                                            response.header("Content-Type", stream.getContentType());
-                                            response.header("Accept-Ranges", "bytes");
-                                            if (request.headers("Range") != null) {
-                                                response.header("Content-Range", "bytes " + byteRange.getFirstPosition() + "-" + byteRange.getLastPosition().orElse(stream.getMaxSize() - 1) + "/" + stream.getMaxSize());
-                                                response.header("Content-Length", Long.toString(byteRange.getLastPosition().orElse(stream.getMaxSize()) - byteRange.getFirstPosition()));
-                                            } else {
-                                                response.header("Content-Length", Long.toString(stream.getMaxSize()));
-                                            }
-                                            copyBytes(stream.getStream(), response.raw());
-                                        }
-                                    } finally {
-                                        logger.debug("Closing consumer stream");
-                                        org.h2.util.IOUtils.closeSilently(stream.getStream());
-                                    }
-                                },
-                                () -> {
-                                    response.status(404);
+                    try (var stream = downloadManager.openStreamFor(clip, byteRange)) {
+                        try {
+                            if (byteRange.getFirstPosition() >= stream.getMaxSize()) {
+                                response.status(416);
+                            } else {
+                                response.header("Content-Type", stream.getContentType());
+                                response.header("Accept-Ranges", "bytes");
+                                if (request.headers("Range") != null) {
+                                    response.header("Content-Range", "bytes " + byteRange.getFirstPosition() + "-" + byteRange.getLastPosition().orElse(stream.getMaxSize() - 1) + "/" + stream.getMaxSize());
+                                    response.header("Content-Length", Long.toString(byteRange.getLastPosition().orElse(stream.getMaxSize()) - byteRange.getFirstPosition()));
+                                } else {
+                                    response.header("Content-Length", Long.toString(stream.getMaxSize()));
                                 }
-                        );
-                    } catch (final IOException e) {
-                        response.status(500);
+                                copyBytes(stream.getStream(), response.raw());
+                            }
+                        } finally {
+                            logger.debug("Closing consumer stream");
+                            org.h2.util.IOUtils.closeSilently(stream.getStream());
+                        }
+                    } catch (UpstreamNotFoundException e) {
+                        logger.info("Clip {} wasn't found at upstream url {}", clip::getTitle, clip::getBestUrl);
+                        response.status(404);
+                    } catch (EOFException e) {
+                        logger.info("Requested range {} of clip {} is beyond clip. Redirecting client to original url: {}", byteRange, clip.getId(), clip.getBestUrl());
+                        logger.debug("e");
+                        response.status(416);
+                    } catch (UpstreamReadFailedException e) {
+                        logger.info("Upstream server failed for clip {}[{}]. Redirecting client to original url: {}", clip.getId(), byteRange, clip.getBestUrl());
+                        logger.debug(e);
+                        response.redirect(clip.getBestUrl());
+                    } catch (TooManyConcurrentConnectionsException e) {
+                        logger.info("Can't proxy clip {}[{}], because there are too many concurrent connections open. Redirecting client to original url: {}", clip.getId(), byteRange, clip.getBestUrl());
+                        response.redirect(clip.getBestUrl());
+                    } catch (CacheSizeExhaustedException e) {
+                        logger.info("Cache size exhausted when requesting clip {}[{}]. Redirecting client to original url: {}", clip.getId(), byteRange, clip.getBestUrl());
+                        logger.debug(e);
+                        response.redirect(clip.getBestUrl());
                     }
                 },
-                () -> response.status(404)
+                () -> {
+                    logger.info("Requested clipId {} wasn't found in DB.", clipId);
+                    response.status(404);
+                }
         );
         return null;
     }

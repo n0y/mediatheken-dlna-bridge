@@ -24,9 +24,12 @@
 
 package de.corelogics.mediaview.service.downloader;
 
+import org.h2.util.IOUtils;
+
+import java.io.Closeable;
 import java.io.InputStream;
 
-public class OpenedStream {
+public class OpenedStream implements Closeable {
     private final String contentType;
     private final long maxSize;
     private InputStream stream;
@@ -51,5 +54,10 @@ public class OpenedStream {
 
     public void setStream(InputStream stream) {
         this.stream = stream;
+    }
+
+    @Override
+    public void close() {
+        IOUtils.closeSilently(stream);
     }
 }

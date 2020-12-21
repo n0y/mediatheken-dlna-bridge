@@ -24,31 +24,12 @@
 
 package de.corelogics.mediaview.service.downloader;
 
-class ClipChunk {
-    private final int chunkNumber;
-    private final long from;
-    private final long to;
-
-    public ClipChunk(int chunkNumber, long from, long to) {
-        this.chunkNumber = chunkNumber;
-        this.from = from;
-        this.to = to;
+public class UpstreamReadFailedException extends Exception {
+    public UpstreamReadFailedException(String message) {
+        super(message);
     }
 
-    public long getFrom() {
-        return from;
-    }
-
-    public long getTo() {
-        return to;
-    }
-
-    public int getChunkNumber() {
-        return chunkNumber;
-    }
-
-    @Override
-    public String toString() {
-        return String.format("{#%d: %d-%d}", chunkNumber, from, to);
+    public UpstreamReadFailedException(String message, Throwable cause) {
+        super(message, cause);
     }
 }

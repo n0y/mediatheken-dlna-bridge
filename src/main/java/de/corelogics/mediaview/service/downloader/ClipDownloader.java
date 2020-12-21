@@ -1,13 +1,15 @@
 package de.corelogics.mediaview.service.downloader;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import okhttp3.ConnectionPool;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.io.*;
+import java.io.Closeable;
+import java.io.EOFException;
+import java.io.IOException;
+import java.io.InputStream;
 import java.time.Duration;
 import java.util.BitSet;
 import java.util.HashMap;
@@ -22,50 +24,36 @@ class ClipDownloader implements Closeable {
 
     private static final long CHUNK_SIZE_BYTES = 5_000_000;
     private static final long STOP_READING_AFTER_SECS = 30;
-    private static final ObjectMapper objectMapper = new ObjectMapper()
-            .registerModule(new BitsetSerializerModule());
-
-    private final File cacheDir = new File("cache");
 
     private final AtomicInteger currentConnectionId = new AtomicInteger();
     private final Map<String, ClipDownloadConnection> connections = new HashMap<>();
 
     private final Logger logger = LogManager.getLogger();
+    private final CacheDirectory cacheDir;
     private final String url;
     private final String clipId;
     private final OkHttpClient httpClient;
-    private final RandomAccessFile metaDataFile;
-    private final RandomAccessFile contentFile;
     private ClipMetadata metadata;
     private BitSet chunksAvailableForDownload;
     private int lastReadInChunk = 0;
     private boolean stopped = false;
 
-    public ClipDownloader(String clipId, String url) throws IOException {
+    public ClipDownloader(CacheDirectory cacheDir, String clipId, String url) throws UpstreamNotFoundException, UpstreamReadFailedException, CacheSizeExhaustedException {
+        this.cacheDir = cacheDir;
         this.url = url;
         this.clipId = clipId;
-        if (!cacheDir.exists() && !cacheDir.mkdirs()) {
-            throw new IllegalStateException("");
-        }
-        try {
-            this.metaDataFile = new RandomAccessFile(new File(this.cacheDir, this.clipId + ".metadata"), "rw");
-            this.contentFile = new RandomAccessFile(new File(this.cacheDir, this.clipId), "rw");
-        } catch(final IOException e) {
-            throw new RuntimeException(e);
-        }
         this.httpClient = new OkHttpClient.Builder()
                 .connectionPool(new ConnectionPool(1, 10, TimeUnit.SECONDS))
                 .callTimeout(10, TimeUnit.SECONDS)
                 .readTimeout(10, TimeUnit.SECONDS)
                 .connectTimeout(5, TimeUnit.SECONDS)
                 .build();
-
         logger.debug("Starting download for {}", this.url);
         this.metadata = loadOrFetchMetaData();
         logger.debug("Initialized metadata to {}", this.metadata);
         initializeBitsets();
         updateMetadataFile();
-        updateContentFile();
+        growContentFile();
         ensureDownloadersPresent();
     }
 
@@ -73,10 +61,7 @@ class ClipDownloader implements Closeable {
         logger.debug("Chunk {} received: {} bytes in {} ms (by {})", clipChunk.getChunkNumber(), bytes.length, timeMs, connectionId);
         if (!stopped) {
             try {
-                synchronized (contentFile) {
-                    contentFile.seek(clipChunk.getChunkNumber() * CHUNK_SIZE_BYTES);
-                    contentFile.write(bytes);
-                }
+                cacheDir.writeContent(this.clipId, clipChunk.getChunkNumber() * CHUNK_SIZE_BYTES, bytes);
             } catch (final IOException e) {
                 logger.warn("Could not write to content file.", e);
             }
@@ -141,12 +126,10 @@ class ClipDownloader implements Closeable {
         this.chunksAvailableForDownload.xor(this.metadata.getBitSet());
     }
 
-    private void updateContentFile() {
+    private void growContentFile() throws CacheSizeExhaustedException {
         logger.debug("setting content file to length {}", this.metadata::getSize);
         try {
-            synchronized (contentFile) {
-                this.contentFile.setLength(this.metadata.getSize());
-            }
+            this.cacheDir.growContentFile(this.clipId, this.metadata.getSize());
         } catch (final IOException e) {
             throw new RuntimeException(e);
         }
@@ -156,31 +139,26 @@ class ClipDownloader implements Closeable {
         logger.debug("updating metadata file");
         if (!stopped) {
             try {
-                this.metaDataFile.seek(0);
-                objectMapper.writeValue(this.metaDataFile, this.metadata);
-                this.metaDataFile.setLength(this.metaDataFile.getFilePointer());
+                this.cacheDir.writeMetadata(clipId, this.metadata);
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
         }
     }
 
-    private ClipMetadata loadOrFetchMetaData() throws IOException {
+    private ClipMetadata loadOrFetchMetaData() throws UpstreamNotFoundException, UpstreamReadFailedException {
         try {
-            if (this.metaDataFile.length() > 0) {
-                return loadMetadataFromFile();
+            var fromFile = this.cacheDir.loadMetadata(clipId);
+            if (fromFile.isPresent()) {
+                return fromFile.get();
             }
         } catch (final IOException e) {
-            throw new RuntimeException(e);
+            logger.warn("Could not read metadata file, but it's present. Re-fetching.");
         }
-        var loadedMetaData = fetchMetadataFromUrl();
-        if (loadedMetaData.isPresent()) {
-            return loadedMetaData.get();
-        }
-        throw new IOException("Metadata not found on upstream server.");
+        return this.fetchMetadataFromUrl();
     }
 
-    private Optional<ClipMetadata> fetchMetadataFromUrl() {
+    private ClipMetadata fetchMetadataFromUrl() throws UpstreamNotFoundException, UpstreamReadFailedException {
         logger.debug("Loading metadata via HEAD request from {}", this.url);
         try {
             var request = new Request.Builder()
@@ -193,27 +171,17 @@ class ClipDownloader implements Closeable {
                     var meta = new ClipMetadata();
                     meta.setContentType(response.header("Content-Type"));
                     meta.setSize(Long.parseLong(response.header("Content-Length")));
-                    return Optional.of(meta);
+                    return meta;
                 }
                 if (response.code() == 404) {
-                    return Optional.empty();
+                    throw new UpstreamNotFoundException(this.url, response.code());
                 }
-                logger.debug("Unsuccessfull status code '{}' for HEAD {}", response.code(), url);
-                throw new RuntimeException(String.format("Could not load meta data. Response code: %d", response.code()));
+                throw new UpstreamReadFailedException(String.format("Metadata Read failed with response code %d on url %s", response.code(), this.url));
             }
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+        } catch (final IOException e) {
+            throw new UpstreamReadFailedException(String.format("Could not load meta data from url %s", this.url));
         } finally {
             httpClient.connectionPool().evictAll();
-        }
-    }
-
-    private ClipMetadata loadMetadataFromFile() {
-        try {
-            this.metaDataFile.seek(0);
-            return objectMapper.readValue(this.metaDataFile, ClipMetadata.class);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
         }
     }
 
@@ -222,9 +190,9 @@ class ClipDownloader implements Closeable {
         ensureDownloadersPresent();
     }
 
-    public InputStream openInputStreamStartingFrom(long position, Duration readTimeout) throws IOException {
+    public InputStream openInputStreamStartingFrom(long position, Duration readTimeout) throws EOFException {
         if (position < 0 || position > metadata.getSize()) {
-            throw new IOException(String.format("Position %d outside of allowed range: [0-%d]", position, metadata.getSize()));
+            throw new EOFException(String.format("Position %d outside of allowed range: [0-%d]", position, metadata.getSize()));
         }
         return new InputStream() {
             long currentPosition = position;
@@ -236,11 +204,7 @@ class ClipDownloader implements Closeable {
                     var chunkNo = (int) (currentPosition / CHUNK_SIZE_BYTES);
                     updateLastReadChunk(chunkNo);
                     if (metadata.getBitSet().get(chunkNo)) {
-                        synchronized (contentFile) {
-                            //logger.debug("Chunk {} is present. Handing out data", chunkNo);
-                            contentFile.seek(currentPosition++);
-                            return contentFile.read();
-                        }
+                        return cacheDir.readContentByte(clipId, currentPosition++);
                     } else {
                         try {
                             Thread.sleep(100);
@@ -259,20 +223,16 @@ class ClipDownloader implements Closeable {
                 while (System.currentTimeMillis() < timeoutAt) {
                     var chunkNo = (int) (currentPosition / CHUNK_SIZE_BYTES);
                     if (chunkNo >= metadata.getNumberOfChunks()) {
-                        throw new EOFException(String.format("Read position %d is beyond size of %d", currentPosition, metadata.getSize()));
+                        logger.debug("Read position {}} is beyond size of {}}", currentPosition, metadata.getSize());
+                        return -1;
                     }
                     updateLastReadChunk(chunkNo);
                     if (metadata.getBitSet().get(chunkNo)) {
-                        synchronized (contentFile) {
-                            var availableBytesInChunk = (chunkNo + 1) * CHUNK_SIZE_BYTES - currentPosition;
-                            var availableBytesInFile = contentFile.length() - currentPosition;
-                            var toRead = Math.min(len, Math.min(availableBytesInFile, availableBytesInChunk));
-                            //logger.debug("Chunk {} is present. Handing out data", chunkNo);
-                            contentFile.seek(currentPosition);
-                            var readBytesFromFile = contentFile.read(b, off, (int) toRead);
-                            currentPosition += readBytesFromFile;
-                            return readBytesFromFile;
-                        }
+                        var availableBytesInChunk = (chunkNo + 1) * CHUNK_SIZE_BYTES - currentPosition;
+                        var toRead = Math.min(len, availableBytesInChunk);
+                        var readBytesFromFile = cacheDir.readContentBytes(clipId, currentPosition, b, off, len);
+                        currentPosition += readBytesFromFile;
+                        return readBytesFromFile;
                     } else {
                         logger.debug("Waiting for chunk #{}", chunkNo);
                         try {
@@ -289,17 +249,11 @@ class ClipDownloader implements Closeable {
 
     @Override
     public synchronized void close() {
-        try {
-            this.stopped = true;
-            this.connections.values().forEach(ClipDownloadConnection::close);
-            this.connections.clear();
+        this.stopped = true;
+        this.connections.values().forEach(ClipDownloadConnection::close);
+        this.connections.clear();
 
-            updateMetadataFile();
-            this.metaDataFile.close();
-            this.contentFile.close();
-        } catch (final IOException e) {
-            throw new RuntimeException();
-        }
+        updateMetadataFile();
     }
 
     public ClipMetadata getMetaData() {

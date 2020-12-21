@@ -24,31 +24,12 @@
 
 package de.corelogics.mediaview.service.downloader;
 
-class ClipChunk {
-    private final int chunkNumber;
-    private final long from;
-    private final long to;
-
-    public ClipChunk(int chunkNumber, long from, long to) {
-        this.chunkNumber = chunkNumber;
-        this.from = from;
-        this.to = to;
+public class UpstreamNotFoundException extends Exception {
+    public UpstreamNotFoundException(String url, int statusCode) {
+        super(String.format("Upstream not found, status %d at [%s]", statusCode, url));
     }
 
-    public long getFrom() {
-        return from;
-    }
-
-    public long getTo() {
-        return to;
-    }
-
-    public int getChunkNumber() {
-        return chunkNumber;
-    }
-
-    @Override
-    public String toString() {
-        return String.format("{#%d: %d-%d}", chunkNumber, from, to);
+    public UpstreamNotFoundException(String url, int statusCode, Throwable cause) {
+        super(String.format("Upstream not found, status %d at [%s]", statusCode, url), cause);
     }
 }

@@ -24,6 +24,7 @@
 
 package de.corelogics.mediaview.service.downloader;
 
+import java.io.EOFException;
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.time.Duration;
@@ -42,7 +43,7 @@ class ClipDownloaderHolder {
         return numberOfOpenStreams.get();
     }
 
-    public OpenedStream openInputStreamStartingFrom(long position, Duration readTimeout) throws IOException {
+    public OpenedStream openInputStreamStartingFrom(long position, Duration readTimeout) throws EOFException {
         numberOfOpenStreams.incrementAndGet();
         var metadata = clipDownloader.getMetaData();
         return new OpenedStream(

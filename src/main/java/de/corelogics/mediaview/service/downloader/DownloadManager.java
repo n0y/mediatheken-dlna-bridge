@@ -25,22 +25,18 @@
 package de.corelogics.mediaview.service.downloader;
 
 import com.google.common.io.ByteStreams;
+import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import de.corelogics.mediaview.client.mediathekview.ClipEntry;
-import okhttp3.ConnectionPool;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.h2.util.IOUtils;
 
 import javax.annotation.PostConstruct;
-import java.io.FilterInputStream;
-import java.io.IOException;
+import java.io.EOFException;
 import java.time.Duration;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -50,27 +46,25 @@ import java.util.stream.Collectors;
 public class DownloadManager {
     private static final int MAX_PARALLEL_DL = 4;
 
-    private final OkHttpClient httpClient;
     private final Logger logger = LogManager.getLogger();
     private final Map<String, ClipDownloaderHolder> clipIdToDl = new HashMap<>();
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+    private final CacheDirectory cacheDirectory;
 
-    public DownloadManager() {
-        this.httpClient = new OkHttpClient.Builder()
-                .connectionPool(new ConnectionPool(1, 10, TimeUnit.SECONDS))
-                .callTimeout(10, TimeUnit.SECONDS)
-                .readTimeout(10, TimeUnit.SECONDS)
-                .connectTimeout(5, TimeUnit.SECONDS)
-                .build();
+    @Inject
+    public DownloadManager(CacheDirectory cacheDirectory) {
+        this.cacheDirectory = cacheDirectory;
     }
 
     @PostConstruct
     void scheduleExpireThread() {
-        scheduler.scheduleAtFixedRate(this::expire, 10, 10, TimeUnit.SECONDS);
+        scheduler.scheduleAtFixedRate(this::closeIdlingDownloaders, 10, 10, TimeUnit.SECONDS);
     }
 
-    private synchronized void expire() {
+    private synchronized void closeIdlingDownloaders() {
         var tooOld = System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(30);
+        logger.debug("Closing downloaders idling for 30s");
+
         clipIdToDl.entrySet().stream()
                 .filter(e -> e.getValue().getNumberOfOpenStreams() == 0)
                 .filter(e -> e.getValue().getLastReadTs() < tooOld)
@@ -81,50 +75,58 @@ public class DownloadManager {
                 .forEach(clipIdToDl::remove);
     }
 
-    public synchronized Optional<OpenedStream> openStreamFor(ClipEntry clip, ByteRange byteRange) throws IOException {
+    private synchronized void tryToRemoveOneIdlingDownloader() {
+        logger.debug("Try to expire oldest idling downloader");
+        clipIdToDl.entrySet().stream()
+                .filter(e -> e.getValue().getNumberOfOpenStreams() == 0)
+                .sorted(Comparator.comparingLong(entry -> entry.getValue().getLastReadTs()))
+                .findFirst()
+                .ifPresent(oldestEntry -> {
+                    logger.debug("Downloader for {} is idling since {}. Closing it.", oldestEntry.getKey(), oldestEntry.getValue().getLastReadTs());
+                    try {
+                        oldestEntry.getValue().close();
+                    } finally {
+                        clipIdToDl.remove(oldestEntry.getKey());
+                    }
+                });
+
+    }
+
+    public synchronized OpenedStream openStreamFor(ClipEntry clip, ByteRange byteRange) throws UpstreamNotFoundException, UpstreamReadFailedException, TooManyConcurrentConnectionsException, EOFException, CacheSizeExhaustedException {
         logger.debug("Requested input stream for {} of {}", clip::getId, byteRange::toString);
 
         var clipDownloaderHolder = clipIdToDl.get(clip.getId());
-        if (null == clipDownloaderHolder && clipIdToDl.size() < MAX_PARALLEL_DL) {
-            clipDownloaderHolder = new ClipDownloaderHolder(new ClipDownloader(clip.getId(), clip.getBestUrl()));
-            clipIdToDl.put(clip.getId(), clipDownloaderHolder);
+        if (null == clipDownloaderHolder) {
+            if (clipIdToDl.size() >= MAX_PARALLEL_DL) {
+                tryToRemoveOneIdlingDownloader();
+            }
+            if (clipIdToDl.size() < MAX_PARALLEL_DL) {
+                clipDownloaderHolder = new ClipDownloaderHolder(createClipDownloader(clip));
+                clipIdToDl.put(clip.getId(), clipDownloaderHolder);
+            }
         }
         if (null == clipDownloaderHolder) {
-            // too many parallel dls. Open the stream directly, no prefetching
-            return fetchDirectly(clip, byteRange);
+            throw new TooManyConcurrentConnectionsException("More then " + MAX_PARALLEL_DL + " connections active. Can't proxy more.");
         } else {
             var openedStream = clipDownloaderHolder.openInputStreamStartingFrom(byteRange.getFirstPosition(), Duration.ofSeconds(20));
             if (byteRange.getLastPosition().isPresent()) {
                 var length = byteRange.getLastPosition().get() - byteRange.getFirstPosition();
                 openedStream.setStream(ByteStreams.limit(openedStream.getStream(), length));
             }
-            return Optional.of(openedStream);
+            return openedStream;
         }
     }
 
-    private Optional<OpenedStream> fetchDirectly(ClipEntry clip, ByteRange byteRange) throws IOException {
-        var request = new Request.Builder()
-                .url(clip.getBestUrl())
-                .addHeader("Range", "bytes=" + byteRange.getFirstPosition() + "-" + byteRange.getLastPosition().map(Object::toString).orElse(""))
-                .build();
-        try (var response = this.httpClient.newCall(request).execute()) {
-            if (response.isSuccessful()) {
-                var range = response.header("Content-Range");
-                return Optional.of(new OpenedStream(
-                        response.header("Content-Type"),
-                        Long.parseLong(range.substring(range.indexOf('/') + 1)),
-                        new FilterInputStream(response.body().byteStream()) {
-                            @Override
-                            public void close() throws IOException {
-                                IOUtils.closeSilently(response);
-                                super.close();
-                            }
-                        }));
+    private ClipDownloader createClipDownloader(ClipEntry clip) throws UpstreamNotFoundException, UpstreamReadFailedException, CacheSizeExhaustedException {
+        CacheSizeExhaustedException exh = null;
+        for (var maybeBytesAreFree = true; maybeBytesAreFree; maybeBytesAreFree = this.cacheDirectory.tryCleanupCacheDir(this.clipIdToDl.keySet())) {
+            try {
+                return new ClipDownloader(this.cacheDirectory, clip.getId(), clip.getBestUrl());
+            } catch (final CacheSizeExhaustedException e) {
+                logger.debug("Cache size exhausted. Trying to clean up");
+                exh = e;
             }
-            if (response.code() == 404) {
-                return Optional.empty();
-            }
-            throw new IOException(String.format("Could not download %s. Response code: %d", clip.getBestUrl(), response.code()));
         }
+        throw null == exh ? new CacheSizeExhaustedException("Cache size exhausted") : exh;
     }
 }
