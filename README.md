@@ -99,6 +99,8 @@ Configuration for prefetching
 
 ## Configure prefetching
 
+** This is an EXPERIMENTAL feature, and it's not yet fully tested. **
+
 Sometimes the Mediatheken's CDN is slow. Most of the time, that only means that some servers, or clusters are slow, over some time.
 
 Using prefetching, the Mediatheken-Dlna-Bridge will try to fetch in advance your videos, discard servers that are too slow to handle the required bandwidth.
