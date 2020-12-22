@@ -2,6 +2,7 @@ package de.corelogics.mediaview.service.dlna.content;
 
 import de.corelogics.mediaview.repository.clip.ClipRepository;
 import de.corelogics.mediaview.service.dlna.DlnaRequest;
+import de.corelogics.mediaview.util.IdUtils;
 import org.fourthline.cling.support.model.DIDLContent;
 import org.fourthline.cling.support.model.container.StorageFolder;
 
@@ -91,11 +92,11 @@ public class MissedShowsContent extends BaseDnlaRequestHandler {
 			addOverview(request, didl);
 		} else if (request.getObjectId().startsWith(URN_PREFIX_CHANNEL)) {
 			var split = request.getObjectId().split(":");
-			var channelName = decodeB64(split[split.length - 1]);
+			var channelName = IdUtils.decodeId(split[split.length - 1]);
 			addChannelTimes(request, channelName, didl);
 		} else if (request.getObjectId().startsWith(URN_PREFIX_CHANNELTIME)) {
 			var split = request.getObjectId().split(":");
-			var channelName = decodeB64(split[split.length - 3]);
+			var channelName = IdUtils.decodeId(split[split.length - 3]);
 			var daysBefore = Integer.parseInt(split[split.length - 2]);
 			var time = ChannelTime.values()[Integer.parseInt(split[split.length - 1])];
 			addClips(request, channelName, time, daysBefore, didl);
@@ -119,14 +120,13 @@ public class MissedShowsContent extends BaseDnlaRequestHandler {
 	private void addChannelTimes(DlnaRequest request, String channelName, DIDLContent didl) {
 		var today = ZonedDateTime.now();
 		LongStream.rangeClosed(0, 6).mapToObj(l -> Map.entry(l, today.minusDays(l))).flatMap(day ->
-				Arrays.stream(ChannelTime.values()).map(ct ->
-						new StorageFolder(
-								URN_PREFIX_CHANNELTIME + encodeB64(channelName) + ":" + day.getKey() + ":" + ct.ordinal(),
-								request.getObjectId(),
-								DATE_TIME_FORMAT.format(day.getValue()) + " " + ct.getTitle(),
-								"",
-								10,
-								null)))
+				Arrays.stream(ChannelTime.values()).map(ct -> new StorageFolder(
+						URN_PREFIX_CHANNELTIME + IdUtils.encodeId(channelName) + ":" + day.getKey() + ":" + ct.ordinal(),
+						request.getObjectId(),
+						DATE_TIME_FORMAT.format(day.getValue()) + " " + ct.getTitle(),
+						"",
+						10,
+						null)))
 				.forEach(didl::addContainer);
 	}
 
@@ -143,6 +143,6 @@ public class MissedShowsContent extends BaseDnlaRequestHandler {
 	}
 
 	private String idChannel(String channel) {
-		return URN_PREFIX_CHANNEL + encodeB64(channel);
+		return URN_PREFIX_CHANNEL + IdUtils.encodeId(channel);
 	}
 }

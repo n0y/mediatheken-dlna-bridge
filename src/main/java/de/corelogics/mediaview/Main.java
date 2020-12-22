@@ -29,16 +29,20 @@ import com.netflix.governator.guice.LifecycleInjector;
 import de.corelogics.mediaview.config.ConfigProviderFactory;
 import de.corelogics.mediaview.service.dlna.DlnaServiceModule;
 import de.corelogics.mediaview.service.importer.ImporterService;
+import de.corelogics.mediaview.service.proxy.ForwardingProxyModule;
 import org.fourthline.cling.model.ValidationException;
 
 public class Main {
 	public static void main(String[] args) throws InterruptedException, ValidationException {
 		System.setProperty("java.util.logging.manager", "org.apache.logging.log4j.jul.LogManager");
 
+		var configurationProvider = new ConfigProviderFactory().createConfigurationProvider();
 		var injector = LifecycleInjector.builder()
 				.withBootstrapModule(bootstrapBinder ->
-						bootstrapBinder.bindConfigurationProvider().toInstance(new ConfigProviderFactory().createConfigurationProvider()))
-				.withModules(new DlnaServiceModule())
+						bootstrapBinder.bindConfigurationProvider().toInstance(configurationProvider))
+				.withModules(
+						new DlnaServiceModule(),
+						new ForwardingProxyModule(configurationProvider))
 				.build()
 				.createInjector();
 		injector.getInstance(LifecycleManager.class).notifyStarted();
