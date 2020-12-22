@@ -1,6 +1,8 @@
 FROM openjdk:11-slim-buster
 COPY --from=arpaulnet/s6-overlay-stage:2.0 / /
 
+# build fix on arm
+RUN ln -s /usr/bin/dpkg-deb /usr/sbin/dpkg-deb && ln -s /usr/bin/dpkg-split /usr/sbin/dpkg-split
 RUN apt-get update && apt-get install -y libcap2-bin && rm -rf /var/lib/{apt,dpkg,cache,log}/
 RUN setcap 'cap_net_bind_service=+ep' /usr/local/openjdk-11/bin/java
 
