@@ -117,7 +117,7 @@ class ClipDownloader implements Closeable {
 
     private void initializeBitsets() {
         if (null == this.metadata.getBitSet()) {
-            var bitsetSize = (int) (this.metadata.getSize() / CHUNK_SIZE_BYTES);
+            var bitsetSize = 1 + (int) (this.metadata.getSize() / CHUNK_SIZE_BYTES);
             logger.debug("creating new bitset of size {}", bitsetSize);
             this.metadata.setNumberOfChunks(bitsetSize);
             this.metadata.setBitSet(new BitSet(this.metadata.getNumberOfChunks()));

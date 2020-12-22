@@ -23,6 +23,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.stream.Collectors;
 
+import static java.util.Optional.ofNullable;
+
 @Singleton
 public class ForwardingProxyServer implements ClipContentUrlGenerator {
     private final Logger logger = LogManager.getLogger();
@@ -49,11 +51,11 @@ public class ForwardingProxyServer implements ClipContentUrlGenerator {
 
     @PostConstruct
     void setupServer() {
-        logger.debug("Starting HTTP proxy server on port 8080");
+        logger.debug("Starting HTTP proxy server on port {}", publicHttpPort);
         Spark.port(publicHttpPort);
         Spark.get("/api/v1/clips/:clipId", this::handleGetClip);
         Spark.head("/api/v1/clips/:clipId", this::handleHead);
-        logger.info("Started prefetching HTTP proxy server on port 8080");
+        logger.info("Successfully started prefetching HTTP proxy server on port {}", publicHttpPort);
     }
 
     private Object handleHead(Request request, Response response) {
@@ -166,7 +168,11 @@ public class ForwardingProxyServer implements ClipContentUrlGenerator {
                 toStream.write(buffer, 0, bytesRead);
             }
         } catch (final IOException e) {
-            throw new RuntimeException(e);
+            if (ofNullable(e.getMessage()).map(String::toLowerCase).filter(s -> s.contains("broken pipe")).isPresent()) {
+                logger.debug("Client closed connection. Aborting.");
+            } else {
+                throw new RuntimeException(e);
+            }
         }
     }
 }

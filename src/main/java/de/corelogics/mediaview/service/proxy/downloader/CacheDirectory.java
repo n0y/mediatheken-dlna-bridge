@@ -84,11 +84,12 @@ public class CacheDirectory {
         }
         this.cacheSizeBytes = 1024L * 1024L * 1024L * this.cacheSizeGb;
         this.cacheDirFile = new File(this.cacheDir);
-        logger.info("Initializing cache download manager, with cache in directory [{}]", this.cacheDirFile::getAbsolutePath);
+        logger.debug("Initializing cache download manager, with cache in directory [{}]", this.cacheDirFile::getAbsolutePath);
         if (!cacheDirFile.exists() && !cacheDirFile.mkdirs()) {
             throw new IllegalStateException("Could not create nonexisting cache directory at " + this.cacheDirFile.getAbsolutePath());
         }
         this.scheduler.scheduleAtFixedRate(this.openFiles::cleanUp, 10, 10, TimeUnit.SECONDS);
+        logger.info("Successfully started cache download manager, with cache in directory [{}]", this.cacheDirFile::getAbsolutePath);
     }
 
     private RandomAccessFile openFile(String filename) throws FileNotFoundException {
