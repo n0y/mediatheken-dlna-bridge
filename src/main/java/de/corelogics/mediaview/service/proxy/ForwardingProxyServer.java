@@ -23,7 +23,7 @@ import java.util.stream.Collectors;
 import static java.util.Optional.ofNullable;
 
 public class ForwardingProxyServer implements ClipContentUrlGenerator {
-    private final Logger logger = LogManager.getLogger();
+    private final Logger logger = LogManager.getLogger(ForwardingProxyServer.class);
 
     private final ClipRepository clipRepository;
     private final MainConfiguration mainConfiguration;

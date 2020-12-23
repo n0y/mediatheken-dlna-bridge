@@ -41,7 +41,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 public class DownloadManager {
-    private final Logger logger = LogManager.getLogger();
+    private final Logger logger = LogManager.getLogger(DownloadManager.class);
     private final Map<String, ClipDownloaderHolder> clipIdToDl = new HashMap<>();
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
     private final MainConfiguration mainConfiguration;

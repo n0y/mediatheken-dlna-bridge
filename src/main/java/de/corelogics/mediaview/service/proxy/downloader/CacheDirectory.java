@@ -24,7 +24,7 @@
 
 package de.corelogics.mediaview.service.proxy.downloader;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.JsonFactory;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -49,12 +49,12 @@ import java.util.stream.Collectors;
 import static java.util.Optional.ofNullable;
 
 public class CacheDirectory {
-    private static final ObjectMapper objectMapper = new ObjectMapper().registerModule(new BitsetSerializerModule());
-    private final Logger logger = LogManager.getLogger();
+    private final Logger logger = LogManager.getLogger(CacheDirectory.class);
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+    private final JsonFactory factory = new JsonFactory();
 
-    private File cacheDirFile;
-    private long cacheSizeBytes;
+    private final File cacheDirFile;
+    private final long cacheSizeBytes;
 
     private LoadingCache<String, RandomAccessFile> openFiles = CacheBuilder.newBuilder()
             .maximumSize(40)
@@ -185,7 +185,9 @@ public class CacheDirectory {
         try {
             var metaFile = this.openFiles.get(metaFilename(clipId));
             metaFile.seek(0);
-            objectMapper.writeValue(metaFile, metadata);
+            try (var generator = factory.createGenerator(metaFile)) {
+                metadata.writeTo(generator);
+            }
             metaFile.setLength(metaFile.getFilePointer());
         } catch (ExecutionException e) {
             throw new IOException(e);
@@ -200,7 +202,7 @@ public class CacheDirectory {
             }
             var metaFileAccess = this.openFiles.get(metaFilename(clipId));
             metaFileAccess.seek(0);
-            return Optional.of(objectMapper.readValue(metaFileAccess, ClipMetadata.class));
+            return Optional.of(ClipMetadata.readFrom(factory.createParser(metaFileAccess)));
         } catch (ExecutionException e) {
             throw new IOException(e);
         }

@@ -27,7 +27,7 @@ class ClipDownloader implements Closeable {
     private final AtomicInteger currentConnectionId = new AtomicInteger();
     private final Map<String, ClipDownloadConnection> connections = new HashMap<>();
 
-    private final Logger logger = LogManager.getLogger();
+    private final Logger logger = LogManager.getLogger(ClipDownloader.class);
     private final CacheDirectory cacheDir;
     private final String url;
     private final String clipId;

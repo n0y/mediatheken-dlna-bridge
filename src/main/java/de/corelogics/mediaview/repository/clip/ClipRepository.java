@@ -47,7 +47,7 @@ public class ClipRepository {
         T execute(Connection conn) throws SQLException;
     }
 
-    private final Logger logger = LogManager.getLogger();
+    private final Logger logger = LogManager.getLogger(ClipRepository.class);
 
     private ReadWriteLock dbLock = new ReentrantReadWriteLock();
 

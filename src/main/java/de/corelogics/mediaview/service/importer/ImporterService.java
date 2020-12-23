@@ -41,7 +41,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class ImporterService {
-    private final Logger logger = LogManager.getLogger();
+    private final Logger logger = LogManager.getLogger(ImporterService.class);
 
     private final MainConfiguration mainConfiguration;
     private final MediathekListClient mediathekListeClient;

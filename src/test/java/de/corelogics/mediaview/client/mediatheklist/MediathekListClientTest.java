@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020 corelogics.de
+ * Copyright (c) 2020 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,16 +24,25 @@
 
 package de.corelogics.mediaview.client.mediatheklist;
 
-import de.corelogics.mediaview.client.mediatheklist.model.MediathekListeMetadata;
-import okhttp3.ResponseBody;
-import retrofit2.Call;
-import retrofit2.http.GET;
-import retrofit2.http.Url;
+import com.google.common.io.CountingOutputStream;
+import de.corelogics.mediaview.config.MainConfiguration;
+import org.apache.logging.log4j.core.util.NullOutputStream;
+import org.h2.util.IOUtils;
+import org.junit.jupiter.api.Test;
 
-interface MediathekListeRestClient {
-    @GET("/akt.xml")
-    Call<MediathekListeMetadata> getMediathekListeMetadata();
+import java.io.IOException;
 
-    @GET
-    Call<ResponseBody> downloadFromUrl(@Url String fileUrl);
+class MediathekListClientTest {
+
+    @Test
+    void r() throws IOException {
+        var client = new MediathekListClient(new MainConfiguration());
+        System.out.println(client.getMediathekListeMetadata());
+
+
+        try (var c = new CountingOutputStream(NullOutputStream.getInstance())) {
+            IOUtils.copy(client.openMediathekListeFull(), c);
+            System.out.println("Read " + c.getCount() + " bytes");
+        }
+    }
 }

@@ -25,37 +25,74 @@
 package de.corelogics.mediaview.client.mediatheklist;
 
 import de.corelogics.mediaview.client.mediatheklist.model.MediathekListeMetadata;
+import de.corelogics.mediaview.client.mediatheklist.model.MediathekListeServer;
 import de.corelogics.mediaview.config.MainConfiguration;
 import org.tukaani.xz.XZInputStream;
-import retrofit2.Response;
-import retrofit2.Retrofit;
-import retrofit2.converter.jaxb.JaxbConverterFactory;
+import org.w3c.dom.Element;
+import org.xml.sax.InputSource;
+import org.xml.sax.SAXException;
 
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.StringReader;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 public class MediathekListClient {
-    private final MediathekListeRestClient restClient;
+    private final HttpClient httpClient = HttpClient.newBuilder().build();
+    private final MainConfiguration mainConfiguration;
 
     public MediathekListClient(MainConfiguration mainConfiguration) {
-        this.restClient = new Retrofit.Builder()
-                .baseUrl(mainConfiguration.mediathekViewListBaseUrl())
-                .addConverterFactory(JaxbConverterFactory.create())
-                .build()
-                .create(MediathekListeRestClient.class);
+        this.mainConfiguration = mainConfiguration;
     }
 
     public InputStream openMediathekListeFull() throws IOException {
-        Response<MediathekListeMetadata> response = restClient.getMediathekListeMetadata().execute();
-        if (response.body() == null) {
-            throw new IOException("Could not load MediathekListe: " + response.code());
-        }
-        for (var server : response.body().getServers()) {
-            var binaryResponse = restClient.downloadFromUrl(server.getUrl()).execute();
-            if (binaryResponse.isSuccessful()) {
-                return new XZInputStream(binaryResponse.body().byteStream());
+        try {
+            var serverList = getMediathekListeMetadata();
+            for (var server : serverList.getServers()) {
+                var request = HttpRequest.newBuilder().uri(URI.create(server.getUrl())).build();
+                var response = httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
+                if (response.statusCode() == 200) {
+                    return new XZInputStream(response.body());
+                }
             }
+        } catch (final InterruptedException e) {
+            throw new IOException(e);
         }
         throw new IOException("Could not open");
+    }
+
+    MediathekListeMetadata getMediathekListeMetadata() throws IOException {
+        try {
+            var docBuilder = DocumentBuilderFactory.newDefaultInstance().newDocumentBuilder();
+
+            var request = HttpRequest.newBuilder().uri(URI.create(mainConfiguration.mediathekViewListBaseUrl()).resolve("/akt.xml")).build();
+            var response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+            try {
+                var doc = docBuilder.parse(new InputSource(new StringReader(response.body())));
+                var servers = doc.getDocumentElement().getElementsByTagName("Server");
+                return new MediathekListeMetadata(IntStream.range(0, servers.getLength())
+                        .mapToObj(servers::item)
+                        .filter(Element.class::isInstance)
+                        .map(Element.class::cast)
+                        .map(l -> new MediathekListeServer(
+                                l.getElementsByTagName("URL").item(0).getTextContent(),
+                                Integer.parseInt(l.getElementsByTagName("Prio").item(0).getTextContent())))
+                        .collect(Collectors.toList()));
+            } catch (final RuntimeException e) {
+                throw new RuntimeException("Didn't understand received file format.", e);
+            } catch (SAXException e) {
+                throw new RuntimeException("Illegal file format from server", e);
+            }
+        } catch (InterruptedException | ParserConfigurationException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

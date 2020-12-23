@@ -37,7 +37,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.concurrent.TimeUnit;
 
 class ClipDownloadConnection extends Thread implements Closeable {
-    private final Logger logger = LogManager.getLogger();
+    private final Logger logger = LogManager.getLogger(ClipDownloadConnection.class);
     private final OkHttpClient httpClient;
     private final String connectionId;
     private final ClipDownloader downloader;

@@ -40,7 +40,7 @@ import java.util.Set;
 import java.util.UUID;
 
 public class DlnaServer {
-    private final Logger logger = LogManager.getLogger();
+    private final Logger logger = LogManager.getLogger(DlnaServer.class);
 
     private final MainConfiguration mainConfiguration;
     private final Set<DlnaRequestHandler> handlers;

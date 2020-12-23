@@ -39,17 +39,17 @@ import org.fourthline.cling.support.model.SortCriterion;
 import java.util.Collection;
 
 class ContentDirectory extends AbstractContentDirectoryService {
-	private final Logger logger = LogManager.getLogger();
+    private final Logger logger = LogManager.getLogger(ContentDirectory.class);
 
-	private final Collection<DlnaRequestHandler> handlers;
+    private final Collection<DlnaRequestHandler> handlers;
 
-	public ContentDirectory(Collection<DlnaRequestHandler> handlers) {
-		this.handlers = handlers;
-	}
+    public ContentDirectory(Collection<DlnaRequestHandler> handlers) {
+        this.handlers = handlers;
+    }
 
-	@Override
-	public BrowseResult browse(String objectID, BrowseFlag browseFlag,
-			String filter,
+    @Override
+    public BrowseResult browse(String objectID, BrowseFlag browseFlag,
+                               String filter,
 			long firstResult, long maxResults,
 			SortCriterion[] orderby)
 			throws ContentDirectoryException {
