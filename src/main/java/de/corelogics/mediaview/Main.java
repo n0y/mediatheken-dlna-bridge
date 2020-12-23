@@ -24,23 +24,50 @@
 
 package de.corelogics.mediaview;
 
-import com.google.inject.Guice;
+import de.corelogics.mediaview.client.mediatheklist.MediathekListClient;
+import de.corelogics.mediaview.client.mediathekview.MediathekViewImporter;
 import de.corelogics.mediaview.config.MainConfiguration;
+import de.corelogics.mediaview.repository.clip.ClipRepository;
+import de.corelogics.mediaview.service.dlna.DlnaServer;
 import de.corelogics.mediaview.service.dlna.DlnaServiceModule;
 import de.corelogics.mediaview.service.importer.ImporterService;
 import de.corelogics.mediaview.service.proxy.ForwardingProxyModule;
-import org.fourthline.cling.model.ValidationException;
 
 public class Main {
-    public static void main(String[] args) throws InterruptedException, ValidationException {
-        System.setProperty("java.util.logging.manager", "org.apache.logging.log4j.jul.LogManager");
+    private final ImporterService importerService;
+    private final DlnaServer dlnaServer;
+    private final ClipRepository clipRepository;
 
+    public Main() {
         var mainConfiguration = new MainConfiguration();
-        var injector =
-                Guice.createInjector(
-                        new DlnaServiceModule(),
-                        new ForwardingProxyModule(mainConfiguration));
-        injector.getInstance(ImporterService.class).scheduleImport();
-        Thread.currentThread().join();
+        this.clipRepository = new ClipRepository(mainConfiguration);
+
+        this.dlnaServer = new DlnaServiceModule(
+                mainConfiguration,
+                new ForwardingProxyModule(mainConfiguration, clipRepository)
+                        .buildClipContentUrlGenerator(),
+                clipRepository)
+                .buildServer();
+        this.importerService = new ImporterService(
+                mainConfiguration,
+                new MediathekListClient(mainConfiguration),
+                new MediathekViewImporter(),
+                clipRepository);
+        this.importerService.scheduleImport();
+    }
+
+    public static void main(String[] args) {
+        System.setProperty("java.util.logging.manager", "org.apache.logging.log4j.jul.LogManager");
+        new Main().listenForShutdown();
+    }
+
+    private void listenForShutdown() {
+        Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
+    }
+
+    private void shutdown() {
+        importerService.shutdown();
+        dlnaServer.shutdown();
+        clipRepository.shutdown();
     }
 }

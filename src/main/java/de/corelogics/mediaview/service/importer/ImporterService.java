@@ -32,8 +32,6 @@ import de.corelogics.mediaview.repository.clip.ClipRepository;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import javax.inject.Inject;
-import javax.inject.Singleton;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -42,7 +40,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-@Singleton
 public class ImporterService {
     private final Logger logger = LogManager.getLogger();
 
@@ -51,8 +48,8 @@ public class ImporterService {
     private final MediathekViewImporter importer;
     private final ClipRepository clipRepository;
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+    private boolean stopped = false;
 
-    @Inject
     public ImporterService(MainConfiguration mainConfiguration, MediathekListClient mediathekListeClient, MediathekViewImporter importer, ClipRepository clipRepository) {
         this.mainConfiguration = mainConfiguration;
         this.mediathekListeClient = mediathekListeClient;
@@ -78,6 +75,15 @@ public class ImporterService {
         scheduler.schedule(this::fullImport, inSeconds, TimeUnit.SECONDS);
     }
 
+    public void shutdown() {
+        this.stopped = true;
+        try {
+            this.scheduler.awaitTermination(10, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            logger.warn("Could not terminate.", e);
+        }
+    }
+
     private void fullImport() {
         logger.info("Starting a full import");
         var startedAt = ZonedDateTime.now();
@@ -86,7 +92,13 @@ public class ImporterService {
             var numImported = new AtomicInteger();
             try (var input = mediathekListeClient.openMediathekListeFull()) {
                 var list = importer.createList(input);
-                list.stream().forEach(e -> {
+                var it = list.stream().iterator();
+                while (it.hasNext()) {
+                    if (stopped) {
+                        logger.debug("Stopped: terminating import");
+                        return;
+                    }
+                    var e = it.next();
                     if (numImported.incrementAndGet() % 10000 == 0) {
                         logger.info("Full imported yielded {} clips until now", numImported::get);
                     }
@@ -95,16 +107,20 @@ public class ImporterService {
                         clipRepository.addClips(entryUpdateList, startedAt);
                         entryUpdateList.clear();
                     }
-                });
+                }
                 clipRepository.addClips(entryUpdateList, startedAt);
-                clipRepository.updateLastFullImport(ZonedDateTime.now());
                 clipRepository.deleteClipsImportedBefore(startedAt);
                 clipRepository.compact();
                 logger.info("Successfully performed a full import, yielding {} clips", numImported::get);
-                scheduleNextFullImport();
             }
         } catch (final Exception e) {
-            e.printStackTrace();
+            logger.warn("Exception during import.", e);
+        }
+        try {
+            clipRepository.updateLastFullImport(ZonedDateTime.now());
+            scheduleNextFullImport();
+        } catch (Exception e) {
+            logger.warn("Could not schedule next full import: ", e);
         }
     }
 }

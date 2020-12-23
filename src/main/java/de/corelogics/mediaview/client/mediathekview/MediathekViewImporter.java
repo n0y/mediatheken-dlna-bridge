@@ -24,14 +24,12 @@
 
 package de.corelogics.mediaview.client.mediathekview;
 
-import javax.inject.Singleton;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.stream.StreamSupport;
 
-@Singleton
 public class MediathekViewImporter {
     public MediathekListe createList(InputStream input) throws IOException {
         var iterator = new ClipIterator(input);

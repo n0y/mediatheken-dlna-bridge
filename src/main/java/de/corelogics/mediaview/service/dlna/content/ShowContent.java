@@ -6,10 +6,6 @@ import de.corelogics.mediaview.util.IdUtils;
 import org.fourthline.cling.support.model.DIDLContent;
 import org.fourthline.cling.support.model.container.StorageFolder;
 
-import javax.inject.Inject;
-import javax.inject.Singleton;
-
-@Singleton
 public class ShowContent extends BaseDnlaRequestHandler {
 	private static final String URN_PREFIX_SHOW = "urn:corelogics.de:mediaview:show:";
 
@@ -17,7 +13,6 @@ public class ShowContent extends BaseDnlaRequestHandler {
 
 	private final ClipRepository clipRepository;
 
-	@Inject
 	public ShowContent(ClipContent clipContent, ClipRepository clipRepository) {
 		this.clipContent = clipContent;
 		this.clipRepository = clipRepository;

@@ -24,8 +24,6 @@
 
 package de.corelogics.mediaview.client.mediatheklist;
 
-import com.google.inject.Inject;
-import com.google.inject.Singleton;
 import de.corelogics.mediaview.client.mediatheklist.model.MediathekListeMetadata;
 import de.corelogics.mediaview.config.MainConfiguration;
 import org.tukaani.xz.XZInputStream;
@@ -36,11 +34,9 @@ import retrofit2.converter.jaxb.JaxbConverterFactory;
 import java.io.IOException;
 import java.io.InputStream;
 
-@Singleton
 public class MediathekListClient {
     private final MediathekListeRestClient restClient;
 
-    @Inject
     public MediathekListClient(MainConfiguration mainConfiguration) {
         this.restClient = new Retrofit.Builder()
                 .baseUrl(mainConfiguration.mediathekViewListBaseUrl())

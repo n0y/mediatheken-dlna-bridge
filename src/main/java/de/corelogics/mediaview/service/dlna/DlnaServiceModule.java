@@ -1,18 +1,38 @@
 package de.corelogics.mediaview.service.dlna;
 
-import com.google.inject.AbstractModule;
-import com.google.inject.multibindings.Multibinder;
+import de.corelogics.mediaview.config.MainConfiguration;
+import de.corelogics.mediaview.repository.clip.ClipRepository;
+import de.corelogics.mediaview.service.ClipContentUrlGenerator;
 import de.corelogics.mediaview.service.dlna.content.*;
+import org.fourthline.cling.model.ValidationException;
 
-public class DlnaServiceModule extends AbstractModule {
-	public void configure() {
-		var handlerBinder = Multibinder.newSetBinder(binder(), DlnaRequestHandler.class);
-		handlerBinder.addBinding().to(ClipContent.class);
-		handlerBinder.addBinding().to(MissedShowsContent.class);
-		handlerBinder.addBinding().to(RootContent.class);
-		handlerBinder.addBinding().to(SendungAzContent.class);
-		handlerBinder.addBinding().to(ShowContent.class);
+import java.util.Set;
 
-		bind(DlnaServer.class).asEagerSingleton();
-	}
+public class DlnaServiceModule {
+    private final MainConfiguration mainConfiguration;
+    private final ClipContentUrlGenerator clipContentUrlGenerator;
+    private final ClipRepository clipRepository;
+
+    public DlnaServiceModule(MainConfiguration mainConfiguration, ClipContentUrlGenerator clipContentUrlGenerator, ClipRepository clipRepository) {
+        this.mainConfiguration = mainConfiguration;
+        this.clipContentUrlGenerator = clipContentUrlGenerator;
+        this.clipRepository = clipRepository;
+    }
+
+    public DlnaServer buildServer() {
+        try {
+            return new DlnaServer(mainConfiguration, buildRequestHandlers());
+        } catch (ValidationException e) {
+            throw new RuntimeException("Initialization failed", e);
+        }
+    }
+
+    private Set<DlnaRequestHandler> buildRequestHandlers() {
+        var clipContent = new ClipContent(this.clipContentUrlGenerator);
+        var showContent = new ShowContent(clipContent, this.clipRepository);
+        var sendungAzContent = new SendungAzContent(this.clipRepository, showContent);
+        var missedShowsContent = new MissedShowsContent(clipContent, this.clipRepository);
+        var rootContent = new RootContent(sendungAzContent, showContent, missedShowsContent);
+        return Set.of(clipContent, missedShowsContent, sendungAzContent, rootContent, showContent);
+    }
 }

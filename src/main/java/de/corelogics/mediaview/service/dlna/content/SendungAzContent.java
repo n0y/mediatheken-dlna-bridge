@@ -7,14 +7,11 @@ import de.corelogics.mediaview.util.IdUtils;
 import org.fourthline.cling.support.model.DIDLContent;
 import org.fourthline.cling.support.model.container.StorageFolder;
 
-import javax.inject.Inject;
-import javax.inject.Singleton;
 import java.text.Collator;
 import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-@Singleton
 public class SendungAzContent extends BaseDnlaRequestHandler {
 	private static final Ordering<String> ORD_ALPHA = Ordering.from(
 			Collator.getInstance(Locale.GERMANY)).onResultOf(s -> s.toLowerCase(Locale.GERMANY));
@@ -35,7 +32,6 @@ public class SendungAzContent extends BaseDnlaRequestHandler {
 
 	private final ShowContent showContent;
 
-	@Inject
 	public SendungAzContent(ClipRepository clipRepository, ShowContent showContent) {
 		this.clipRepository = clipRepository;
 		this.showContent = showContent;

@@ -63,7 +63,7 @@ class ClipRepositoryTest {
 
     @AfterEach
     void closeDbase() {
-        sut.destroy();
+        sut.shutdown();
     }
 
     @Nested

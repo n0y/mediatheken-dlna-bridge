@@ -1,22 +1,40 @@
 package de.corelogics.mediaview.service.proxy;
 
-import com.google.inject.AbstractModule;
 import de.corelogics.mediaview.config.MainConfiguration;
+import de.corelogics.mediaview.repository.clip.ClipRepository;
 import de.corelogics.mediaview.service.ClipContentUrlGenerator;
+import de.corelogics.mediaview.service.proxy.downloader.CacheDirectory;
+import de.corelogics.mediaview.service.proxy.downloader.DownloadManager;
 
-public class ForwardingProxyModule extends AbstractModule {
+public class ForwardingProxyModule {
     private final MainConfiguration mainConfiguration;
+    private final ClipRepository clipRepository;
 
-    public ForwardingProxyModule(MainConfiguration mainConfiguration) {
+    public ForwardingProxyModule(MainConfiguration mainConfiguration, ClipRepository clipRepository) {
         this.mainConfiguration = mainConfiguration;
+        this.clipRepository = clipRepository;
     }
 
-    @Override
-    protected void configure() {
+    public ClipContentUrlGenerator buildClipContentUrlGenerator() {
         if (mainConfiguration.isPrefetchingEnabled()) {
-            bind(ClipContentUrlGenerator.class).to(ForwardingProxyServer.class).asEagerSingleton();
+            return buildForwardingProxyServer();
         } else {
-            bind(ClipContentUrlGenerator.class).to(DirectDownloadClipContentUrlGenerator.class);
+            return new DirectDownloadClipContentUrlGenerator();
         }
+    }
+
+    private ClipContentUrlGenerator buildForwardingProxyServer() {
+        return new ForwardingProxyServer(
+                this.mainConfiguration,
+                this.clipRepository,
+                buildDownloadManager());
+    }
+
+    private DownloadManager buildDownloadManager() {
+        return new DownloadManager(this.mainConfiguration, buildCacheDirectory());
+    }
+
+    private CacheDirectory buildCacheDirectory() {
+        return new CacheDirectory(this.mainConfiguration);
     }
 }

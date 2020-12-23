@@ -35,7 +35,6 @@ import org.fourthline.cling.model.meta.*;
 import org.fourthline.cling.model.types.UDADeviceType;
 import org.fourthline.cling.model.types.UDN;
 
-import javax.inject.Inject;
 import java.nio.charset.StandardCharsets;
 import java.util.Set;
 import java.util.UUID;
@@ -45,8 +44,8 @@ public class DlnaServer {
 
     private final MainConfiguration mainConfiguration;
     private final Set<DlnaRequestHandler> handlers;
+    private final UpnpServiceImpl upnpService;
 
-    @Inject
     public DlnaServer(MainConfiguration mainConfiguration, Set<DlnaRequestHandler> handlers) throws ValidationException {
         this.mainConfiguration = mainConfiguration;
         this.handlers = handlers;
@@ -71,9 +70,13 @@ public class DlnaServer {
                 details,
                 service);
 
-        var upnpService = new UpnpServiceImpl();
+        this.upnpService = new UpnpServiceImpl();
         upnpService.getRegistry().addDevice(localDevice);
         logger.info(String.format("Successfully started DLNA server '%s'. It may take some time for it to become visible in the network.",
                 mainConfiguration.displayName()));
+    }
+
+    public void shutdown() {
+        upnpService.shutdown();
     }
 }

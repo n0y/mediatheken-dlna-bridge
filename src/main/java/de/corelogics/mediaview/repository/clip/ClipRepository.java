@@ -24,14 +24,12 @@
 
 package de.corelogics.mediaview.repository.clip;
 
-import com.google.inject.Singleton;
 import de.corelogics.mediaview.client.mediathekview.ClipEntry;
 import de.corelogics.mediaview.config.MainConfiguration;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.h2.jdbcx.JdbcConnectionPool;
 
-import javax.inject.Inject;
 import java.io.File;
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -42,7 +40,6 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Supplier;
 
-@Singleton
 public class ClipRepository {
     private final MainConfiguration mainConfiguration;
 
@@ -57,8 +54,8 @@ public class ClipRepository {
     Supplier<Long> maxMemorySupplier = Runtime.getRuntime()::maxMemory;
 
     private JdbcConnectionPool pool;
+    private boolean stopped = false;
 
-    @Inject
     public ClipRepository(MainConfiguration mainConfiguration) {
         this.mainConfiguration = mainConfiguration;
         dbLock.writeLock().lock();
@@ -74,6 +71,9 @@ public class ClipRepository {
     }
 
     private <T> T withConnection(SqlFunction<T> function) {
+        if (stopped) {
+            throw new RuntimeException("Repository is already stopped");
+        }
         dbLock.readLock().lock();
         try (var conn = pool.getConnection()) {
             return function.execute(conn);
@@ -158,8 +158,14 @@ public class ClipRepository {
         this.pool = JdbcConnectionPool.create(jdbcUrl, "sa", "sa");
     }
 
-    void destroy() {
-        this.pool.dispose();
+    public void shutdown() {
+        this.dbLock.writeLock().lock();
+        try {
+            this.stopped = true;
+            this.pool.dispose();
+        } finally {
+            this.dbLock.writeLock().unlock();
+        }
     }
 
     public Optional<ZonedDateTime> findLastFullImport() {

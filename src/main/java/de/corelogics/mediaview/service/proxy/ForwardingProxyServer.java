@@ -12,8 +12,6 @@ import spark.Request;
 import spark.Response;
 import spark.Spark;
 
-import javax.inject.Inject;
-import javax.inject.Singleton;
 import javax.servlet.http.HttpServletResponse;
 import java.io.EOFException;
 import java.io.IOException;
@@ -24,7 +22,6 @@ import java.util.stream.Collectors;
 
 import static java.util.Optional.ofNullable;
 
-@Singleton
 public class ForwardingProxyServer implements ClipContentUrlGenerator {
     private final Logger logger = LogManager.getLogger();
 
@@ -33,7 +30,6 @@ public class ForwardingProxyServer implements ClipContentUrlGenerator {
     private final DownloadManager downloadManager;
 
 
-    @Inject
     public ForwardingProxyServer(MainConfiguration mainConfiguration, ClipRepository clipRepository, DownloadManager downloadManager) {
         this.mainConfiguration = mainConfiguration;
         this.downloadManager = downloadManager;

@@ -29,14 +29,12 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.cache.RemovalNotification;
-import com.google.inject.Singleton;
 import de.corelogics.mediaview.config.MainConfiguration;
 import de.corelogics.mediaview.util.IdUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.h2.util.IOUtils;
 
-import javax.inject.Inject;
 import java.io.*;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -50,7 +48,6 @@ import java.util.stream.Collectors;
 
 import static java.util.Optional.ofNullable;
 
-@Singleton
 public class CacheDirectory {
     private static final ObjectMapper objectMapper = new ObjectMapper().registerModule(new BitsetSerializerModule());
     private final Logger logger = LogManager.getLogger();
@@ -71,7 +68,6 @@ public class CacheDirectory {
             });
 
 
-    @Inject
     public CacheDirectory(MainConfiguration mainConfiguration) {
         if (mainConfiguration.cacheSizeGb() < 10) {
             throw new IllegalStateException("Configuration: CACHE_SIZE_GB is " + mainConfiguration.cacheSizeGb() + ", but at least 10 GB are required");

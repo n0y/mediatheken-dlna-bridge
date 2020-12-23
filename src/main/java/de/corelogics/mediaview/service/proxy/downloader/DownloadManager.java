@@ -25,8 +25,6 @@
 package de.corelogics.mediaview.service.proxy.downloader;
 
 import com.google.common.io.ByteStreams;
-import com.google.inject.Inject;
-import com.google.inject.Singleton;
 import de.corelogics.mediaview.client.mediathekview.ClipEntry;
 import de.corelogics.mediaview.config.MainConfiguration;
 import org.apache.logging.log4j.LogManager;
@@ -42,7 +40,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-@Singleton
 public class DownloadManager {
     private final Logger logger = LogManager.getLogger();
     private final Map<String, ClipDownloaderHolder> clipIdToDl = new HashMap<>();
@@ -50,7 +47,6 @@ public class DownloadManager {
     private final MainConfiguration mainConfiguration;
     private final CacheDirectory cacheDirectory;
 
-    @Inject
     public DownloadManager(MainConfiguration mainConfiguration, CacheDirectory cacheDirectory) {
         this.mainConfiguration = mainConfiguration;
         this.cacheDirectory = cacheDirectory;
