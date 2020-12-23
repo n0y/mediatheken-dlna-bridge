@@ -25,10 +25,9 @@
 package de.corelogics.mediaview.service.proxy.downloader;
 
 import com.fasterxml.jackson.core.JsonFactory;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
-import com.google.common.cache.RemovalNotification;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.LoadingCache;
+import com.github.benmanes.caffeine.cache.RemovalCause;
 import de.corelogics.mediaview.config.MainConfiguration;
 import de.corelogics.mediaview.util.IdUtils;
 import org.apache.logging.log4j.LogManager;
@@ -40,7 +39,6 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -56,16 +54,11 @@ public class CacheDirectory {
     private final File cacheDirFile;
     private final long cacheSizeBytes;
 
-    private LoadingCache<String, RandomAccessFile> openFiles = CacheBuilder.newBuilder()
+    private LoadingCache<String, RandomAccessFile> openFiles = Caffeine.newBuilder()
             .maximumSize(40)
             .expireAfterAccess(120, TimeUnit.SECONDS)
             .removalListener(this::closeFile)
-            .build(new CacheLoader<>() {
-                @Override
-                public RandomAccessFile load(String filename) throws Exception {
-                    return openFile(filename);
-                }
-            });
+            .build(this::openFile);
 
 
     public CacheDirectory(MainConfiguration mainConfiguration) {
@@ -86,8 +79,8 @@ public class CacheDirectory {
         return new RandomAccessFile(new File(cacheDirFile, filename), "rw");
     }
 
-    private void closeFile(RemovalNotification<String, RandomAccessFile> notification) {
-        IOUtils.closeSilently(notification.getValue());
+    private void closeFile(String name, RandomAccessFile file, RemovalCause cause) {
+        IOUtils.closeSilently(file);
     }
 
     private String contentFilename(String clipId) {
@@ -108,104 +101,80 @@ public class CacheDirectory {
     }
 
     public synchronized void writeContent(String clipId, long position, byte[] bytes) throws IOException {
-        try {
-            var contentFile = this.openFiles.get(contentFilename(clipId));
-            synchronized (contentFile) {
-                contentFile.seek(position);
-                contentFile.write(bytes);
-            }
-        } catch (final ExecutionException e) {
-            throw new IOException(e);
+        var contentFile = this.openFiles.get(contentFilename(clipId));
+        synchronized (contentFile) {
+            contentFile.seek(position);
+            contentFile.write(bytes);
         }
     }
 
     public synchronized int readContentByte(String clipId, long position) throws IOException {
-        try {
-            var contentFilename = contentFilename(clipId);
-            var contentFile = new File(this.cacheDirFile, contentFilename);
-            if (!contentFile.exists()) {
-                throw new FileNotFoundException(contentFilename);
-            }
-
-            var contentAccess = this.openFiles.get(contentFilename);
-            if (position >= contentAccess.length()) {
-                throw new EOFException(contentFilename + ": " + position + " >" + contentFile.length());
-            }
-            contentAccess.seek(position);
-            return contentAccess.read();
-        } catch (ExecutionException e) {
-            throw new IOException(e);
+        var contentFilename = contentFilename(clipId);
+        var contentFile = new File(this.cacheDirFile, contentFilename);
+        if (!contentFile.exists()) {
+            throw new FileNotFoundException(contentFilename);
         }
+
+        var contentAccess = this.openFiles.get(contentFilename);
+        if (position >= contentAccess.length()) {
+            throw new EOFException(contentFilename + ": " + position + " >" + contentFile.length());
+        }
+        contentAccess.seek(position);
+        return contentAccess.read();
     }
 
     public synchronized int readContentBytes(String clipId, long position, byte[] buffer, int off, int len) throws IOException {
-        try {
-            var contentFilename = contentFilename(clipId);
-            var contentFile = new File(this.cacheDirFile, contentFilename);
-            if (!contentFile.exists()) {
-                throw new FileNotFoundException(contentFilename);
-            }
-
-            var contentAccess = this.openFiles.get(contentFilename);
-            if (position >= contentAccess.length()) {
-                return -1;
-            }
-            contentAccess.seek(position);
-            var bytesLeftInFile = contentAccess.length() - position;
-            return contentAccess.read(buffer, off, (int) Math.min(bytesLeftInFile, len));
-        } catch (ExecutionException e) {
-            throw new IOException(e);
+        var contentFilename = contentFilename(clipId);
+        var contentFile = new File(this.cacheDirFile, contentFilename);
+        if (!contentFile.exists()) {
+            throw new FileNotFoundException(contentFilename);
         }
+
+        var contentAccess = this.openFiles.get(contentFilename);
+        if (position >= contentAccess.length()) {
+            return -1;
+        }
+        contentAccess.seek(position);
+        var bytesLeftInFile = contentAccess.length() - position;
+        return contentAccess.read(buffer, off, (int) Math.min(bytesLeftInFile, len));
     }
 
     public synchronized void growContentFile(String clipId, long newSize) throws IOException, CacheSizeExhaustedException {
-        try {
-            var contentFilename = contentFilename(clipId);
-            var contentFile = this.openFiles.get(contentFilename);
-            var dirSize = directorySize();
-            var contentFileSizePrior = contentFile.length();
-            var dirSizeAfter = dirSize - contentFileSizePrior + newSize;
-            if (dirSizeAfter > this.cacheSizeBytes) {
-                throw new CacheSizeExhaustedException(
-                        String.format(
-                                "growing [%s] to [%d] would exceed cache size limit of %d with new size of %d",
-                                contentFilename,
-                                newSize,
-                                this.cacheSizeBytes,
-                                dirSizeAfter));
-            }
-            contentFile.setLength(newSize);
-        } catch (ExecutionException e) {
-            throw new IOException(e);
+        var contentFilename = contentFilename(clipId);
+        var contentFile = this.openFiles.get(contentFilename);
+        var dirSize = directorySize();
+        var contentFileSizePrior = contentFile.length();
+        var dirSizeAfter = dirSize - contentFileSizePrior + newSize;
+        if (dirSizeAfter > this.cacheSizeBytes) {
+            throw new CacheSizeExhaustedException(
+                    String.format(
+                            "growing [%s] to [%d] would exceed cache size limit of %d with new size of %d",
+                            contentFilename,
+                            newSize,
+                            this.cacheSizeBytes,
+                            dirSizeAfter));
         }
+        contentFile.setLength(newSize);
     }
 
 
     public synchronized void writeMetadata(String clipId, ClipMetadata metadata) throws IOException {
-        try {
-            var metaFile = this.openFiles.get(metaFilename(clipId));
-            metaFile.seek(0);
-            try (var generator = factory.createGenerator(metaFile)) {
-                metadata.writeTo(generator);
-            }
-            metaFile.setLength(metaFile.getFilePointer());
-        } catch (ExecutionException e) {
-            throw new IOException(e);
+        var metaFile = this.openFiles.get(metaFilename(clipId));
+        metaFile.seek(0);
+        try (var generator = factory.createGenerator(metaFile)) {
+            metadata.writeTo(generator);
         }
+        metaFile.setLength(metaFile.getFilePointer());
     }
 
     public synchronized Optional<ClipMetadata> loadMetadata(String clipId) throws IOException {
-        try {
-            var metaFile = new File(this.cacheDirFile, metaFilename(clipId));
-            if (!metaFile.exists()) {
-                return Optional.empty();
-            }
-            var metaFileAccess = this.openFiles.get(metaFilename(clipId));
-            metaFileAccess.seek(0);
-            return Optional.of(ClipMetadata.readFrom(factory.createParser(metaFileAccess)));
-        } catch (ExecutionException e) {
-            throw new IOException(e);
+        var metaFile = new File(this.cacheDirFile, metaFilename(clipId));
+        if (!metaFile.exists()) {
+            return Optional.empty();
         }
+        var metaFileAccess = this.openFiles.get(metaFilename(clipId));
+        metaFileAccess.seek(0);
+        return Optional.of(ClipMetadata.readFrom(factory.createParser(metaFileAccess)));
     }
 
     public synchronized boolean tryCleanupCacheDir(Set<String> currentlyOpenClipIds) {
