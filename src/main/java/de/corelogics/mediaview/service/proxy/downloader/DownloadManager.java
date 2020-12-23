@@ -27,12 +27,11 @@ package de.corelogics.mediaview.service.proxy.downloader;
 import com.google.common.io.ByteStreams;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import com.netflix.governator.annotations.Configuration;
 import de.corelogics.mediaview.client.mediathekview.ClipEntry;
+import de.corelogics.mediaview.config.MainConfiguration;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import javax.annotation.PostConstruct;
 import java.io.EOFException;
 import java.time.Duration;
 import java.util.Comparator;
@@ -45,25 +44,17 @@ import java.util.stream.Collectors;
 
 @Singleton
 public class DownloadManager {
-    @Configuration("CACHE_MAX_PARALLEL_DOWNLOADS")
-    private int maxParallelDownloads = 4;
-
-    @Configuration("CACHE_DOWNLODERS_PER_VIDEO")
-    private int numParallelDownloaders;
-
     private final Logger logger = LogManager.getLogger();
     private final Map<String, ClipDownloaderHolder> clipIdToDl = new HashMap<>();
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+    private final MainConfiguration mainConfiguration;
     private final CacheDirectory cacheDirectory;
 
-
     @Inject
-    public DownloadManager(CacheDirectory cacheDirectory) {
+    public DownloadManager(MainConfiguration mainConfiguration, CacheDirectory cacheDirectory) {
+        this.mainConfiguration = mainConfiguration;
         this.cacheDirectory = cacheDirectory;
-    }
 
-    @PostConstruct
-    void scheduleExpireThread() {
         scheduler.scheduleAtFixedRate(this::closeIdlingDownloaders, 10, 10, TimeUnit.SECONDS);
     }
 
@@ -103,16 +94,16 @@ public class DownloadManager {
 
         var clipDownloaderHolder = clipIdToDl.get(clip.getId());
         if (null == clipDownloaderHolder) {
-            if (clipIdToDl.size() >= maxParallelDownloads) {
+            if (clipIdToDl.size() >= mainConfiguration.cacheMaxParallelDownloads()) {
                 tryToRemoveOneIdlingDownloader();
             }
-            if (clipIdToDl.size() < maxParallelDownloads) {
+            if (clipIdToDl.size() < mainConfiguration.cacheMaxParallelDownloads()) {
                 clipDownloaderHolder = new ClipDownloaderHolder(createClipDownloader(clip));
                 clipIdToDl.put(clip.getId(), clipDownloaderHolder);
             }
         }
         if (null == clipDownloaderHolder) {
-            throw new TooManyConcurrentConnectionsException("More then " + maxParallelDownloads + " connections active. Can't proxy more.");
+            throw new TooManyConcurrentConnectionsException("More then " + mainConfiguration.cacheMaxParallelDownloads() + " connections active. Can't proxy more.");
         } else {
             var openedStream = clipDownloaderHolder.openInputStreamStartingFrom(byteRange.getFirstPosition(), Duration.ofSeconds(20));
             if (byteRange.getLastPosition().isPresent()) {
@@ -127,12 +118,12 @@ public class DownloadManager {
         CacheSizeExhaustedException exh = null;
         for (var maybeBytesAreFree = true; maybeBytesAreFree; maybeBytesAreFree = this.cacheDirectory.tryCleanupCacheDir(this.clipIdToDl.keySet())) {
             try {
-                return new ClipDownloader(this.cacheDirectory, clip.getId(), clip.getBestUrl(), this.numParallelDownloaders);
+                return new ClipDownloader(this.cacheDirectory, clip.getId(), clip.getBestUrl(), mainConfiguration.cacheParallelDownloadsPerVideo());
             } catch (final CacheSizeExhaustedException e) {
                 logger.debug("Cache size exhausted. Trying to clean up");
                 exh = e;
             }
         }
-        throw null == exh ? new CacheSizeExhaustedException("Cache size exhausted") : exh;
+        throw exh;
     }
 }

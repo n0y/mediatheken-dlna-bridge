@@ -1,7 +1,14 @@
 FROM openjdk:11-jre
-COPY --from=arpaulnet/s6-overlay-stage:2.0 / /
 
-# build fix on arm
+LABEL org.label-schema.schema-version="1.0"
+LABEL org.label-schema.name="Mediatheken-DLNA-Bridge"
+LABEL org.label-schema.description="Retrieves content of various (german) Mediatheken & serves it's content to your local network using DLNA."
+LABEL org.label-schema.usage="https://github.com/n0y/mediatheken-dlna-bridge/blob/master/README.md"
+LABEL org.label-schema.url="https://github.com/n0y/mediatheken-dlna-bridge"
+LABEL org.label-schema.vcs-url="https://github.com/n0y/mediatheken-dlna-bridge"
+LABEL org.label-schema.docker.cmd="docker run corelogicsde/mediatheken-dlna-bridge:latest"
+
+COPY --from=arpaulnet/s6-overlay-stage:2.0 / /
 RUN setcap 'cap_net_bind_service=+ep' /usr/local/openjdk-11/bin/java
 
 RUN groupadd --gid 1000 medlna && useradd --gid 1000 --no-create-home --uid 1000 --shell /bin/false medlna

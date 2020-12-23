@@ -30,13 +30,13 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.cache.RemovalNotification;
 import com.google.inject.Singleton;
-import com.netflix.governator.annotations.Configuration;
+import de.corelogics.mediaview.config.MainConfiguration;
 import de.corelogics.mediaview.util.IdUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.h2.util.IOUtils;
 
-import javax.annotation.PostConstruct;
+import javax.inject.Inject;
 import java.io.*;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -56,12 +56,6 @@ public class CacheDirectory {
     private final Logger logger = LogManager.getLogger();
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
-    @Configuration("CACHE_DIRECTORY")
-    private String cacheDir = "./cache";
-
-    @Configuration("CACHE_SIZE_GB")
-    private int cacheSizeGb = 10;
-
     private File cacheDirFile;
     private long cacheSizeBytes;
 
@@ -77,13 +71,13 @@ public class CacheDirectory {
             });
 
 
-    @PostConstruct
-    void scheduleExpireThread() {
-        if (this.cacheSizeGb < 10) {
-            throw new IllegalStateException("Configuration: CACHE_SIZE_GB is " + cacheSizeGb + ", but at least 10 GB are required");
+    @Inject
+    public CacheDirectory(MainConfiguration mainConfiguration) {
+        if (mainConfiguration.cacheSizeGb() < 10) {
+            throw new IllegalStateException("Configuration: CACHE_SIZE_GB is " + mainConfiguration.cacheSizeGb() + ", but at least 10 GB are required");
         }
-        this.cacheSizeBytes = 1024L * 1024L * 1024L * this.cacheSizeGb;
-        this.cacheDirFile = new File(this.cacheDir);
+        this.cacheSizeBytes = 1024L * 1024L * 1024L * mainConfiguration.cacheSizeGb();
+        this.cacheDirFile = new File(mainConfiguration.cacheDir());
         logger.debug("Initializing cache download manager, with cache in directory [{}]", this.cacheDirFile::getAbsolutePath);
         if (!cacheDirFile.exists() && !cacheDirFile.mkdirs()) {
             throw new IllegalStateException("Could not create nonexisting cache directory at " + this.cacheDirFile.getAbsolutePath());
@@ -110,7 +104,8 @@ public class CacheDirectory {
 
 
     private long directorySize() {
-        return Arrays.stream(this.cacheDirFile.listFiles())
+        return ofNullable(this.cacheDirFile.listFiles()).stream()
+                .flatMap(Arrays::stream)
                 .filter(File::isFile)
                 .mapToLong(File::length)
                 .sum();

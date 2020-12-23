@@ -24,32 +24,29 @@
 
 package de.corelogics.mediaview.client.mediatheklist;
 
+import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import com.netflix.governator.annotations.Configuration;
 import de.corelogics.mediaview.client.mediatheklist.model.MediathekListeMetadata;
+import de.corelogics.mediaview.config.MainConfiguration;
 import org.tukaani.xz.XZInputStream;
 import retrofit2.Response;
 import retrofit2.Retrofit;
 import retrofit2.converter.jaxb.JaxbConverterFactory;
 
-import javax.annotation.PostConstruct;
 import java.io.IOException;
 import java.io.InputStream;
 
 @Singleton
 public class MediathekListClient {
-    @Configuration("MEDIATHEKVIEW_LIST_BASEURL")
-    private String mediathekViewListBaseUrl;
-    private MediathekListeRestClient restClient;
+    private final MediathekListeRestClient restClient;
 
-    @PostConstruct
-    MediathekListeRestClient createClient() {
+    @Inject
+    public MediathekListClient(MainConfiguration mainConfiguration) {
         this.restClient = new Retrofit.Builder()
-                .baseUrl(mediathekViewListBaseUrl)
+                .baseUrl(mainConfiguration.mediathekViewListBaseUrl())
                 .addConverterFactory(JaxbConverterFactory.create())
                 .build()
                 .create(MediathekListeRestClient.class);
-        return this.restClient;
     }
 
     public InputStream openMediathekListeFull() throws IOException {

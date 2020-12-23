@@ -1,23 +1,19 @@
 package de.corelogics.mediaview.service.proxy;
 
 import com.google.inject.AbstractModule;
-import com.netflix.governator.configuration.ConfigurationKey;
-import com.netflix.governator.configuration.ConfigurationProvider;
-import com.netflix.governator.configuration.KeyParser;
+import de.corelogics.mediaview.config.MainConfiguration;
 import de.corelogics.mediaview.service.ClipContentUrlGenerator;
 
-import java.util.Map;
-
 public class ForwardingProxyModule extends AbstractModule {
-    private final ConfigurationProvider configurationProvider;
+    private final MainConfiguration mainConfiguration;
 
-    public ForwardingProxyModule(ConfigurationProvider configurationProvider) {
-        this.configurationProvider = configurationProvider;
+    public ForwardingProxyModule(MainConfiguration mainConfiguration) {
+        this.mainConfiguration = mainConfiguration;
     }
 
     @Override
     protected void configure() {
-        if (configurationProvider.getBooleanSupplier(new ConfigurationKey("ENABLE_PREFETCHING", KeyParser.parse("ENABLE_PREFETCHING", Map.of())), false).get()) {
+        if (mainConfiguration.isPrefetchingEnabled()) {
             bind(ClipContentUrlGenerator.class).to(ForwardingProxyServer.class).asEagerSingleton();
         } else {
             bind(ClipContentUrlGenerator.class).to(DirectDownloadClipContentUrlGenerator.class);

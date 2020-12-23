@@ -24,10 +24,10 @@
 
 package de.corelogics.mediaview.service.importer;
 
-import com.netflix.governator.annotations.Configuration;
 import de.corelogics.mediaview.client.mediatheklist.MediathekListClient;
 import de.corelogics.mediaview.client.mediathekview.ClipEntry;
 import de.corelogics.mediaview.client.mediathekview.MediathekViewImporter;
+import de.corelogics.mediaview.config.MainConfiguration;
 import de.corelogics.mediaview.repository.clip.ClipRepository;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -46,16 +46,15 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class ImporterService {
     private final Logger logger = LogManager.getLogger();
 
-    @Configuration("UPDATEINTERVAL_FULL_HOURS")
-    private int updateIntervalFullHours = 24;
-
+    private final MainConfiguration mainConfiguration;
     private final MediathekListClient mediathekListeClient;
     private final MediathekViewImporter importer;
     private final ClipRepository clipRepository;
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
     @Inject
-    public ImporterService(MediathekListClient mediathekListeClient, MediathekViewImporter importer, ClipRepository clipRepository) {
+    public ImporterService(MainConfiguration mainConfiguration, MediathekListClient mediathekListeClient, MediathekViewImporter importer, ClipRepository clipRepository) {
+        this.mainConfiguration = mainConfiguration;
         this.mediathekListeClient = mediathekListeClient;
         this.importer = importer;
         this.clipRepository = clipRepository;
@@ -63,7 +62,7 @@ public class ImporterService {
 
 
     public void scheduleImport() {
-        logger.info("Starting import scheduler. Update interval: {} hours", updateIntervalFullHours);
+        logger.info("Starting import scheduler. Update interval: {} hours", mainConfiguration::updateIntervalFullHours);
         scheduleNextFullImport();
     }
 
@@ -71,7 +70,7 @@ public class ImporterService {
         var now = ZonedDateTime.now();
         var nextFullUpdateAt = clipRepository
                 .findLastFullImport()
-                .map(t -> t.plus(updateIntervalFullHours, ChronoUnit.HOURS))
+                .map(t -> t.plus(mainConfiguration.updateIntervalFullHours(), ChronoUnit.HOURS))
                 .filter(now::isBefore)
                 .orElseGet(() -> now.plus(10, ChronoUnit.SECONDS));
         long inSeconds = ChronoUnit.SECONDS.between(now, nextFullUpdateAt);

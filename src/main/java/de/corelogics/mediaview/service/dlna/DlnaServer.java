@@ -24,7 +24,7 @@
 
 package de.corelogics.mediaview.service.dlna;
 
-import com.netflix.governator.annotations.Configuration;
+import de.corelogics.mediaview.config.MainConfiguration;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.fourthline.cling.UpnpServiceImpl;
@@ -35,50 +35,45 @@ import org.fourthline.cling.model.meta.*;
 import org.fourthline.cling.model.types.UDADeviceType;
 import org.fourthline.cling.model.types.UDN;
 
-import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import java.nio.charset.StandardCharsets;
 import java.util.Set;
 import java.util.UUID;
 
 public class DlnaServer {
-	private final Logger logger = LogManager.getLogger();
+    private final Logger logger = LogManager.getLogger();
 
-	@Configuration("DISPLAY_NAME")
-	private String displayName;
+    private final MainConfiguration mainConfiguration;
+    private final Set<DlnaRequestHandler> handlers;
 
-	private Set<DlnaRequestHandler> handlers;
+    @Inject
+    public DlnaServer(MainConfiguration mainConfiguration, Set<DlnaRequestHandler> handlers) throws ValidationException {
+        this.mainConfiguration = mainConfiguration;
+        this.handlers = handlers;
 
-	@Inject
-	public DlnaServer(Set<DlnaRequestHandler> handlers) {
-		this.handlers = handlers;
-	}
+        logger.debug("Starting DLNA server");
+        var type = new UDADeviceType("MediaServer", 1);
+        var details = new DeviceDetails(
+                mainConfiguration.displayName(),
+                new ManufacturerDetails("Mediatheken DLNA Gateway"),
+                new ModelDetails("Mediatheken", "v1", "v.1.0.0", "https://github.com/n0y/mediatheken-dlna-bridge"));
+        var service = (LocalService<ContentDirectory>) new AnnotationLocalServiceBinder().read(ContentDirectory.class);
+        service.setManager(new DefaultServiceManager<>(service, ContentDirectory.class) {
+            @Override
+            protected ContentDirectory createServiceInstance() {
+                return new ContentDirectory(handlers);
+            }
+        });
 
-	@PostConstruct
-	public void start() throws ValidationException {
-		logger.debug("Starting DLNA server");
-		var type = new UDADeviceType("MediaServer", 1);
-		var details = new DeviceDetails(
-				displayName,
-				new ManufacturerDetails("Mediatheken DLNA Gateway"),
-				new ModelDetails("Mediatheken", "v1", "v.1.0.0", "https://github.com/n0y/mediatheken-dlna-bridge"));
-		var service = (LocalService<ContentDirectory>) new AnnotationLocalServiceBinder().read(ContentDirectory.class);
-		service.setManager(new DefaultServiceManager<>(service, ContentDirectory.class) {
-			@Override
-			protected ContentDirectory createServiceInstance() {
-				return new ContentDirectory(handlers);
-			}
-		});
+        var localDevice = new LocalDevice(
+                new DeviceIdentity(new UDN(UUID.nameUUIDFromBytes(mainConfiguration.displayName().getBytes(StandardCharsets.UTF_8)))),
+                type,
+                details,
+                service);
 
-		var localDevice = new LocalDevice(
-				new DeviceIdentity(new UDN(UUID.nameUUIDFromBytes(displayName.getBytes(StandardCharsets.UTF_8)))),
-				type,
-				details,
-				service);
-
-		var upnpService = new UpnpServiceImpl();
-		upnpService.getRegistry().addDevice(localDevice);
-		logger.info(String.format("Successfully started DLNA server '%s'. It may take some time for it to become visible in the network.",
-				displayName));
-	}
+        var upnpService = new UpnpServiceImpl();
+        upnpService.getRegistry().addDevice(localDevice);
+        logger.info(String.format("Successfully started DLNA server '%s'. It may take some time for it to become visible in the network.",
+                mainConfiguration.displayName()));
+    }
 }

@@ -1,7 +1,7 @@
 package de.corelogics.mediaview.service.proxy;
 
-import com.netflix.governator.annotations.Configuration;
 import de.corelogics.mediaview.client.mediathekview.ClipEntry;
+import de.corelogics.mediaview.config.MainConfiguration;
 import de.corelogics.mediaview.repository.clip.ClipRepository;
 import de.corelogics.mediaview.service.ClipContentUrlGenerator;
 import de.corelogics.mediaview.service.proxy.downloader.*;
@@ -12,7 +12,6 @@ import spark.Request;
 import spark.Response;
 import spark.Spark;
 
-import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import javax.servlet.http.HttpServletResponse;
@@ -29,34 +28,29 @@ import static java.util.Optional.ofNullable;
 public class ForwardingProxyServer implements ClipContentUrlGenerator {
     private final Logger logger = LogManager.getLogger();
 
-    @Configuration("PUBLIC_BASE_URL")
-    private String publicBaseUrl;
-
-    @Configuration("PUBLIC_HTTP_PORT")
-    private int publicHttpPort = 8080;
-
     private final ClipRepository clipRepository;
+    private final MainConfiguration mainConfiguration;
     private final DownloadManager downloadManager;
 
 
     @Inject
-    public ForwardingProxyServer(ClipRepository clipRepository, DownloadManager downloadManager) {
+    public ForwardingProxyServer(MainConfiguration mainConfiguration, ClipRepository clipRepository, DownloadManager downloadManager) {
+        this.mainConfiguration = mainConfiguration;
         this.downloadManager = downloadManager;
         this.clipRepository = clipRepository;
+
+        logger.debug("Starting HTTP proxy server on port {}", mainConfiguration::publicHttpPort);
+        Spark.port(mainConfiguration.publicHttpPort());
+        Spark.get("/api/v1/clips/:clipId", this::handleGetClip);
+        Spark.head("/api/v1/clips/:clipId", this::handleHead);
+        logger.info("Successfully started prefetching HTTP proxy server on port {}", mainConfiguration::publicHttpPort);
     }
 
     public String createLinkTo(ClipEntry e) {
-        return publicBaseUrl + (publicBaseUrl.endsWith("/") ? "" : "/") + "/api/v1/clips/" + IdUtils.encodeId(e.getId());
+        var baseUrl = mainConfiguration.publicBaseUrl();
+        return baseUrl + (baseUrl.endsWith("/") ? "" : "/") + "/api/v1/clips/" + IdUtils.encodeId(e.getId());
     }
 
-    @PostConstruct
-    void setupServer() {
-        logger.debug("Starting HTTP proxy server on port {}", publicHttpPort);
-        Spark.port(publicHttpPort);
-        Spark.get("/api/v1/clips/:clipId", this::handleGetClip);
-        Spark.head("/api/v1/clips/:clipId", this::handleHead);
-        logger.info("Successfully started prefetching HTTP proxy server on port {}", publicHttpPort);
-    }
 
     private Object handleHead(Request request, Response response) {
         var clipId = new String(Base64.getDecoder().decode(request.params("clipId")), StandardCharsets.UTF_8);

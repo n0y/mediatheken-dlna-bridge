@@ -24,29 +24,23 @@
 
 package de.corelogics.mediaview;
 
-import com.netflix.governator.LifecycleManager;
-import com.netflix.governator.guice.LifecycleInjector;
-import de.corelogics.mediaview.config.ConfigProviderFactory;
+import com.google.inject.Guice;
+import de.corelogics.mediaview.config.MainConfiguration;
 import de.corelogics.mediaview.service.dlna.DlnaServiceModule;
 import de.corelogics.mediaview.service.importer.ImporterService;
 import de.corelogics.mediaview.service.proxy.ForwardingProxyModule;
 import org.fourthline.cling.model.ValidationException;
 
 public class Main {
-	public static void main(String[] args) throws InterruptedException, ValidationException {
-		System.setProperty("java.util.logging.manager", "org.apache.logging.log4j.jul.LogManager");
+    public static void main(String[] args) throws InterruptedException, ValidationException {
+        System.setProperty("java.util.logging.manager", "org.apache.logging.log4j.jul.LogManager");
 
-		var configurationProvider = new ConfigProviderFactory().createConfigurationProvider();
-		var injector = LifecycleInjector.builder()
-				.withBootstrapModule(bootstrapBinder ->
-						bootstrapBinder.bindConfigurationProvider().toInstance(configurationProvider))
-				.withModules(
-						new DlnaServiceModule(),
-						new ForwardingProxyModule(configurationProvider))
-				.build()
-				.createInjector();
-		injector.getInstance(LifecycleManager.class).notifyStarted();
-		injector.getInstance(ImporterService.class).scheduleImport();
-		Thread.currentThread().join();
-	}
+        var mainConfiguration = new MainConfiguration();
+        var injector =
+                Guice.createInjector(
+                        new DlnaServiceModule(),
+                        new ForwardingProxyModule(mainConfiguration));
+        injector.getInstance(ImporterService.class).scheduleImport();
+        Thread.currentThread().join();
+    }
 }

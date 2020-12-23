@@ -17,6 +17,7 @@
         <cling.version>2.1.2</cling.version>
         <log4j.version>2.14.0</log4j.version>
         <junit.version>5.7.0</junit.version>
+        <graalvm.version>20.3.0</graalvm.version>
     </properties>
 
     <licenses>
@@ -95,11 +96,6 @@
             <groupId>com.google.inject</groupId>
             <artifactId>guice</artifactId>
             <version>4.2.3</version>
-        </dependency>
-        <dependency>
-            <groupId>com.netflix.governator</groupId>
-            <artifactId>governator</artifactId>
-            <version>1.17.10</version>
         </dependency>
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
@@ -194,6 +190,12 @@
             <version>3.6.28</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-junit-jupiter</artifactId>
+            <version>3.6.28</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
     <build>
         <finalName>mediatheken-dlna-bridge</finalName>
@@ -277,4 +279,33 @@
             </plugin>
         </plugins>
     </build>
+    <profiles>
+        <profile>
+            <id>native</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.graalvm.nativeimage</groupId>
+                        <artifactId>native-image-maven-plugin</artifactId>
+                        <version>${graalvm.version}</version>
+                        <executions>
+                            <execution>
+                                <goals>
+                                    <goal>native-image</goal>
+                                </goals>
+                                <phase>package</phase>
+                            </execution>
+                        </executions>
+                        <configuration>
+                            <skip>false</skip>
+                            <imageName>example</imageName>
+                            <buildArgs>
+                                --no-fallback
+                            </buildArgs>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

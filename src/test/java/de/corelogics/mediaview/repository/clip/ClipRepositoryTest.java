@@ -25,27 +25,38 @@
 package de.corelogics.mediaview.repository.clip;
 
 import de.corelogics.mediaview.client.mediathekview.ClipEntry;
+import de.corelogics.mediaview.config.MainConfiguration;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.entry;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
+import static org.mockito.Mockito.when;
 
+@ExtendWith(MockitoExtension.class)
 class ClipRepositoryTest {
     private final ZonedDateTime REF_TIME = ZonedDateTime.of(2020, 10, 4, 8, 30, 20, 0, ZoneId.of("Europe/Berlin"));
 
+    @InjectMocks
     private ClipRepository sut;
+
+    @Mock
+    private MainConfiguration config;
 
     @BeforeEach
     void createDatabase() {
-        sut = new ClipRepository();
         sut.openConnection("jdbc:h2:mem:test");
         sut.initialize();
     }
@@ -206,7 +217,7 @@ class ClipRepositoryTest {
             @ParameterizedTest
             @ValueSource(strings = {"../test.url/location", "/home/x", "./data/calc"})
             void whenDatabaseLocationIsInserted_thenEnsureItsInTheUrl(String location) {
-                sut.databaseLocation = location;
+                when(config.dbLocation()).thenReturn(Optional.of(location));
                 assertThat(sut.calcJdbcUrl(0)).startsWith("jdbc:h2:" + location + ";");
             }
 
@@ -214,7 +225,7 @@ class ClipRepositoryTest {
             @ValueSource(longs = {1L, 1_000_000L, 5_000_000_000L})
             void whenCacheSizeIsInserted_thenEnsureItsInTheUrl(long cacheSize) {
                 var cacheSizeKb = cacheSize / 1024;
-                sut.databaseLocation = "nowhere";
+                when(config.dbLocation()).thenReturn(Optional.empty());
                 assertThat(sut.calcJdbcUrl(cacheSize))
                         .contains(";CACHE_SIZE=" + cacheSizeKb);
             }
