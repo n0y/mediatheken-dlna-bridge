@@ -30,9 +30,9 @@ import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.github.benmanes.caffeine.cache.RemovalCause;
 import de.corelogics.mediaview.config.MainConfiguration;
 import de.corelogics.mediaview.util.IdUtils;
+import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.h2.util.IOUtils;
 
 import java.io.*;
 import java.util.Arrays;
@@ -80,7 +80,7 @@ public class CacheDirectory {
     }
 
     private void closeFile(String name, RandomAccessFile file, RemovalCause cause) {
-        IOUtils.closeSilently(file);
+        IOUtils.closeQuietly(file, e -> logger.debug("Could not (quietly) close file.", e));
     }
 
     private String contentFilename(String clipId) {

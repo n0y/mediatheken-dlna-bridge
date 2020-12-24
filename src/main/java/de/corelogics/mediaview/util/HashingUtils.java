@@ -22,46 +22,34 @@
  * SOFTWARE.
  */
 
-package de.corelogics.mediaview.service.proxy.downloader;
+package de.corelogics.mediaview.util;
 
-import org.apache.commons.io.IOUtils;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import io.whitfin.siphash.SipHasher;
 
-import java.io.Closeable;
-import java.io.InputStream;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.Base64;
 
-public class OpenedStream implements Closeable {
-    private static final Logger logger = LogManager.getLogger(OpenedStream.class);
+public class HashingUtils {
+    // test vector from siphash24.c at https://www.131002.net/siphash/siphash24.c
+    private static final byte[] SIP42_KEY_BYTES = ByteBuffer
+            .allocate(16)
+            .order(ByteOrder.LITTLE_ENDIAN)
+            .putLong(0x0706050403020100L)
+            .putLong(0x0f0e0d0c0b0a0908L)
+            .array();
 
-    private final String contentType;
-    private final long maxSize;
-    private InputStream stream;
+    public static String idHash(String... idStrings) {
+        var hasher = SipHasher.init(SIP42_KEY_BYTES, 2, 4);
+        Arrays.stream(idStrings)
+                .map(s -> s.getBytes(StandardCharsets.UTF_8))
+                .forEach(hasher::update);
 
-    public OpenedStream(String contentType, long maxSize, InputStream stream) {
-        this.contentType = contentType;
-        this.maxSize = maxSize;
-        this.stream = stream;
-    }
-
-    public String getContentType() {
-        return contentType;
-    }
-
-    public long getMaxSize() {
-        return maxSize;
-    }
-
-    public InputStream getStream() {
-        return stream;
-    }
-
-    public void setStream(InputStream stream) {
-        this.stream = stream;
-    }
-
-    @Override
-    public void close() {
-        IOUtils.closeQuietly(stream, e -> logger.debug("Could not (quietly) close stream.", e));
+        ByteBuffer b = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN);
+        b.putLong(hasher.digest());
+        b.rewind();
+        return Base64.getEncoder().withoutPadding().encodeToString(b.array());
     }
 }

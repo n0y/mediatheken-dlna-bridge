@@ -24,9 +24,9 @@
 
 package de.corelogics.mediaview.service.proxy.downloader;
 
-import com.google.common.io.ByteStreams;
 import de.corelogics.mediaview.client.mediathekview.ClipEntry;
 import de.corelogics.mediaview.config.MainConfiguration;
+import org.apache.commons.io.input.BoundedInputStream;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -104,7 +104,7 @@ public class DownloadManager {
             var openedStream = clipDownloaderHolder.openInputStreamStartingFrom(byteRange.getFirstPosition(), Duration.ofSeconds(20));
             if (byteRange.getLastPosition().isPresent()) {
                 var length = byteRange.getLastPosition().get() - byteRange.getFirstPosition();
-                openedStream.setStream(ByteStreams.limit(openedStream.getStream(), length));
+                openedStream.setStream(new BoundedInputStream(openedStream.getStream(), length));
             }
             return openedStream;
         }

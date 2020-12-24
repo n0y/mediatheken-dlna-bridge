@@ -24,10 +24,7 @@
 
 package de.corelogics.mediaview.client.mediatheklist;
 
-import com.google.common.io.CountingOutputStream;
 import de.corelogics.mediaview.config.MainConfiguration;
-import org.apache.logging.log4j.core.util.NullOutputStream;
-import org.h2.util.IOUtils;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -39,10 +36,5 @@ class MediathekListClientTest {
         var client = new MediathekListClient(new MainConfiguration());
         System.out.println(client.getMediathekListeMetadata());
 
-
-        try (var c = new CountingOutputStream(NullOutputStream.getInstance())) {
-            IOUtils.copy(client.openMediathekListeFull(), c);
-            System.out.println("Read " + c.getCount() + " bytes");
-        }
     }
 }

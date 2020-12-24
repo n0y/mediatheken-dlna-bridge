@@ -6,6 +6,7 @@ import de.corelogics.mediaview.repository.clip.ClipRepository;
 import de.corelogics.mediaview.service.ClipContentUrlGenerator;
 import de.corelogics.mediaview.service.proxy.downloader.*;
 import de.corelogics.mediaview.util.IdUtils;
+import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import spark.Request;
@@ -19,8 +20,6 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.stream.Collectors;
-
-import static java.util.Optional.ofNullable;
 
 public class ForwardingProxyServer implements ClipContentUrlGenerator {
     private final Logger logger = LogManager.getLogger(ForwardingProxyServer.class);
@@ -65,7 +64,6 @@ public class ForwardingProxyServer implements ClipContentUrlGenerator {
                             response.header("Content-Length", Long.toString(stream.getMaxSize()));
                         } finally {
                             logger.debug("Closing consumer stream");
-                            org.h2.util.IOUtils.closeSilently(stream.getStream());
                         }
                     } catch (UpstreamNotFoundException e) {
                         logger.info("Clip {} wasn't found at upstream url {}", clip::getTitle, clip::getBestUrl);
@@ -121,7 +119,6 @@ public class ForwardingProxyServer implements ClipContentUrlGenerator {
                             }
                         } finally {
                             logger.debug("Closing consumer stream");
-                            org.h2.util.IOUtils.closeSilently(stream.getStream());
                         }
                     } catch (UpstreamNotFoundException e) {
                         logger.info("Clip {} wasn't found at upstream url {}", clip::getTitle, clip::getBestUrl);
@@ -153,16 +150,9 @@ public class ForwardingProxyServer implements ClipContentUrlGenerator {
 
     private void copyBytes(InputStream from, HttpServletResponse to) {
         try (var toStream = to.getOutputStream()) {
-            byte[] buffer = new byte[256_000];
-            for (var bytesRead = from.read(buffer, 0, buffer.length); bytesRead >= 0; bytesRead = from.read(buffer, 0, buffer.length)) {
-                toStream.write(buffer, 0, bytesRead);
-            }
+            IOUtils.copyLarge(from, toStream);
         } catch (final IOException e) {
-            if (ofNullable(e.getMessage()).map(String::toLowerCase).filter(s -> s.contains("broken pipe")).isPresent()) {
-                logger.debug("Client closed connection. Aborting.");
-            } else {
-                throw new RuntimeException(e);
-            }
+            logger.debug("Client closed connection. Aborting.");
         }
     }
 }

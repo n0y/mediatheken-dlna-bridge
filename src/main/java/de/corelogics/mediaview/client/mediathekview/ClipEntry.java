@@ -24,20 +24,13 @@
 
 package de.corelogics.mediaview.client.mediathekview;
 
-import com.google.common.hash.HashFunction;
-import com.google.common.hash.Hashing;
+import de.corelogics.mediaview.util.HashingUtils;
 
 import java.time.ZonedDateTime;
-import java.util.Base64;
 import java.util.Objects;
 import java.util.StringJoiner;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-
 public class ClipEntry {
-    private static final Base64.Encoder BASE64ENC = Base64.getEncoder().withoutPadding();
-    private static final HashFunction HASHING = Hashing.sipHash24();
-
     private final String id;
     private final String title;
     private final String containedIn;
@@ -61,11 +54,7 @@ public class ClipEntry {
     }
 
     public String createId() {
-        return BASE64ENC.encodeToString(
-                HASHING.newHasher()
-                        .putString(this.channelName, UTF_8)
-                        .putString(getBestUrl(), UTF_8)
-                        .hash().asBytes());
+        return HashingUtils.idHash(this.channelName, getBestUrl());
     }
 
     public String getTitle() {
