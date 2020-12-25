@@ -36,7 +36,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 public class Main {
-    private static final Logger logger = LogManager.getLogger(Main.class);
+    private final Logger logger = LogManager.getLogger(Main.class);
 
     private final ImporterService importerService;
     private final DlnaServer dlnaServer;
