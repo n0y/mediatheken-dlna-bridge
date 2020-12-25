@@ -32,8 +32,12 @@ import de.corelogics.mediaview.service.dlna.DlnaServer;
 import de.corelogics.mediaview.service.dlna.DlnaServiceModule;
 import de.corelogics.mediaview.service.importer.ImporterService;
 import de.corelogics.mediaview.service.proxy.ForwardingProxyModule;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public class Main {
+    private static final Logger logger = LogManager.getLogger(Main.class);
+
     private final ImporterService importerService;
     private final DlnaServer dlnaServer;
     private final ClipRepository clipRepository;
@@ -66,6 +70,7 @@ public class Main {
     }
 
     private void shutdown() {
+        logger.info("Shutting down");
         importerService.shutdown();
         dlnaServer.shutdown();
         clipRepository.shutdown();
