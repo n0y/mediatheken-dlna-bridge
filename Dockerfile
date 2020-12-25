@@ -18,7 +18,7 @@ RUN echo '/app/cache true medlna,1000:1000 0664 0775' >> /etc/fix-attrs.d/01-med
 
 COPY target/libraries/* /app/libraries/
 COPY target/*.jar /app/
-RUN /app/data /app/cache && chmod -R g-w,o-w /app
+RUN mkdir /app/data /app/cache && chmod -R g-w,o-w /app
 
 VOLUME /app/data
 VOLUME /app/cache
