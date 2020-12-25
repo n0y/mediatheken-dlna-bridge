@@ -9,7 +9,7 @@ LABEL org.label-schema.vcs-url="https://github.com/n0y/mediatheken-dlna-bridge"
 LABEL org.label-schema.docker.cmd="docker run corelogicsde/mediatheken-dlna-bridge:latest"
 
 USER root
-COPY --from=arpaulnet/s6-overlay-stage:2.0 / /
+COPY --from=arpaulnet/s6-overlay-stage:2.1 / /
 RUN setcap 'cap_net_bind_service=+ep' /usr/local/openjdk-11/bin/java
 
 RUN groupadd --gid 1000 medlna && useradd --gid 1000 --no-create-home --uid 1000 --shell /bin/false medlna
