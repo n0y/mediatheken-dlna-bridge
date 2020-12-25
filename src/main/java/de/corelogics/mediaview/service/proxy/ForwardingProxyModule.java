@@ -1,26 +1,40 @@
 package de.corelogics.mediaview.service.proxy;
 
-import com.google.inject.AbstractModule;
-import com.netflix.governator.configuration.ConfigurationKey;
-import com.netflix.governator.configuration.ConfigurationProvider;
-import com.netflix.governator.configuration.KeyParser;
+import de.corelogics.mediaview.config.MainConfiguration;
+import de.corelogics.mediaview.repository.clip.ClipRepository;
 import de.corelogics.mediaview.service.ClipContentUrlGenerator;
+import de.corelogics.mediaview.service.proxy.downloader.CacheDirectory;
+import de.corelogics.mediaview.service.proxy.downloader.DownloadManager;
 
-import java.util.Map;
+public class ForwardingProxyModule {
+    private final MainConfiguration mainConfiguration;
+    private final ClipRepository clipRepository;
 
-public class ForwardingProxyModule extends AbstractModule {
-    private final ConfigurationProvider configurationProvider;
-
-    public ForwardingProxyModule(ConfigurationProvider configurationProvider) {
-        this.configurationProvider = configurationProvider;
+    public ForwardingProxyModule(MainConfiguration mainConfiguration, ClipRepository clipRepository) {
+        this.mainConfiguration = mainConfiguration;
+        this.clipRepository = clipRepository;
     }
 
-    @Override
-    protected void configure() {
-        if (configurationProvider.getBooleanSupplier(new ConfigurationKey("ENABLE_PREFETCHING", KeyParser.parse("ENABLE_PREFETCHING", Map.of())), false).get()) {
-            bind(ClipContentUrlGenerator.class).to(ForwardingProxyServer.class).asEagerSingleton();
+    public ClipContentUrlGenerator buildClipContentUrlGenerator() {
+        if (mainConfiguration.isPrefetchingEnabled()) {
+            return buildForwardingProxyServer();
         } else {
-            bind(ClipContentUrlGenerator.class).to(DirectDownloadClipContentUrlGenerator.class);
+            return new DirectDownloadClipContentUrlGenerator();
         }
+    }
+
+    private ClipContentUrlGenerator buildForwardingProxyServer() {
+        return new ForwardingProxyServer(
+                this.mainConfiguration,
+                this.clipRepository,
+                buildDownloadManager());
+    }
+
+    private DownloadManager buildDownloadManager() {
+        return new DownloadManager(this.mainConfiguration, buildCacheDirectory());
+    }
+
+    private CacheDirectory buildCacheDirectory() {
+        return new CacheDirectory(this.mainConfiguration);
     }
 }

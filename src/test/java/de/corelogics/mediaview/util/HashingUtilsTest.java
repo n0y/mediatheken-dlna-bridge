@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020 corelogics.de
+ * Copyright (c) 2020 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,33 +22,15 @@
  * SOFTWARE.
  */
 
-package de.corelogics.mediaview.client.mediathekview;
+package de.corelogics.mediaview.util;
 
-import de.corelogics.mediaview.repository.clip.ClipRepository;
-import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-class MediathekViewImporterTest {
-    ClipRepository repo = new ClipRepository();
-
+class HashingUtilsTest {
     @Test
-    @RepeatedTest(200)
-    void iterate_test() throws IOException {
-
-//        var list = new ArrayList<ClipEntry>(1000);
-//        new MediathekViewImporter().iterateEntries().forEach(e -> {
-//            list.add(e);
-//            if (list.size() > 999) {
-//                System.out.println(e);
-//                repo.addClips(list);
-//                list.clear();
-//            }
-//        });
-//        repo.addClips(list);
-//        repo.find();
-
-//        assertThat(new MediathekViewImporter().iterateEntries()).hasSize(431773);
+    void testSip42() {
+        assertEquals("zzC8iiAzkDg", HashingUtils.idHash("this is a", "test string"));
     }
 }

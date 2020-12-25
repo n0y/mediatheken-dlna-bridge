@@ -24,17 +24,14 @@
 
 package de.corelogics.mediaview.client.mediatheklist.model;
 
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
 import java.util.List;
 
-@XmlRootElement(name = "Mediathek")
-@XmlAccessorType(XmlAccessType.FIELD)
 public class MediathekListeMetadata {
-    @XmlElement(name = "Server")
-    private List<MediathekListeServer> servers;
+    private final List<MediathekListeServer> servers;
+
+    public MediathekListeMetadata(List<MediathekListeServer> servers) {
+        this.servers = servers;
+    }
 
     public List<MediathekListeServer> getServers() {
         return null == servers ? List.of() : servers;

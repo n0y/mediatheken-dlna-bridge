@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020 corelogics.de
+ * Copyright (c) 2020 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,18 +22,34 @@
  * SOFTWARE.
  */
 
-package de.corelogics.mediaview.client.mediatheklist;
+package de.corelogics.mediaview.util;
 
-import de.corelogics.mediaview.client.mediatheklist.model.MediathekListeMetadata;
-import okhttp3.ResponseBody;
-import retrofit2.Call;
-import retrofit2.http.GET;
-import retrofit2.http.Url;
+import io.whitfin.siphash.SipHasher;
 
-interface MediathekListeRestClient {
-    @GET("/akt.xml")
-    Call<MediathekListeMetadata> getMediathekListeMetadata();
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.Base64;
 
-    @GET
-    Call<ResponseBody> downloadFromUrl(@Url String fileUrl);
+public class HashingUtils {
+    // test vector from siphash24.c at https://www.131002.net/siphash/siphash24.c
+    private static final byte[] SIP42_KEY_BYTES = ByteBuffer
+            .allocate(16)
+            .order(ByteOrder.LITTLE_ENDIAN)
+            .putLong(0x0706050403020100L)
+            .putLong(0x0f0e0d0c0b0a0908L)
+            .array();
+
+    public static String idHash(String... idStrings) {
+        var hasher = SipHasher.init(SIP42_KEY_BYTES, 2, 4);
+        Arrays.stream(idStrings)
+                .map(s -> s.getBytes(StandardCharsets.UTF_8))
+                .forEach(hasher::update);
+
+        ByteBuffer b = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN);
+        b.putLong(hasher.digest());
+        b.rewind();
+        return Base64.getEncoder().withoutPadding().encodeToString(b.array());
+    }
 }

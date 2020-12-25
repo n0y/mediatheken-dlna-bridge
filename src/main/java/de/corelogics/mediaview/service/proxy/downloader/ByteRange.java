@@ -24,7 +24,6 @@
 
 package de.corelogics.mediaview.service.proxy.downloader;
 
-import javax.annotation.Nullable;
 import java.util.Optional;
 
 public class ByteRange {
@@ -32,7 +31,7 @@ public class ByteRange {
     private final long firstPosition;
     private final Optional<Long> lastPosition;
 
-    public ByteRange(@Nullable String optionalRangeHeader) {
+    public ByteRange(String optionalRangeHeader) {
         partial = null != optionalRangeHeader;
         if (partial) {
             var split = optionalRangeHeader.split("[-,=]");

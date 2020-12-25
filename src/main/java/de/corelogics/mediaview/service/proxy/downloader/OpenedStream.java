@@ -24,12 +24,16 @@
 
 package de.corelogics.mediaview.service.proxy.downloader;
 
-import org.h2.util.IOUtils;
+import org.apache.commons.io.IOUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.Closeable;
 import java.io.InputStream;
 
 public class OpenedStream implements Closeable {
+    private static final Logger logger = LogManager.getLogger(OpenedStream.class);
+
     private final String contentType;
     private final long maxSize;
     private InputStream stream;
@@ -58,6 +62,6 @@ public class OpenedStream implements Closeable {
 
     @Override
     public void close() {
-        IOUtils.closeSilently(stream);
+        IOUtils.closeQuietly(stream, e -> logger.debug("Could not (quietly) close stream.", e));
     }
 }

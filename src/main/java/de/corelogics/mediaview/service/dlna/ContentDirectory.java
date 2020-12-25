@@ -24,7 +24,6 @@
 
 package de.corelogics.mediaview.service.dlna;
 
-import com.google.common.collect.ImmutableList;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.fourthline.cling.support.contentdirectory.AbstractContentDirectoryService;
@@ -36,55 +35,56 @@ import org.fourthline.cling.support.model.BrowseResult;
 import org.fourthline.cling.support.model.DIDLContent;
 import org.fourthline.cling.support.model.SortCriterion;
 
+import java.util.Arrays;
 import java.util.Collection;
 
 class ContentDirectory extends AbstractContentDirectoryService {
-	private final Logger logger = LogManager.getLogger();
+    private final Logger logger = LogManager.getLogger(ContentDirectory.class);
 
-	private final Collection<DlnaRequestHandler> handlers;
+    private final Collection<DlnaRequestHandler> handlers;
 
-	public ContentDirectory(Collection<DlnaRequestHandler> handlers) {
-		this.handlers = handlers;
-	}
+    public ContentDirectory(Collection<DlnaRequestHandler> handlers) {
+        this.handlers = handlers;
+    }
 
-	@Override
-	public BrowseResult browse(String objectID, BrowseFlag browseFlag,
-			String filter,
-			long firstResult, long maxResults,
-			SortCriterion[] orderby)
-			throws ContentDirectoryException {
-		logger.debug("Received browse request for oid={}, first={}, max={}", objectID, firstResult, maxResults);
-		try {
-			var request = new DlnaRequest(
-					objectID, browseFlag, filter, firstResult, maxResults,
-					ImmutableList.copyOf(orderby));
-			return handlers.stream()
-					.filter(h -> h.canHandle(request))
-					.findAny()
-					.map(h -> h.respond(request))
-					.orElseGet(this::emptyResult);
-		} catch (RuntimeException e) {
-			logger.warn("Error creating a browse response", e);
-			throw new ContentDirectoryException(
-					ContentDirectoryErrorCode.CANNOT_PROCESS,
-					e.toString());
-		}
-	}
+    @Override
+    public BrowseResult browse(String objectID, BrowseFlag browseFlag,
+                               String filter,
+                               long firstResult, long maxResults,
+                               SortCriterion[] orderby)
+            throws ContentDirectoryException {
+        logger.debug("Received browse request for oid={}, first={}, max={}", objectID, firstResult, maxResults);
+        try {
+            var request = new DlnaRequest(
+                    objectID, browseFlag, filter, firstResult, maxResults,
+                    Arrays.asList(orderby));
+            return handlers.stream()
+                    .filter(h -> h.canHandle(request))
+                    .findAny()
+                    .map(h -> h.respond(request))
+                    .orElseGet(this::emptyResult);
+        } catch (RuntimeException e) {
+            logger.warn("Error creating a browse response", e);
+            throw new ContentDirectoryException(
+                    ContentDirectoryErrorCode.CANNOT_PROCESS,
+                    e.toString());
+        }
+    }
 
-	private BrowseResult emptyResult() {
-		try {
-			return new BrowseResult(new DIDLParser().generate(new DIDLContent()), 0, 0);
-		} catch (Exception e) {
-			throw new RuntimeException(e);
-		}
-	}
+    private BrowseResult emptyResult() {
+        try {
+            return new BrowseResult(new DIDLParser().generate(new DIDLContent()), 0, 0);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
 
-	@Override
-	public BrowseResult search(String containerId,
-			String searchCriteria, String filter,
-			long firstResult, long maxResults,
-			SortCriterion[] orderBy) throws ContentDirectoryException {
-		// You can override this method to implement searching!
-		return super.search(containerId, searchCriteria, filter, firstResult, maxResults, orderBy);
-	}
+    @Override
+    public BrowseResult search(String containerId,
+                               String searchCriteria, String filter,
+                               long firstResult, long maxResults,
+                               SortCriterion[] orderBy) throws ContentDirectoryException {
+        // You can override this method to implement searching!
+        return super.search(containerId, searchCriteria, filter, firstResult, maxResults, orderBy);
+    }
 }

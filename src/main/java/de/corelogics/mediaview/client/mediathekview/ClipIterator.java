@@ -24,9 +24,9 @@
 
 package de.corelogics.mediaview.client.mediathekview;
 
+import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -38,8 +38,8 @@ import java.util.*;
 import static java.util.Optional.ofNullable;
 
 class ClipIterator implements Iterator<ClipEntry> {
-    private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final ZoneId ZONE_BERLIN = ZoneId.of("Europe/Berlin");
+    private static final JsonFactory JSON_FACTORY = new JsonFactory();
 
     private final InputStream in;
     private FilmlisteMetaData metaData = null;
@@ -52,7 +52,7 @@ class ClipIterator implements Iterator<ClipEntry> {
 
     ClipIterator(InputStream in) throws IOException {
         this.in = in;
-        this.jParser = MAPPER.getFactory().createParser(in);
+        this.jParser = JSON_FACTORY.createParser(in);
 
         for (var token = jParser.nextToken(); null != token && currentEntry.isEmpty(); token = jParser.nextToken()) {
             if (token == JsonToken.FIELD_NAME) {

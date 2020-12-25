@@ -24,6 +24,11 @@
 
 package de.corelogics.mediaview.service.proxy.downloader;
 
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
+
+import java.io.IOException;
 import java.util.BitSet;
 import java.util.StringJoiner;
 
@@ -73,5 +78,73 @@ class ClipMetadata {
                 .add("bitSet=" + bitSet)
                 .add("numberOfChunks=" + numberOfChunks)
                 .toString();
+    }
+
+    void writeTo(JsonGenerator generator) throws IOException {
+        generator.writeStartObject();
+        generator.writeFieldName("contentType");
+        generator.writeString(contentType);
+        generator.writeFieldName("size");
+        generator.writeNumber(size);
+        generator.writeFieldName("numberOfChunks");
+        generator.writeNumber(numberOfChunks);
+
+        generator.writeFieldName("bitSet");
+        generator.writeStartObject();
+        generator.writeFieldName("size");
+        generator.writeNumber(bitSet.size());
+        generator.writeFieldName("bits");
+        generator.writeBinary(bitSet.toByteArray());
+        generator.writeEndObject();
+
+        generator.writeEndObject();
+    }
+
+    static ClipMetadata readFrom(JsonParser parser) throws IOException {
+        var m = new ClipMetadata();
+        while (parser.nextToken() != JsonToken.END_OBJECT) {
+            String name = parser.getCurrentName();
+            if (null != name) {
+                switch (name) {
+                    case "contentType":
+                        parser.nextToken();
+                        m.setContentType(parser.getText());
+                        break;
+                    case "size":
+                        parser.nextToken();
+                        m.setSize(parser.getLongValue());
+                        break;
+                    case "numberOfChunks":
+                        parser.nextToken();
+                        m.setNumberOfChunks(parser.getIntValue());
+                        break;
+                    case "bitSet":
+                        m.setBitSet(readBitsetFrom(parser));
+                        break;
+                }
+            }
+        }
+        return m;
+    }
+
+    private static BitSet readBitsetFrom(JsonParser parser) throws IOException {
+        var size = 0;
+        byte[] bytes = null;
+        while (parser.nextToken() != JsonToken.END_OBJECT) {
+            var name = parser.currentName();
+            if ("size".equals(name)) {
+                size = parser.nextIntValue(0);
+            } else if ("bits".equals(name)) {
+                parser.nextToken();
+                bytes = parser.getBinaryValue();
+            }
+        }
+        if (size == 0 || null == bytes) {
+            throw new IOException("Missing some fields in bitset");
+        }
+        var b = new BitSet(size);
+        var n = BitSet.valueOf(bytes);
+        b.or(n);
+        return b;
     }
 }

@@ -6,16 +6,12 @@ import de.corelogics.mediaview.service.dlna.DlnaRequest;
 import org.fourthline.cling.support.model.DIDLContent;
 import org.fourthline.cling.support.model.Res;
 import org.fourthline.cling.support.model.item.VideoItem;
-import org.seamless.util.MimeType;
 
-import javax.inject.Inject;
-import javax.inject.Singleton;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 
-@Singleton
 public class ClipContent extends BaseDnlaRequestHandler {
-    private static final MimeType MIME_TYPE_VIDEO_MP4 = new MimeType("video", "mp4");
+    private static final String MIME_TYPE_VIDEO_MP4 = "video/mp4";
     private static final String URN_PREFIX_CLIP = "urn:corelogics.de:mediaview:clip:";
 
     private static final DateTimeFormatter DTF_DATE = DateTimeFormatter.ofPattern("dd.MM.").withLocale(Locale.GERMANY);
@@ -23,7 +19,6 @@ public class ClipContent extends BaseDnlaRequestHandler {
 
     private final ClipContentUrlGenerator clipContentUrlGenerator;
 
-    @Inject
     public ClipContent(ClipContentUrlGenerator clipContentUrlGenerator) {
         this.clipContentUrlGenerator = clipContentUrlGenerator;
     }

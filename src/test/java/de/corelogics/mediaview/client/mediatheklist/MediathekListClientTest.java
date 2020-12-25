@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020 corelogics.de
+ * Copyright (c) 2020 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,22 +22,19 @@
  * SOFTWARE.
  */
 
-package de.corelogics.mediaview.client.mediathekview;
+package de.corelogics.mediaview.client.mediatheklist;
+
+import de.corelogics.mediaview.config.MainConfiguration;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.util.Spliterator;
-import java.util.Spliterators;
-import java.util.stream.StreamSupport;
 
-public class MediathekViewImporter {
-    public MediathekListe createList(InputStream input) throws IOException {
-        var iterator = new ClipIterator(input);
-        return new MediathekListe(
-                StreamSupport.stream(
-                        Spliterators.spliteratorUnknownSize(iterator,
-                                Spliterator.ORDERED),
-                        false),
-                iterator.getMetaData());
+class MediathekListClientTest {
+
+    @Test
+    void r() throws IOException {
+        var client = new MediathekListClient(new MainConfiguration());
+        System.out.println(client.getMediathekListeMetadata());
+
     }
 }

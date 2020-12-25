@@ -24,15 +24,12 @@
 
 package de.corelogics.mediaview.repository.clip;
 
-import com.google.inject.Singleton;
-import com.netflix.governator.annotations.Configuration;
 import de.corelogics.mediaview.client.mediathekview.ClipEntry;
+import de.corelogics.mediaview.config.MainConfiguration;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.h2.jdbcx.JdbcConnectionPool;
 
-import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
 import java.io.File;
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -43,31 +40,30 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Supplier;
 
-@Singleton
 public class ClipRepository {
+    private final MainConfiguration mainConfiguration;
+
     private interface SqlFunction<T> {
         T execute(Connection conn) throws SQLException;
     }
 
-    private final Logger logger = LogManager.getLogger();
+    private final Logger logger = LogManager.getLogger(ClipRepository.class);
 
     private ReadWriteLock dbLock = new ReentrantReadWriteLock();
-
-    @Configuration("DATABASE_LOCATION")
-    String databaseLocation;
 
     Supplier<Long> maxMemorySupplier = Runtime.getRuntime()::maxMemory;
 
     private JdbcConnectionPool pool;
+    private boolean stopped = false;
 
-    @PostConstruct
-    void openAndInitialize() {
+    public ClipRepository(MainConfiguration mainConfiguration) {
+        this.mainConfiguration = mainConfiguration;
         dbLock.writeLock().lock();
         try {
             openConnection(calcJdbcUrl(calcCacheSize()));
             initialize();
             logger.info("Successfully opened database at {} with {}",
-                    () -> null == databaseLocation ? "<in-mem>" : new File(databaseLocation).getAbsolutePath(),
+                    () -> mainConfiguration.dbLocation().map(File::new).map(File::getAbsolutePath).orElse("<in-mem>"),
                     () -> calcJdbcUrl(calcCacheSize()));
         } finally {
             dbLock.writeLock().unlock();
@@ -75,6 +71,9 @@ public class ClipRepository {
     }
 
     private <T> T withConnection(SqlFunction<T> function) {
+        if (stopped) {
+            throw new RuntimeException("Repository is already stopped");
+        }
         dbLock.readLock().lock();
         try (var conn = pool.getConnection()) {
             return function.execute(conn);
@@ -104,8 +103,8 @@ public class ClipRepository {
 
     String calcJdbcUrl(long cacheSize) {
         logger.debug("initializing database at {}",
-                () -> null == databaseLocation ? "<in-mem>" : new File(databaseLocation).getAbsolutePath());
-        return String.format("jdbc:h2:%s;CACHE_SIZE=%d", databaseLocation, cacheSize / 1024);
+                () -> mainConfiguration.dbLocation().map(File::new).map(File::getAbsolutePath).orElse("<in-mem>"));
+        return String.format("jdbc:h2:%s;CACHE_SIZE=%d", mainConfiguration.dbLocation().orElse("mem:db"), cacheSize / 1024);
     }
 
     long calcCacheSize() {
@@ -159,9 +158,14 @@ public class ClipRepository {
         this.pool = JdbcConnectionPool.create(jdbcUrl, "sa", "sa");
     }
 
-    @PreDestroy
-    void destroy() {
-        this.pool.dispose();
+    public void shutdown() {
+        this.dbLock.writeLock().lock();
+        try {
+            this.stopped = true;
+            this.pool.dispose();
+        } finally {
+            this.dbLock.writeLock().unlock();
+        }
     }
 
     public Optional<ZonedDateTime> findLastFullImport() {

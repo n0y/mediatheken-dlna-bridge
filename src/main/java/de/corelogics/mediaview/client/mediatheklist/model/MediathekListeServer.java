@@ -24,16 +24,14 @@
 
 package de.corelogics.mediaview.client.mediatheklist.model;
 
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
-
-@XmlRootElement(name = "Server")
 public class MediathekListeServer {
-    @XmlElement(name = "URL")
-    private String url;
+    private final String url;
+    private final int prio;
 
-    @XmlElement(name = "Prio")
-    private int prio;
+    public MediathekListeServer(String url, int prio) {
+        this.url = url;
+        this.prio = prio;
+    }
 
     public String getUrl() {
         return url;

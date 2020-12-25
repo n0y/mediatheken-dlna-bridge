@@ -36,8 +36,8 @@ Find the released Docker images at [DOCKERHUB]. Simply run them with:
 
 `docker run corelogicsde/mediatheken-dlna-bridge:latest`
 
-You may set a memory limit with adding `--memory=700M` to the docker line. The memory will be used for a
-database cache. Giving it more than 1GB doesn't improve things.
+You may set a memory limit with adding `--memory=500M` to the docker line. The memory will be used for a
+database cache. Giving it more than 500 MB doesn't improve things.
 
 You may override any setting in two ways:
 
@@ -60,7 +60,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 800M
+          memory: 400M
     # This volume can be used to store the database outside of the container
     #volumes:
     #  - source: ./data/mediathek-data

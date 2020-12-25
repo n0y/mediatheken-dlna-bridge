@@ -1,20 +1,18 @@
 package de.corelogics.mediaview.service.proxy;
 
-import com.netflix.governator.annotations.Configuration;
 import de.corelogics.mediaview.client.mediathekview.ClipEntry;
+import de.corelogics.mediaview.config.MainConfiguration;
 import de.corelogics.mediaview.repository.clip.ClipRepository;
 import de.corelogics.mediaview.service.ClipContentUrlGenerator;
 import de.corelogics.mediaview.service.proxy.downloader.*;
 import de.corelogics.mediaview.util.IdUtils;
+import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import spark.Request;
 import spark.Response;
 import spark.Spark;
 
-import javax.annotation.PostConstruct;
-import javax.inject.Inject;
-import javax.inject.Singleton;
 import javax.servlet.http.HttpServletResponse;
 import java.io.EOFException;
 import java.io.IOException;
@@ -23,40 +21,31 @@ import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.stream.Collectors;
 
-import static java.util.Optional.ofNullable;
-
-@Singleton
 public class ForwardingProxyServer implements ClipContentUrlGenerator {
-    private final Logger logger = LogManager.getLogger();
-
-    @Configuration("PUBLIC_BASE_URL")
-    private String publicBaseUrl;
-
-    @Configuration("PUBLIC_HTTP_PORT")
-    private int publicHttpPort = 8080;
+    private final Logger logger = LogManager.getLogger(ForwardingProxyServer.class);
 
     private final ClipRepository clipRepository;
+    private final MainConfiguration mainConfiguration;
     private final DownloadManager downloadManager;
 
 
-    @Inject
-    public ForwardingProxyServer(ClipRepository clipRepository, DownloadManager downloadManager) {
+    public ForwardingProxyServer(MainConfiguration mainConfiguration, ClipRepository clipRepository, DownloadManager downloadManager) {
+        this.mainConfiguration = mainConfiguration;
         this.downloadManager = downloadManager;
         this.clipRepository = clipRepository;
+
+        logger.debug("Starting HTTP proxy server on port {}", mainConfiguration::publicHttpPort);
+        Spark.port(mainConfiguration.publicHttpPort());
+        Spark.get("/api/v1/clips/:clipId", this::handleGetClip);
+        Spark.head("/api/v1/clips/:clipId", this::handleHead);
+        logger.info("Successfully started prefetching HTTP proxy server on port {}", mainConfiguration::publicHttpPort);
     }
 
     public String createLinkTo(ClipEntry e) {
-        return publicBaseUrl + (publicBaseUrl.endsWith("/") ? "" : "/") + "/api/v1/clips/" + IdUtils.encodeId(e.getId());
+        var baseUrl = mainConfiguration.publicBaseUrl();
+        return baseUrl + (baseUrl.endsWith("/") ? "" : "/") + "/api/v1/clips/" + IdUtils.encodeId(e.getId());
     }
 
-    @PostConstruct
-    void setupServer() {
-        logger.debug("Starting HTTP proxy server on port {}", publicHttpPort);
-        Spark.port(publicHttpPort);
-        Spark.get("/api/v1/clips/:clipId", this::handleGetClip);
-        Spark.head("/api/v1/clips/:clipId", this::handleHead);
-        logger.info("Successfully started prefetching HTTP proxy server on port {}", publicHttpPort);
-    }
 
     private Object handleHead(Request request, Response response) {
         var clipId = new String(Base64.getDecoder().decode(request.params("clipId")), StandardCharsets.UTF_8);
@@ -75,7 +64,6 @@ public class ForwardingProxyServer implements ClipContentUrlGenerator {
                             response.header("Content-Length", Long.toString(stream.getMaxSize()));
                         } finally {
                             logger.debug("Closing consumer stream");
-                            org.h2.util.IOUtils.closeSilently(stream.getStream());
                         }
                     } catch (UpstreamNotFoundException e) {
                         logger.info("Clip {} wasn't found at upstream url {}", clip::getTitle, clip::getBestUrl);
@@ -131,7 +119,6 @@ public class ForwardingProxyServer implements ClipContentUrlGenerator {
                             }
                         } finally {
                             logger.debug("Closing consumer stream");
-                            org.h2.util.IOUtils.closeSilently(stream.getStream());
                         }
                     } catch (UpstreamNotFoundException e) {
                         logger.info("Clip {} wasn't found at upstream url {}", clip::getTitle, clip::getBestUrl);
@@ -163,16 +150,9 @@ public class ForwardingProxyServer implements ClipContentUrlGenerator {
 
     private void copyBytes(InputStream from, HttpServletResponse to) {
         try (var toStream = to.getOutputStream()) {
-            byte[] buffer = new byte[256_000];
-            for (var bytesRead = from.read(buffer, 0, buffer.length); bytesRead >= 0; bytesRead = from.read(buffer, 0, buffer.length)) {
-                toStream.write(buffer, 0, bytesRead);
-            }
+            IOUtils.copyLarge(from, toStream);
         } catch (final IOException e) {
-            if (ofNullable(e.getMessage()).map(String::toLowerCase).filter(s -> s.contains("broken pipe")).isPresent()) {
-                logger.debug("Client closed connection. Aborting.");
-            } else {
-                throw new RuntimeException(e);
-            }
+            logger.debug("Client closed connection. Aborting.");
         }
     }
 }
