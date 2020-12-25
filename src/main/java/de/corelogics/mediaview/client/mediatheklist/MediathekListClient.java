@@ -27,6 +27,7 @@ package de.corelogics.mediaview.client.mediatheklist;
 import de.corelogics.mediaview.client.mediatheklist.model.MediathekListeMetadata;
 import de.corelogics.mediaview.client.mediatheklist.model.MediathekListeServer;
 import de.corelogics.mediaview.config.MainConfiguration;
+import de.corelogics.mediaview.util.HttpUtils;
 import org.tukaani.xz.XZInputStream;
 import org.w3c.dom.Element;
 import org.xml.sax.InputSource;
@@ -56,7 +57,11 @@ public class MediathekListClient {
         try {
             var serverList = getMediathekListeMetadata();
             for (var server : serverList.getServers()) {
-                var request = HttpRequest.newBuilder().uri(URI.create(server.getUrl())).build();
+                var request =
+                        HttpUtils.enhanceRequest(
+                                mainConfiguration,
+                                HttpRequest.newBuilder().uri(URI.create(server.getUrl())))
+                                .build();
                 var response = httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
                 if (response.statusCode() == 200) {
                     return new XZInputStream(response.body());
@@ -72,7 +77,11 @@ public class MediathekListClient {
         try {
             var docBuilder = DocumentBuilderFactory.newDefaultInstance().newDocumentBuilder();
 
-            var request = HttpRequest.newBuilder().uri(URI.create(mainConfiguration.mediathekViewListBaseUrl()).resolve("/akt.xml")).build();
+            var request = HttpUtils.enhanceRequest(
+                    mainConfiguration,
+                    HttpRequest.newBuilder().uri(
+                            URI.create(mainConfiguration.mediathekViewListBaseUrl()).resolve("/akt.xml")))
+                    .build();
             var response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
             try {

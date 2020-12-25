@@ -114,7 +114,11 @@ public class DownloadManager {
         CacheSizeExhaustedException exh = null;
         for (var maybeBytesAreFree = true; maybeBytesAreFree; maybeBytesAreFree = this.cacheDirectory.tryCleanupCacheDir(this.clipIdToDl.keySet())) {
             try {
-                return new ClipDownloader(this.cacheDirectory, clip.getId(), clip.getBestUrl(), mainConfiguration.cacheParallelDownloadsPerVideo());
+                return new ClipDownloader(
+                        this.mainConfiguration,
+                        this.cacheDirectory,
+                        clip.getId(),
+                        clip.getBestUrl());
             } catch (final CacheSizeExhaustedException e) {
                 logger.debug("Cache size exhausted. Trying to clean up");
                 exh = e;

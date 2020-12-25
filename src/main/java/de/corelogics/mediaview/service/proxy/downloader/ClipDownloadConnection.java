@@ -24,6 +24,8 @@
 
 package de.corelogics.mediaview.service.proxy.downloader;
 
+import de.corelogics.mediaview.config.MainConfiguration;
+import de.corelogics.mediaview.util.HttpUtils;
 import okhttp3.ConnectionPool;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -39,12 +41,19 @@ import java.util.concurrent.TimeUnit;
 class ClipDownloadConnection extends Thread implements Closeable {
     private final Logger logger = LogManager.getLogger(ClipDownloadConnection.class);
     private final OkHttpClient httpClient;
+    private final MainConfiguration mainConfiguration;
     private final String connectionId;
     private final ClipDownloader downloader;
     private boolean stopped = false;
 
-    public ClipDownloadConnection(String connectionId, long chunkSizeBytes, ClipDownloader downloader, double reqMbPerSeconds) {
+    public ClipDownloadConnection(
+            ClipDownloader downloader,
+            MainConfiguration mainConfiguration,
+            String connectionId,
+            long chunkSizeBytes,
+            double reqMbPerSeconds) {
         super(connectionId);
+        this.mainConfiguration = mainConfiguration;
         this.connectionId = connectionId;
         this.downloader = downloader;
         var chunkSizeMb = chunkSizeBytes / (1024D * 1024D);
@@ -81,10 +90,13 @@ class ClipDownloadConnection extends Thread implements Closeable {
     }
 
     private byte[] downloadChunk(ClipChunk chunk) throws IOException {
-        var request = new Request.Builder()
-                .url(downloader.getUrl())
-                .addHeader("Range", "bytes=" + chunk.getFrom() + "-" + chunk.getTo())
-                .build();
+        var request =
+                HttpUtils.enhanceRequest(
+                        this.mainConfiguration,
+                        new Request.Builder()
+                                .url(downloader.getUrl())
+                                .addHeader("Range", "bytes=" + chunk.getFrom() + "-" + chunk.getTo()))
+                        .build();
         try (var response = httpClient.newCall(request).execute()) {
             if (response.isSuccessful()) {
                 return response.body().bytes();

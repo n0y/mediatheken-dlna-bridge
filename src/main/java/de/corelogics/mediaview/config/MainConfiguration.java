@@ -78,4 +78,17 @@ public class MainConfiguration {
     public boolean isPrefetchingEnabled() {
         return configAccessor.get("ENABLE_PREFETCHING", false);
     }
+
+    public boolean isApplicationHeaderAdded() {
+        return configAccessor.get("ADD_APPLICATION_HTTP_HEADERS", true);
+    }
+
+    public String getBuildVersion() {
+        var version = configAccessor.get("BUILD_VERSION", "E-SNAPSHOT");
+        if (version.equalsIgnoreCase("${project.version}")) {
+            // no filtering is applied when using RUN in a IDE
+            return "E-SNAPSHOT";
+        }
+        return version;
+    }
 }

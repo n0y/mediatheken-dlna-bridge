@@ -1,5 +1,7 @@
 package de.corelogics.mediaview.service.proxy.downloader;
 
+import de.corelogics.mediaview.config.MainConfiguration;
+import de.corelogics.mediaview.util.HttpUtils;
 import okhttp3.ConnectionPool;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -28,6 +30,7 @@ class ClipDownloader implements Closeable {
     private final Map<String, ClipDownloadConnection> connections = new HashMap<>();
 
     private final Logger logger = LogManager.getLogger(ClipDownloader.class);
+    private final MainConfiguration mainConfiguration;
     private final CacheDirectory cacheDir;
     private final String url;
     private final String clipId;
@@ -38,11 +41,16 @@ class ClipDownloader implements Closeable {
     private int lastReadInChunk = 0;
     private boolean stopped = false;
 
-    public ClipDownloader(CacheDirectory cacheDir, String clipId, String url, int numParallelConnections) throws UpstreamNotFoundException, UpstreamReadFailedException, CacheSizeExhaustedException {
+    public ClipDownloader(
+            MainConfiguration mainConfiguration,
+            CacheDirectory cacheDir,
+            String clipId,
+            String url) throws UpstreamNotFoundException, UpstreamReadFailedException, CacheSizeExhaustedException {
+        this.mainConfiguration = mainConfiguration;
         this.cacheDir = cacheDir;
         this.url = url;
         this.clipId = clipId;
-        this.numParallelConnections = numParallelConnections;
+        this.numParallelConnections = mainConfiguration.cacheParallelDownloadsPerVideo();
         this.httpClient = new OkHttpClient.Builder()
                 .connectionPool(new ConnectionPool(1, 10, TimeUnit.SECONDS))
                 .callTimeout(10, TimeUnit.SECONDS)
@@ -110,7 +118,11 @@ class ClipDownloader implements Closeable {
         while (this.connections.size() < numParallelConnections && this.chunksAvailableForDownload.nextSetBit(0) < this.metadata.getNumberOfChunks()) {
             var connectionId = "dl-thrd-" + currentConnectionId.incrementAndGet();
             logger.debug("Starting new connection {}", connectionId);
-            this.connections.put(connectionId, new ClipDownloadConnection(connectionId, CHUNK_SIZE_BYTES, this, REQUIRED_MB_PER_SECONDS / numParallelConnections));
+            this.connections.put(connectionId, new ClipDownloadConnection(
+                    this, mainConfiguration,
+                    connectionId,
+                    CHUNK_SIZE_BYTES,
+                    REQUIRED_MB_PER_SECONDS / numParallelConnections));
             this.connections.get(connectionId).start();
         }
     }
@@ -162,9 +174,11 @@ class ClipDownloader implements Closeable {
     private ClipMetadata fetchMetadataFromUrl() throws UpstreamNotFoundException, UpstreamReadFailedException {
         logger.debug("Loading metadata via HEAD request from {}", this.url);
         try {
-            var request = new Request.Builder()
-                    .url(this.url)
-                    .head()
+            var request = HttpUtils.enhanceRequest(
+                    this.mainConfiguration,
+                    new Request.Builder()
+                            .url(this.url)
+                            .head())
                     .build();
             try (var response = this.httpClient.newCall(request).execute()) {
                 if (response.isSuccessful()) {
