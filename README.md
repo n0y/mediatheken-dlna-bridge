@@ -114,6 +114,20 @@ To use prefetching, you need to:
 * decide on how much space you'll assign to prefetched videos. Use the `CACHE_SIZE_GB` configuration. Mediathek-Dlna-Bridge will never use more disk space than that.
 * set the 'ENABLE_PREFETCHING' configuration to `true`
 
+## Configure Favourites
+
+Favourite entries appear at the root level of the DLNA directory tree, just befor all other entries.
+
+You can configure what to display there. Currently, this is done by configuration settings (file, env, ... as you like).
+
+Create entries starting with `FAVOURITE_`. All entries will be sorted alphabetically, and rendered in that order.
+
+In the value, you configure what to display. Currently, only show entries are supported. Value is in the form:
+
+`FAVOURITE_1=show:<channel>:<show title>`, i.e. `FAVOURITE_ONE=show:ard:Tagesschau`
+
+All texts will be compared ignoring the case.
+
 [HOME]: https://github.com/n0y/mediatheken-dlna-bridge
 [RELEASES]: https://github.com/n0y/mediatheken-dlna-bridge/releases
 [LICENSE]: https://github.com/n0y/mediatheken-dlna-bridge/blob/master/LICENSE

@@ -1,19 +1,24 @@
 package de.corelogics.mediaview.service.dlna.content;
 
+import de.corelogics.mediaview.config.FavouriteShow;
+import de.corelogics.mediaview.config.FavouriteVisitor;
+import de.corelogics.mediaview.config.MainConfiguration;
 import de.corelogics.mediaview.service.dlna.DlnaRequest;
 import org.fourthline.cling.support.model.DIDLContent;
+import org.fourthline.cling.support.model.container.StorageFolder;
 
 public class RootContent extends BaseDnlaRequestHandler {
+    private final MainConfiguration mainConfiguration;
     private final SendungAzContent sendungAzContent;
-
     private final ShowContent showContent;
-
     private final MissedShowsContent missedShowsContent;
 
     public RootContent(
+            MainConfiguration mainConfiguration,
             SendungAzContent sendungAzContent,
             ShowContent showContent,
             MissedShowsContent missedShowsContent) {
+        this.mainConfiguration = mainConfiguration;
         this.sendungAzContent = sendungAzContent;
         this.showContent = showContent;
         this.missedShowsContent = missedShowsContent;
@@ -25,7 +30,7 @@ public class RootContent extends BaseDnlaRequestHandler {
     }
 
     @Override
-    protected DIDLContent respondWithException(DlnaRequest request) throws Exception {
+    protected DIDLContent respondWithException(DlnaRequest request) {
         var didl = new DIDLContent();
         addFavorites(request, didl);
         didl.addContainer(sendungAzContent.createLink(request));
@@ -34,8 +39,11 @@ public class RootContent extends BaseDnlaRequestHandler {
     }
 
     private void addFavorites(DlnaRequest request, DIDLContent didl) {
-        didl.addContainer(showContent.createAsLink(request, "ARD", "Rote Rosen"));
-        didl.addContainer(showContent.createAsLink(request, "ARD", "Tagesschau"));
-        didl.addContainer(showContent.createAsLink(request, "ARD", "Die Sendung mit der Maus"));
+        mainConfiguration.getFavourites().stream().map(s -> s.accept(new FavouriteVisitor<StorageFolder>() {
+            @Override
+            public StorageFolder visitShow(FavouriteShow favouriteShow) {
+                return showContent.createAsLink(request, favouriteShow.getChannel(), favouriteShow.getTitle());
+            }
+        })).forEach(didl::addObject);
     }
 }

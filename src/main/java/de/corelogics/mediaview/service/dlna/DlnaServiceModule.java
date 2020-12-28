@@ -32,7 +32,7 @@ public class DlnaServiceModule {
         var showContent = new ShowContent(clipContent, this.clipRepository);
         var sendungAzContent = new SendungAzContent(this.clipRepository, showContent);
         var missedShowsContent = new MissedShowsContent(clipContent, this.clipRepository);
-        var rootContent = new RootContent(sendungAzContent, showContent, missedShowsContent);
+        var rootContent = new RootContent(mainConfiguration, sendungAzContent, showContent, missedShowsContent);
         return Set.of(clipContent, missedShowsContent, sendungAzContent, rootContent, showContent);
     }
 }
