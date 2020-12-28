@@ -33,8 +33,11 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static java.util.Optional.ofNullable;
+import static java.util.stream.Stream.concat;
 
 class ConfigurationAccesor {
     private Properties classpathProperties = new Properties();
@@ -97,5 +100,18 @@ class ConfigurationAccesor {
             boolPropertiesCache.put(key, cached);
         }
         return cached.orElse(defaultValue);
+    }
+
+    public Map<String, String> getStartingWith(String startingWith) {
+        return concat(
+                concat(
+                        classpathProperties.keySet().stream().map(Object::toString),
+                        fileSystemProperties.keySet().stream().map(Object::toString)),
+                concat(
+                        System.getenv().keySet().stream(),
+                        System.getProperties().keySet().stream().map(Object::toString)))
+                .filter(s -> s.startsWith(startingWith))
+                .distinct()
+                .collect(Collectors.toMap(Function.identity(), key -> get(key, "")));
     }
 }

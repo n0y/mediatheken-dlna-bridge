@@ -24,7 +24,12 @@
 
 package de.corelogics.mediaview.config;
 
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import static java.util.Optional.ofNullable;
 
@@ -90,5 +95,26 @@ public class MainConfiguration {
             return "E-SNAPSHOT";
         }
         return version;
+    }
+
+    public List<Favourite> getFavourites() {
+        return configAccessor
+                .getStartingWith("FAVOURITE_")
+                .entrySet().stream()
+                .sorted(Comparator.comparing(Map.Entry::getKey))
+                .map(Map.Entry::getValue)
+                .map(this::toFavourite)
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .collect(Collectors.toList());
+    }
+
+    private Optional<Favourite> toFavourite(String favConfig) {
+        var showPattern = Pattern.compile("^show:([^:]+):(.*)$");
+        var showMatcher = showPattern.matcher(favConfig);
+        if (showMatcher.matches()) {
+            return Optional.of(new FavouriteShow(showMatcher.group(1), showMatcher.group(2)));
+        }
+        return Optional.empty();
     }
 }
