@@ -35,6 +35,8 @@ import de.corelogics.mediaview.service.proxy.ForwardingProxyModule;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.net.http.HttpClient;
+
 public class Main {
     private final Logger logger = LogManager.getLogger(Main.class);
 
@@ -54,7 +56,7 @@ public class Main {
                 .buildServer();
         this.importerService = new ImporterService(
                 mainConfiguration,
-                new MediathekListClient(mainConfiguration),
+                new MediathekListClient(mainConfiguration, HttpClient.newBuilder().build()),
                 new MediathekViewImporter(),
                 clipRepository);
         this.importerService.scheduleImport();

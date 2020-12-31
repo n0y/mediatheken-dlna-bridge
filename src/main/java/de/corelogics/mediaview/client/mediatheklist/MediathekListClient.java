@@ -46,10 +46,11 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 public class MediathekListClient {
-    private final HttpClient httpClient = HttpClient.newBuilder().build();
     private final MainConfiguration mainConfiguration;
+    private final HttpClient httpClient;
 
-    public MediathekListClient(MainConfiguration mainConfiguration) {
+    public MediathekListClient(MainConfiguration mainConfiguration, HttpClient httpClient) {
+        this.httpClient = httpClient;
         this.mainConfiguration = mainConfiguration;
     }
 
