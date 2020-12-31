@@ -97,12 +97,12 @@ public class MediathekListClient {
                                 Integer.parseInt(l.getElementsByTagName("Prio").item(0).getTextContent())))
                         .collect(Collectors.toList()));
             } catch (final RuntimeException e) {
-                throw new RuntimeException("Didn't understand received file format.", e);
+                throw new IOException("Didn't understand received file format.", e);
             } catch (SAXException e) {
-                throw new RuntimeException("Illegal file format from server", e);
+                throw new IOException("Illegal file format from server", e);
             }
         } catch (InterruptedException | ParserConfigurationException e) {
-            throw new RuntimeException(e);
+            throw new IOException(e);
         }
     }
 }

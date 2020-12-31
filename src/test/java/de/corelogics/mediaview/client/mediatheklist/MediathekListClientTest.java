@@ -26,8 +26,8 @@ package de.corelogics.mediaview.client.mediatheklist;
 
 import de.corelogics.mediaview.config.MainConfiguration;
 import org.apache.commons.io.IOUtils;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -57,6 +57,8 @@ import static org.mockito.Mockito.*;
 class MediathekListClientTest {
     private static final String SOME_CONTENT_STRING = "This is a test string, xz-ed.";
     private static final String URI_CONTENT_FIRST = "https://first.server.test/liste.xz";
+    private static final String URI_CONTENT_SECOND = "https://first.server.test/liste.xz";
+    private static final String TEST_META_URI = "http://nowhere.test/akt.xml";
 
     @InjectMocks
     private MediathekListClient sut;
@@ -67,51 +69,114 @@ class MediathekListClientTest {
     @Mock
     private HttpClient httpClient;
 
-    @Nested
-    @DisplayName("when opening mediathek liste (full)")
-    class WhenOpeningMediathekListeFullTests {
-        @Test
-        void givenFirstServerReturnsValidList_thenCorrectInputStreamIsReturned() throws IOException, InterruptedException {
-            var uriMeta = "http://nowhere.test/akt.xml";
+    @BeforeEach
+    void setupMetaUriInConfig() {
+        when(mainConfiguration.mediathekViewListBaseUrl()).thenReturn(TEST_META_URI);
+    }
 
-            HttpResponse<String> mockResponse = mock(HttpResponse.class);
-            when(mainConfiguration.mediathekViewListBaseUrl()).thenReturn(uriMeta);
-            when(httpClient.send(any(), eq(HttpResponse.BodyHandlers.ofString())))
-                    .thenReturn(mockResponse);
-            when(httpClient.send(any(), eq(HttpResponse.BodyHandlers.ofInputStream())))
-                    .thenAnswer(i -> createListeInputStream());
-            when(mockResponse.body()).thenReturn(mvMetadataOneServer());
+    @AfterEach
+    void verifyNoOtherCalls() {
+        verifyNoMoreInteractions(httpClient);
+    }
 
-            // test
+    @Test
+    void givenFirstServerReturnsValidList_thenCorrectInputStreamIsReturned() throws IOException, InterruptedException {
+        HttpResponse<String> mockResponse = mock(HttpResponse.class);
 
-            assertThat(IOUtils.toString(sut.openMediathekListeFull(), StandardCharsets.UTF_8))
-                    .isEqualTo(SOME_CONTENT_STRING);
+        when(httpClient.send(any(), eq(HttpResponse.BodyHandlers.ofString())))
+                .thenReturn(mockResponse);
+        when(httpClient.send(any(), eq(HttpResponse.BodyHandlers.ofInputStream())))
+                .thenAnswer(i -> createListeInputStream());
+        when(mockResponse.body()).thenReturn(mvMetadataTwoServers());
 
-            // verify
+        // test
 
-            var requestCaptor = ArgumentCaptor.forClass(HttpRequest.class);
-            var bodyHandlerCaptor = ArgumentCaptor.forClass(HttpResponse.BodyHandler.class);
-            verify(httpClient, times(2)).send(requestCaptor.capture(), bodyHandlerCaptor.capture());
-            assertThat(requestCaptor.getAllValues()).extracting(HttpRequest::uri)
-                    .containsExactlyInAnyOrder(URI.create(uriMeta), URI.create(URI_CONTENT_FIRST));
-            assertThat(bodyHandlerCaptor.getAllValues()).containsExactly(
-                    HttpResponse.BodyHandlers.ofString(),
-                    HttpResponse.BodyHandlers.ofInputStream());
-        }
+        assertThat(IOUtils.toString(sut.openMediathekListeFull(), StandardCharsets.UTF_8))
+                .isEqualTo(SOME_CONTENT_STRING);
 
-        @Test
-        void givenNoServer_thenThrowException() throws IOException, InterruptedException {
-            var uriMeta = "http://nowhere.test/akt.xml";
-            HttpResponse<String> mockResponse = mock(HttpResponse.class);
-            when(mainConfiguration.mediathekViewListBaseUrl()).thenReturn(uriMeta);
-            when(httpClient.send(any(), eq(HttpResponse.BodyHandlers.ofString())))
-                    .thenReturn(mockResponse);
-            when(mockResponse.body()).thenReturn(mvMetadataNoServer());
+        // verify
 
-            assertThatExceptionOfType(IOException.class)
-                    .isThrownBy(sut::openMediathekListeFull)
-                    .withMessageContaining("Could not open");
-        }
+        var requestCaptor = ArgumentCaptor.forClass(HttpRequest.class);
+        var bodyHandlerCaptor = ArgumentCaptor.forClass(HttpResponse.BodyHandler.class);
+        verify(httpClient, times(2)).send(requestCaptor.capture(), bodyHandlerCaptor.capture());
+        assertThat(requestCaptor.getAllValues()).extracting(HttpRequest::uri)
+                .containsExactlyInAnyOrder(URI.create(TEST_META_URI), URI.create(URI_CONTENT_FIRST));
+        assertThat(bodyHandlerCaptor.getAllValues()).containsExactly(
+                HttpResponse.BodyHandlers.ofString(),
+                HttpResponse.BodyHandlers.ofInputStream());
+    }
+
+    void givenFirstServerRespondsError_thenSecondServerIsTriedAndStreamIsReturned() throws IOException, InterruptedException {
+        HttpResponse<String> mockMetadataResponse = mock(HttpResponse.class);
+        when(mockMetadataResponse.body()).thenReturn(mvMetadataTwoServers());
+        when(httpClient.send(any(), eq(HttpResponse.BodyHandlers.ofString())))
+                .thenReturn(mockMetadataResponse);
+
+        HttpResponse<InputStream> contentNotFoundResponse = mock(HttpResponse.class);
+        when(contentNotFoundResponse.statusCode()).thenReturn(404);
+        HttpResponse<InputStream> contentFoundResponse = mock(HttpResponse.class);
+        when(contentFoundResponse.statusCode()).thenReturn(200);
+        when(contentFoundResponse.body()).thenAnswer(ignored -> createListeInputStream());
+        when(httpClient.send(any(), eq(HttpResponse.BodyHandlers.ofInputStream())))
+                .thenAnswer(i -> {
+                    var request = (HttpRequest) i.getArgument(0);
+                    if (request.uri().equals(URI.create(URI_CONTENT_FIRST))) {
+                        return contentNotFoundResponse;
+                    }
+                    return contentFoundResponse;
+                });
+
+        // test
+
+        assertThat(IOUtils.toString(sut.openMediathekListeFull(), StandardCharsets.UTF_8))
+                .isEqualTo(SOME_CONTENT_STRING);
+        // verify
+
+        var requestCaptor = ArgumentCaptor.forClass(HttpRequest.class);
+        var bodyHandlerCaptor = ArgumentCaptor.forClass(HttpResponse.BodyHandler.class);
+        verify(httpClient, times(3)).send(requestCaptor.capture(), bodyHandlerCaptor.capture());
+        assertThat(requestCaptor.getAllValues()).extracting(HttpRequest::uri)
+                .containsExactlyInAnyOrder(
+                        URI.create(TEST_META_URI),
+                        URI.create(URI_CONTENT_FIRST),
+                        URI.create(URI_CONTENT_SECOND));
+        assertThat(bodyHandlerCaptor.getAllValues()).containsExactly(
+                HttpResponse.BodyHandlers.ofString(),
+                HttpResponse.BodyHandlers.ofInputStream(),
+                HttpResponse.BodyHandlers.ofInputStream());
+
+    }
+
+    @Test
+    void givenNoServer_thenThrowException() throws IOException, InterruptedException {
+        HttpResponse<String> mockResponse = mock(HttpResponse.class);
+        when(httpClient.send(any(), eq(HttpResponse.BodyHandlers.ofString())))
+                .thenReturn(mockResponse);
+        when(mockResponse.body()).thenReturn(mvMetadataNoServer());
+
+        assertThatExceptionOfType(IOException.class)
+                .isThrownBy(sut::openMediathekListeFull)
+                .withMessageContaining("Could not open");
+    }
+
+    @Test
+    void givenMetaDataInterrupted_thenThrowException() throws IOException, InterruptedException {
+        when(httpClient.send(any(), any())).thenThrow(InterruptedException.class);
+        assertThatExceptionOfType(IOException.class)
+                .isThrownBy(sut::openMediathekListeFull);
+    }
+
+    @Test
+    void givenContentInterrupted_thenThrowException() throws IOException, InterruptedException {
+        HttpResponse<String> mockResponse = mock(HttpResponse.class);
+        when(mockResponse.body()).thenReturn(mvMetadataTwoServers());
+        when(httpClient.send(any(), eq(HttpResponse.BodyHandlers.ofString())))
+                .thenReturn(mockResponse);
+        when(httpClient.send(any(), eq(HttpResponse.BodyHandlers.ofInputStream())))
+                .thenThrow(InterruptedException.class);
+
+        assertThatExceptionOfType(IOException.class)
+                .isThrownBy(sut::openMediathekListeFull);
     }
 
     private HttpResponse<InputStream> createListeInputStream() throws IOException {
@@ -129,11 +194,15 @@ class MediathekListClientTest {
         return byteOut.toByteArray();
     }
 
-    private String mvMetadataOneServer() {
+    private String mvMetadataTwoServers() {
         return "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
                 "<Mediathek>\n" +
                 "    <Server>\n" +
                 "        <URL>" + URI_CONTENT_FIRST + "</URL>\n" +
+                "        <Prio>1</Prio>\n" +
+                "    </Server>\n" +
+                "    <Server>\n" +
+                "        <URL>" + URI_CONTENT_SECOND + "</URL>\n" +
                 "        <Prio>1</Prio>\n" +
                 "    </Server>\n" +
                 "</Mediathek>\n";
