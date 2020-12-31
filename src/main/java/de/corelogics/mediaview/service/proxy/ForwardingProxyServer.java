@@ -5,6 +5,7 @@ import de.corelogics.mediaview.config.MainConfiguration;
 import de.corelogics.mediaview.repository.clip.ClipRepository;
 import de.corelogics.mediaview.service.ClipContentUrlGenerator;
 import de.corelogics.mediaview.service.proxy.downloader.*;
+import de.corelogics.mediaview.util.HttpUtils;
 import de.corelogics.mediaview.util.IdUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
@@ -59,19 +60,19 @@ public class ForwardingProxyServer implements ClipContentUrlGenerator {
                     var byteRange = new ByteRange(0, 1);
                     try (var stream = downloadManager.openStreamFor(clip, byteRange)) {
                         try {
-                            response.header("Content-Type", stream.getContentType());
-                            response.header("Accept-Ranges", "bytes");
-                            response.header("Content-Length", Long.toString(stream.getMaxSize()));
+                            response.header(HttpUtils.HEADER_CONTENT_TYPE, stream.getContentType());
+                            response.header(HttpUtils.HEADER_ACCEPT_RANGES, "bytes");
+                            response.header(HttpUtils.HEADER_CONTENT_LENGTH, Long.toString(stream.getMaxSize()));
                         } finally {
                             logger.debug("Closing consumer stream");
                         }
                     } catch (UpstreamNotFoundException e) {
                         logger.info("Clip {} wasn't found at upstream url {}", clip::getTitle, clip::getBestUrl);
-                        response.status(404);
+                        response.status(HttpServletResponse.SC_NOT_FOUND);
                     } catch (EOFException e) {
                         logger.info("Requested range {} of clip {} is beyond clip. Redirecting client to original url: {}", byteRange, clip.getId(), clip.getBestUrl());
                         logger.debug("e");
-                        response.status(416);
+                        response.status(HttpServletResponse.SC_REQUESTED_RANGE_NOT_SATISFIABLE);
                     } catch (UpstreamReadFailedException e) {
                         logger.info("Upstream server failed for clip {}[{}]. Redirecting client to original url: {}", clip.getId(), byteRange, clip.getBestUrl());
                         logger.debug(e);
@@ -87,7 +88,7 @@ public class ForwardingProxyServer implements ClipContentUrlGenerator {
                 },
                 () -> {
                     logger.debug("Head request for {}: not found", clipId);
-                    response.status(404);
+                    response.status(HttpServletResponse.SC_NOT_FOUND);
                 });
         return null;
     }
@@ -101,19 +102,19 @@ public class ForwardingProxyServer implements ClipContentUrlGenerator {
                         request.headers().stream().map(h -> "   " + h + ": " + request.headers(h)).collect(Collectors.joining("\n"))));
         clipRepository.findClipById(clipId).ifPresentOrElse(
                 clip -> {
-                    var byteRange = new ByteRange(request.headers("Range"));
+                    var byteRange = new ByteRange(request.headers(HttpUtils.HEADER_RANGE));
                     try (var stream = downloadManager.openStreamFor(clip, byteRange)) {
                         try {
                             if (byteRange.getFirstPosition() >= stream.getMaxSize()) {
-                                response.status(416);
+                                response.status(HttpServletResponse.SC_REQUESTED_RANGE_NOT_SATISFIABLE);
                             } else {
-                                response.header("Content-Type", stream.getContentType());
-                                response.header("Accept-Ranges", "bytes");
-                                if (request.headers("Range") != null) {
-                                    response.header("Content-Range", "bytes " + byteRange.getFirstPosition() + "-" + byteRange.getLastPosition().orElse(stream.getMaxSize() - 1) + "/" + stream.getMaxSize());
-                                    response.header("Content-Length", Long.toString(byteRange.getLastPosition().orElse(stream.getMaxSize()) - byteRange.getFirstPosition()));
+                                response.header(HttpUtils.HEADER_CONTENT_TYPE, stream.getContentType());
+                                response.header(HttpUtils.HEADER_ACCEPT_RANGES, "bytes");
+                                if (request.headers(HttpUtils.HEADER_RANGE) != null) {
+                                    response.header(HttpUtils.HEADER_CONTENT_RANGE, "bytes " + byteRange.getFirstPosition() + "-" + byteRange.getLastPosition().orElse(stream.getMaxSize() - 1) + "/" + stream.getMaxSize());
+                                    response.header(HttpUtils.HEADER_CONTENT_LENGTH, Long.toString(byteRange.getLastPosition().orElse(stream.getMaxSize()) - byteRange.getFirstPosition()));
                                 } else {
-                                    response.header("Content-Length", Long.toString(stream.getMaxSize()));
+                                    response.header(HttpUtils.HEADER_CONTENT_LENGTH, Long.toString(stream.getMaxSize()));
                                 }
                                 copyBytes(stream.getStream(), response.raw());
                             }
@@ -122,11 +123,11 @@ public class ForwardingProxyServer implements ClipContentUrlGenerator {
                         }
                     } catch (UpstreamNotFoundException e) {
                         logger.info("Clip {} wasn't found at upstream url {}", clip::getTitle, clip::getBestUrl);
-                        response.status(404);
+                        response.status(HttpServletResponse.SC_NOT_FOUND);
                     } catch (EOFException e) {
                         logger.info("Requested range {} of clip {} is beyond clip. Redirecting client to original url: {}", byteRange, clip.getId(), clip.getBestUrl());
                         logger.debug("e");
-                        response.status(416);
+                        response.status(HttpServletResponse.SC_REQUESTED_RANGE_NOT_SATISFIABLE);
                     } catch (UpstreamReadFailedException e) {
                         logger.info("Upstream server failed for clip {}[{}]. Redirecting client to original url: {}", clip.getId(), byteRange, clip.getBestUrl());
                         logger.debug(e);
@@ -142,7 +143,7 @@ public class ForwardingProxyServer implements ClipContentUrlGenerator {
                 },
                 () -> {
                     logger.info("Requested clipId {} wasn't found in DB.", clipId);
-                    response.status(404);
+                    response.status(HttpServletResponse.SC_NOT_FOUND);
                 }
         );
         return null;

@@ -33,6 +33,15 @@ import java.util.function.BiConsumer;
 import static java.lang.String.format;
 
 public class HttpUtils {
+    public static final String HEADER_CONTENT_TYPE = "Content-Type";
+    public static final String HEADER_RANGE = "Range";
+    public static final String HEADER_APPLICATION = "Application";
+    public static final String HEADER_APPLICATION_HOME = "Application-Home";
+    public static final String HEADER_APPLICATION_NOTE = "Application-Note";
+    public static final String HEADER_ACCEPT_RANGES = "Accept-Ranges";
+    public static final String HEADER_CONTENT_LENGTH = "Content-Length";
+    public static final String HEADER_CONTENT_RANGE = "Content-Range";
+
     public static Request.Builder enhanceRequest(MainConfiguration mainConfiguration, Request.Builder request) {
         addHeaders(mainConfiguration, request::header);
         return request;
@@ -47,13 +56,13 @@ public class HttpUtils {
         // If this application overloads the CDN, maybe due to a defect, then make it easy for administrators to block traffic from it.
         if (mainConfiguration.isApplicationHeaderAdded()) {
             headerConsumer.accept(
-                    "Application",
+                    HEADER_APPLICATION,
                     format("Mediathek-DLNA-Bridge %s", mainConfiguration.getBuildVersion()));
             headerConsumer.accept(
-                    "Application-Home",
+                    HEADER_APPLICATION_HOME,
                     "https://github.com/n0y/mediatheken-dlna-bridge");
             headerConsumer.accept(
-                    "Application-Note",
+                    HEADER_APPLICATION_NOTE,
                     "When blocking requests from this application, then please leave us a defect ticket for us to fix problems. " +
                             "We kindly ask you to block only the affected application version if possible.");
         }

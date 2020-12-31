@@ -8,6 +8,7 @@ import okhttp3.Request;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import javax.servlet.http.HttpServletResponse;
 import java.io.Closeable;
 import java.io.EOFException;
 import java.io.IOException;
@@ -188,7 +189,7 @@ class ClipDownloader implements Closeable {
                     meta.setSize(Long.parseLong(response.header("Content-Length")));
                     return meta;
                 }
-                if (response.code() == 404) {
+                if (response.code() == HttpServletResponse.SC_NOT_FOUND) {
                     throw new UpstreamNotFoundException(this.url, response.code());
                 }
                 throw new UpstreamReadFailedException(String.format("Metadata Read failed with response code %d on url %s", response.code(), this.url));

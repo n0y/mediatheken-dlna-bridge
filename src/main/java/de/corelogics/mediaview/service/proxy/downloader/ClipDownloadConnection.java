@@ -95,7 +95,7 @@ class ClipDownloadConnection extends Thread implements Closeable {
                         this.mainConfiguration,
                         new Request.Builder()
                                 .url(downloader.getUrl())
-                                .addHeader("Range", "bytes=" + chunk.getFrom() + "-" + chunk.getTo()))
+                                .addHeader(HttpUtils.HEADER_RANGE, "bytes=" + chunk.getFrom() + "-" + chunk.getTo()))
                         .build();
         try (var response = httpClient.newCall(request).execute()) {
             if (response.isSuccessful()) {
