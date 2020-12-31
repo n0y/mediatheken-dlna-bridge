@@ -159,7 +159,8 @@ class ClipIterator implements Iterator<ClipEntry> {
                     ofNullable(res.get("Thema")).map(this::cleanString).orElseGet(() -> currentEntry.map(ClipEntry::getContainedIn).orElse("")),
                     broadcastTime,
                     ofNullable(res.get("Titel")).map(this::cleanString).orElseGet(() -> currentEntry.map(ClipEntry::getTitle).orElse("")),
-                    res.getOrDefault("Dauer", ""), parseLong(res.getOrDefault("Größe [MB]", "0")) * 1024 * 1024,
+                    res.getOrDefault("Dauer", ""),
+                    parseLong(res.getOrDefault("Größe [MB]", "0")) * 1024 * 1024,
                     url,
                     patchUrl(url, res.getOrDefault("Url HD", ""))
             ));
