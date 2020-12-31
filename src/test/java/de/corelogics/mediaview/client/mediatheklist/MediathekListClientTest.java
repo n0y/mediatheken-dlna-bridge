@@ -57,7 +57,7 @@ import static org.mockito.Mockito.*;
 class MediathekListClientTest {
     private static final String SOME_CONTENT_STRING = "This is a test string, xz-ed.";
     private static final String URI_CONTENT_FIRST = "https://first.server.test/liste.xz";
-    private static final String URI_CONTENT_SECOND = "https://first.server.test/liste.xz";
+    private static final String URI_CONTENT_SECOND = "https://second.server.test/liste.xz";
     private static final String TEST_META_URI = "http://nowhere.test/akt.xml";
 
     @InjectMocks
@@ -100,7 +100,9 @@ class MediathekListClientTest {
         var bodyHandlerCaptor = ArgumentCaptor.forClass(HttpResponse.BodyHandler.class);
         verify(httpClient, times(2)).send(requestCaptor.capture(), bodyHandlerCaptor.capture());
         assertThat(requestCaptor.getAllValues()).extracting(HttpRequest::uri)
-                .containsExactlyInAnyOrder(URI.create(TEST_META_URI), URI.create(URI_CONTENT_FIRST));
+                .containsExactlyInAnyOrder(
+                        URI.create(TEST_META_URI),
+                        URI.create(URI_CONTENT_FIRST));
         assertThat(bodyHandlerCaptor.getAllValues()).containsExactly(
                 HttpResponse.BodyHandlers.ofString(),
                 HttpResponse.BodyHandlers.ofInputStream());
@@ -198,11 +200,11 @@ class MediathekListClientTest {
         return "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
                 "<Mediathek>\n" +
                 "    <Server>\n" +
-                "        <URL>" + URI_CONTENT_FIRST + "</URL>\n" +
-                "        <Prio>1</Prio>\n" +
+                "        <URL>" + URI_CONTENT_SECOND + "</URL>\n" +
+                "        <Prio>2</Prio>\n" +
                 "    </Server>\n" +
                 "    <Server>\n" +
-                "        <URL>" + URI_CONTENT_SECOND + "</URL>\n" +
+                "        <URL>" + URI_CONTENT_FIRST + "</URL>\n" +
                 "        <Prio>1</Prio>\n" +
                 "    </Server>\n" +
                 "</Mediathek>\n";
