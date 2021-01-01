@@ -71,5 +71,27 @@
     "",
     "",
     "false"
+  ],
+  "X": [
+    "channel-name-2",
+    "show-title-2",
+    "clip-title-3",
+    "03.01.2000",
+    "03:03:00",
+    "00:30:00",
+    "300",
+    "descriptive-text-3",
+    "https://somewhere.test/3/content-base",
+    "https://somewhere.test/3/website-url",
+    "https://somewhere.test/3/rtmp-url",
+    "https://somewhere.test/3/content-small",
+    "https://somewhere.test/3/rtmp-small",
+    "",
+    "33|hd",
+    "",
+    "4000000",
+    "",
+    "",
+    "false"
   ]
 }

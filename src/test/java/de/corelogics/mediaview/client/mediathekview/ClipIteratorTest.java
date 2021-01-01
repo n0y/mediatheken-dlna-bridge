@@ -59,6 +59,15 @@ class ClipIteratorTest {
                         "00:20:00",
                         200L * 1024 * 1024,
                         "https://somewhere.test/2/content-base",
-                        "https://somewhere.test/2/content-hd"));
+                        "https://somewhere.test/2/content-hd"),
+                new ClipEntry(
+                        "channel-name-2",
+                        "show-title-2",
+                        ZonedDateTime.of(2000, 1, 3, 3, 3, 0, 0, ZoneId.of("Europe/Berlin")),
+                        "clip-title-3",
+                        "00:30:00",
+                        300L * 1024 * 1024,
+                        "https://somewhere.test/3/content-base",
+                        "https://somewhere.test/3/content-hd"));
     }
 }
