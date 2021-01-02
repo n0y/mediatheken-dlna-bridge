@@ -26,7 +26,7 @@ package de.corelogics.mediaview;
 
 import de.corelogics.mediaview.client.mediatheklist.MediathekListClient;
 import de.corelogics.mediaview.client.mediathekview.MediathekViewImporter;
-import de.corelogics.mediaview.config.MainConfiguration;
+import de.corelogics.mediaview.config.ConfigurationModule;
 import de.corelogics.mediaview.repository.clip.ClipRepository;
 import de.corelogics.mediaview.service.dlna.DlnaServer;
 import de.corelogics.mediaview.service.dlna.DlnaServiceModule;
@@ -35,6 +35,7 @@ import de.corelogics.mediaview.service.proxy.ForwardingProxyModule;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.io.IOException;
 import java.net.http.HttpClient;
 
 public class Main {
@@ -44,16 +45,18 @@ public class Main {
     private final DlnaServer dlnaServer;
     private final ClipRepository clipRepository;
 
-    public Main() {
-        var mainConfiguration = new MainConfiguration();
-        this.clipRepository = new ClipRepository(mainConfiguration);
+    public Main() throws IOException {
+        var configModule = new ConfigurationModule();
+        var mainConfiguration = configModule.getMainConfiguration();
 
-        this.dlnaServer = new DlnaServiceModule(
-                mainConfiguration,
-                new ForwardingProxyModule(mainConfiguration, clipRepository)
-                        .buildClipContentUrlGenerator(),
-                clipRepository)
-                .buildServer();
+        this.clipRepository = new ClipRepository(mainConfiguration);
+        this.dlnaServer =
+                new DlnaServiceModule(
+                        mainConfiguration,
+                        new ForwardingProxyModule(mainConfiguration, clipRepository)
+                                .buildClipContentUrlGenerator(),
+                        clipRepository)
+                        .getDlnaServer();
         this.importerService = new ImporterService(
                 mainConfiguration,
                 new MediathekListClient(mainConfiguration, HttpClient.newBuilder().build()),
@@ -62,7 +65,7 @@ public class Main {
         this.importerService.scheduleImport();
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
         System.setProperty("java.util.logging.manager", "org.apache.logging.log4j.jul.LogManager");
         new Main().listenForShutdown();
     }

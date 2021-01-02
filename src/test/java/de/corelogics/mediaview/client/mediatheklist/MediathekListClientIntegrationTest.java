@@ -25,7 +25,7 @@
 package de.corelogics.mediaview.client.mediatheklist;
 
 import de.corelogics.mediaview.client.mediatheklist.model.MediathekListeServer;
-import de.corelogics.mediaview.config.MainConfiguration;
+import de.corelogics.mediaview.config.ConfigurationModule;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -37,7 +37,7 @@ class MediathekListClientIntegrationTest {
 
     @Test
     void whenRequestingServerList_thenRetrieveAtLeastOneElement() throws IOException {
-        var client = new MediathekListClient(new MainConfiguration(), HttpClient.newBuilder().build());
+        var client = new MediathekListClient(new ConfigurationModule().getMainConfiguration(), HttpClient.newBuilder().build());
         assertThat(client.getMediathekListeMetadata().getServers()).hasAtLeastOneElementOfType(MediathekListeServer.class);
         System.out.println(client.getMediathekListeMetadata());
 

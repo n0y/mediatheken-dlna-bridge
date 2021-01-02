@@ -12,16 +12,14 @@ public class DlnaServiceModule {
     private final MainConfiguration mainConfiguration;
     private final ClipContentUrlGenerator clipContentUrlGenerator;
     private final ClipRepository clipRepository;
+    private final DlnaServer dlnaServer;
 
     public DlnaServiceModule(MainConfiguration mainConfiguration, ClipContentUrlGenerator clipContentUrlGenerator, ClipRepository clipRepository) {
-        this.mainConfiguration = mainConfiguration;
-        this.clipContentUrlGenerator = clipContentUrlGenerator;
-        this.clipRepository = clipRepository;
-    }
-
-    public DlnaServer buildServer() {
         try {
-            return new DlnaServer(mainConfiguration, buildRequestHandlers());
+            this.mainConfiguration = mainConfiguration;
+            this.clipContentUrlGenerator = clipContentUrlGenerator;
+            this.clipRepository = clipRepository;
+            this.dlnaServer = new DlnaServer(mainConfiguration, buildRequestHandlers());
         } catch (ValidationException e) {
             throw new RuntimeException("Initialization failed", e);
         }
@@ -34,5 +32,9 @@ public class DlnaServiceModule {
         var missedShowsContent = new MissedShowsContent(clipContent, this.clipRepository);
         var rootContent = new RootContent(mainConfiguration, sendungAzContent, showContent, missedShowsContent);
         return Set.of(clipContent, missedShowsContent, sendungAzContent, rootContent, showContent);
+    }
+
+    public DlnaServer getDlnaServer() {
+        return dlnaServer;
     }
 }

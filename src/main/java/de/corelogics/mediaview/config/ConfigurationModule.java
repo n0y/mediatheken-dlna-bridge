@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2021 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,35 +24,23 @@
 
 package de.corelogics.mediaview.config;
 
-import java.util.StringJoiner;
+import java.io.File;
+import java.io.IOException;
 
-public class FavouriteShow implements Favourite {
-    private final String channel;
-    private final String title;
+public class ConfigurationModule {
+    private final MainConfiguration mainConfiguration;
 
-    public FavouriteShow(String channel, String title) {
-        this.channel = channel;
-        this.title = title;
+    public ConfigurationModule() throws IOException {
+        this.mainConfiguration = new MainConfiguration(
+                new TypedConfigurationAccessor(
+                        new LayeredPropertySource(
+                                new PropertiesConfigurationSource(System.getProperties()),
+                                new MapConfigurationSource(System.getenv()),
+                                new PropertiesConfigurationSource(new File("./config/application.properties")),
+                                new PropertiesConfigurationSource(ConfigurationModule.class.getResource("/application.properties")))));
     }
 
-    @Override
-    public <T> T accept(FavouriteVisitor<T> visitor) {
-        return visitor.visitShow(this);
-    }
-
-    public String getChannel() {
-        return channel;
-    }
-
-    public String getTitle() {
-        return title;
-    }
-
-    @Override
-    public String toString() {
-        return new StringJoiner(", ", FavouriteShow.class.getSimpleName() + "[", "]")
-                .add("channel='" + channel + "'")
-                .add("title='" + title + "'")
-                .toString();
+    public MainConfiguration getMainConfiguration() {
+        return mainConfiguration;
     }
 }

@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2021 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,35 +24,25 @@
 
 package de.corelogics.mediaview.config;
 
-import java.util.StringJoiner;
+import java.util.Collections;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 
-public class FavouriteShow implements Favourite {
-    private final String channel;
-    private final String title;
+class MapConfigurationSource implements StringPropertySource {
+    private final Map<String, String> properties;
 
-    public FavouriteShow(String channel, String title) {
-        this.channel = channel;
-        this.title = title;
+    public MapConfigurationSource(Map<String, String> properties) {
+        this.properties = Collections.unmodifiableMap(Map.copyOf(properties));
     }
 
     @Override
-    public <T> T accept(FavouriteVisitor<T> visitor) {
-        return visitor.visitShow(this);
-    }
-
-    public String getChannel() {
-        return channel;
-    }
-
-    public String getTitle() {
-        return title;
+    public Optional<String> getConfigValue(String key) {
+        return Optional.ofNullable(this.properties.get(key));
     }
 
     @Override
-    public String toString() {
-        return new StringJoiner(", ", FavouriteShow.class.getSimpleName() + "[", "]")
-                .add("channel='" + channel + "'")
-                .add("title='" + title + "'")
-                .toString();
+    public Set<String> getConfigKeys() {
+        return this.properties.keySet();
     }
 }

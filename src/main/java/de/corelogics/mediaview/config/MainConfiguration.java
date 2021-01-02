@@ -34,10 +34,10 @@ import java.util.stream.Collectors;
 import static java.util.Optional.ofNullable;
 
 public class MainConfiguration {
-    private final ConfigurationAccesor configAccessor;
+    private final TypedConfigurationAccessor configAccessor;
 
-    public MainConfiguration() {
-        this.configAccessor = new ConfigurationAccesor();
+    MainConfiguration(TypedConfigurationAccessor configAccessor) {
+        this.configAccessor = configAccessor;
     }
 
     public String displayName() {
@@ -110,7 +110,7 @@ public class MainConfiguration {
     }
 
     private Optional<Favourite> toFavourite(String favConfig) {
-        var showPattern = Pattern.compile("^show:([^:]+):(.*)$");
+        var showPattern = Pattern.compile("^show:([^:]+):(.+)$");
         var showMatcher = showPattern.matcher(favConfig);
         if (showMatcher.matches()) {
             return Optional.of(new FavouriteShow(showMatcher.group(1), showMatcher.group(2)));

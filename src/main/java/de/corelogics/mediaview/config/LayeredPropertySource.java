@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2021 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,35 +24,33 @@
 
 package de.corelogics.mediaview.config;
 
-import java.util.StringJoiner;
+import java.util.Collection;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
-public class FavouriteShow implements Favourite {
-    private final String channel;
-    private final String title;
+class LayeredPropertySource implements StringPropertySource {
+    private final List<StringPropertySource> sources;
 
-    public FavouriteShow(String channel, String title) {
-        this.channel = channel;
-        this.title = title;
+    public LayeredPropertySource(StringPropertySource... sources) {
+        this.sources = List.of(sources);
     }
 
     @Override
-    public <T> T accept(FavouriteVisitor<T> visitor) {
-        return visitor.visitShow(this);
-    }
-
-    public String getChannel() {
-        return channel;
-    }
-
-    public String getTitle() {
-        return title;
+    public Optional<String> getConfigValue(String key) {
+        return sources.stream()
+                .map(s -> s.getConfigValue(key))
+                .filter(Optional::isPresent)
+                .findFirst()
+                .orElse(Optional.empty());
     }
 
     @Override
-    public String toString() {
-        return new StringJoiner(", ", FavouriteShow.class.getSimpleName() + "[", "]")
-                .add("channel='" + channel + "'")
-                .add("title='" + title + "'")
-                .toString();
+    public Set<String> getConfigKeys() {
+        return sources.stream()
+                .map(StringPropertySource::getConfigKeys)
+                .flatMap(Collection::stream)
+                .collect(Collectors.toSet());
     }
 }
