@@ -1,7 +1,8 @@
+
 /*
  * MIT License
  *
- * Copyright (c) 2020 corelogics.de
+ * Copyright (c) 2020-2021 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -42,14 +43,9 @@ import java.util.UUID;
 public class DlnaServer {
     private final Logger logger = LogManager.getLogger(DlnaServer.class);
 
-    private final MainConfiguration mainConfiguration;
-    private final Set<DlnaRequestHandler> handlers;
     private final UpnpServiceImpl upnpService;
 
     public DlnaServer(MainConfiguration mainConfiguration, Set<DlnaRequestHandler> handlers) throws ValidationException {
-        this.mainConfiguration = mainConfiguration;
-        this.handlers = handlers;
-
         logger.debug("Starting DLNA server");
         var type = new UDADeviceType("MediaServer", 1);
         var details = new DeviceDetails(
