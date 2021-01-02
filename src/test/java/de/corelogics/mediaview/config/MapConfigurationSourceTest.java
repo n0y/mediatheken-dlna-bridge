@@ -66,7 +66,7 @@ class MapConfigurationSourceTest {
             assertThat(
                     new MapConfigurationSource(
                             Map.of("a", "value-a", "b", "value-b")).getConfigKeys())
-                    .containsExactly("a", "b");
+                    .containsExactlyInAnyOrder("a", "b");
         }
     }
 }
