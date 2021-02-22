@@ -193,8 +193,8 @@ public class CacheDirectory {
                             metaFileToRemove::getName,
                             contentFileToRemove::getName,
                             () -> metaFileToRemove.length() + contentFileToRemove.length());
-                    this.openFiles.invalidate(metaFileToRemove);
-                    this.openFiles.invalidate(contentFileToRemove);
+                    this.openFiles.invalidate(metaFileToRemove.getName());
+                    this.openFiles.invalidate(contentFileToRemove.getName());
                     return metaFileToRemove.delete() && contentFileToRemove.delete();
                 })
                 .filter(Boolean.TRUE::equals)
