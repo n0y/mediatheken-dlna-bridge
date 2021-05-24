@@ -39,7 +39,7 @@
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <cling.version>2.1.2</cling.version>
         <log4j.version>2.14.1</log4j.version>
-        <junit.version>5.7.1</junit.version>
+        <junit.version>5.7.2</junit.version>
         <mockito.version>3.9.0</mockito.version>
         <kotlin.version>1.5.10</kotlin.version>
     </properties>
