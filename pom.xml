@@ -51,6 +51,14 @@
         </license>
     </licenses>
 
+  <repositories>
+    <repository>
+        <id>mvnrepository</id>
+        <name>mvnrepository</name>
+        <url>http://www.mvnrepository.com</url>
+    </repository>
+  </repositories>
+  
   <dependencyManagement>
         <dependencies>
             <dependency>
