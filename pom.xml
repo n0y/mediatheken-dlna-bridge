@@ -55,7 +55,7 @@
     <repository>
         <id>mvnrepository</id>
         <name>mvnrepository</name>
-        <url>http://www.mvnrepository.com</url>
+        <url>https://www.mvnrepository.com</url>
     </repository>
   </repositories>
   
