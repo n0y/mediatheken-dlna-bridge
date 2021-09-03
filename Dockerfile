@@ -10,7 +10,6 @@ LABEL org.label-schema.docker.cmd="docker run corelogicsde/mediatheken-dlna-brid
 
 USER root
 COPY --from=arpaulnet/s6-overlay-stage:2.1 / /
-RUN setcap 'cap_net_bind_service=+ep' /usr/local/openjdk-11/bin/java
 
 RUN groupadd --gid 1000 medlna && useradd --gid 1000 --no-create-home --uid 1000 --shell /bin/false medlna
 RUN echo '/app/data true medlna,1000:1000 0664 0775' >> /etc/fix-attrs.d/01-mediathek-dlna-bridge-datadir
