@@ -28,6 +28,7 @@ import de.corelogics.mediaview.client.mediatheklist.model.MediathekListeMetadata
 import de.corelogics.mediaview.client.mediatheklist.model.MediathekListeServer;
 import de.corelogics.mediaview.config.MainConfiguration;
 import de.corelogics.mediaview.util.HttpUtils;
+import org.apache.commons.io.IOUtils;
 import org.tukaani.xz.XZInputStream;
 import org.w3c.dom.Element;
 import org.xml.sax.InputSource;
@@ -35,9 +36,7 @@ import org.xml.sax.SAXException;
 
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.StringReader;
+import java.io.*;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -55,10 +54,10 @@ public class MediathekListClient {
         this.mainConfiguration = mainConfiguration;
     }
 
-    public InputStream openMediathekListeFull() throws IOException {
+    private void downloadToTempFile(File tempFile) throws IOException {
         try {
-            var serverList = getMediathekListeMetadata();
-            for (var server : serverList.getServers()) {
+            final var serverList = getMediathekListeMetadata();
+            for (final var server : serverList.getServers()) {
                 var request =
                         HttpUtils.enhanceRequest(
                                 mainConfiguration,
@@ -66,13 +65,36 @@ public class MediathekListClient {
                                 .build();
                 var response = httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
                 if (response.statusCode() == 200) {
-                    return new XZInputStream(response.body());
+                    try (var output = new FileOutputStream(tempFile)) {
+                        IOUtils.copyLarge(response.body(), output);
+                    }
+                } else {
+                    throw new IOException("Could not open");
                 }
             }
         } catch (final InterruptedException e) {
             throw new IOException(e);
         }
-        throw new IOException("Could not open");
+    }
+
+    public InputStream openMediathekListeFull() throws IOException {
+        final var tempFile = File.createTempFile("full-list", ".xml.xz");
+        try {
+            downloadToTempFile(tempFile);
+            return new FilterInputStream(new XZInputStream(new BufferedInputStream(new FileInputStream(tempFile)))) {
+                @Override
+                public void close() throws IOException {
+                    try {
+                        super.close();
+                    } finally {
+                        tempFile.delete();
+                    }
+                }
+            };
+        } catch (IOException | RuntimeException e) {
+            tempFile.delete();
+            throw e;
+        }
     }
 
     MediathekListeMetadata getMediathekListeMetadata() throws IOException {
