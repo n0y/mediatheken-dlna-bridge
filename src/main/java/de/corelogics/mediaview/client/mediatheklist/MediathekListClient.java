@@ -68,13 +68,14 @@ public class MediathekListClient {
                     try (var output = new FileOutputStream(tempFile)) {
                         IOUtils.copyLarge(response.body(), output);
                     }
-                } else {
-                    throw new IOException("Could not open");
+                    return;
                 }
             }
+
         } catch (final InterruptedException e) {
             throw new IOException(e);
         }
+        throw new IOException("Could not open");
     }
 
     public InputStream openMediathekListeFull() throws IOException {
