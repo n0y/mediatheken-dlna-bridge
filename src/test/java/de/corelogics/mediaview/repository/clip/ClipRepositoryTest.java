@@ -28,8 +28,6 @@ import de.corelogics.mediaview.client.mediathekview.ClipEntry;
 import de.corelogics.mediaview.config.MainConfiguration;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -38,12 +36,10 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.entry;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
-import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class ClipRepositoryTest {
@@ -57,7 +53,6 @@ class ClipRepositoryTest {
 
     @BeforeEach
     void createDatabase() {
-        sut.openConnection("jdbc:h2:mem:test");
         sut.initialize();
     }
 
@@ -83,6 +78,14 @@ class ClipRepositoryTest {
                             createClip("B", "B3", "B3-1", 2),
                             createClip("B", "B3", "B3-2", 1)),
                     importedAt);
+        }
+
+        @Test
+        void whenFindingClipById_thenReturnMatchingClip() {
+            var id = createClip("A", "1", "A1-1", 10).getId();
+            assertThat(sut.findClipById(id)).isPresent().get()
+                    .extracting(ClipEntry::getTitle)
+                    .isEqualTo("title:A1-1");
         }
 
         @Test
@@ -211,25 +214,25 @@ class ClipRepositoryTest {
             }
         }
 
-        @Nested
-        @DisplayName("when calculating jdbc url")
-        class WhenCalculatingJdbcUrl {
-            @ParameterizedTest
-            @ValueSource(strings = {"../test.url/location", "/home/x", "./data/calc"})
-            void whenDatabaseLocationIsInserted_thenEnsureItsInTheUrl(String location) {
-                when(config.dbLocation()).thenReturn(Optional.of(location));
-                assertThat(sut.calcJdbcUrl(0)).startsWith("jdbc:h2:" + location + ";");
-            }
-
-            @ParameterizedTest
-            @ValueSource(longs = {1L, 1_000_000L, 5_000_000_000L})
-            void whenCacheSizeIsInserted_thenEnsureItsInTheUrl(long cacheSize) {
-                var cacheSizeKb = cacheSize / 1024;
-                when(config.dbLocation()).thenReturn(Optional.empty());
-                assertThat(sut.calcJdbcUrl(cacheSize))
-                        .contains(";CACHE_SIZE=" + cacheSizeKb);
-            }
-        }
+//        @Nested
+//        @DisplayName("when calculating jdbc url")
+//        class WhenCalculatingJdbcUrl {
+//            @ParameterizedTest
+//            @ValueSource(strings = {"../test.url/location", "/home/x", "./data/calc"})
+//            void whenDatabaseLocationIsInserted_thenEnsureItsInTheUrl(String location) {
+//                when(config.dbLocation()).thenReturn(Optional.of(location));
+//                assertThat(sut.calcJdbcUrl(0)).startsWith("jdbc:h2:" + location + ";");
+//            }
+//
+//            @ParameterizedTest
+//            @ValueSource(longs = {1L, 1_000_000L, 5_000_000_000L})
+//            void whenCacheSizeIsInserted_thenEnsureItsInTheUrl(long cacheSize) {
+//                var cacheSizeKb = cacheSize / 1024;
+//                when(config.dbLocation()).thenReturn(Optional.empty());
+//                assertThat(sut.calcJdbcUrl(cacheSize))
+//                        .contains(";CACHE_SIZE=" + cacheSizeKb);
+//            }
+//        }
     }
 
     private ClipEntry createClip(String channel, String show, String title, int daysBefore) {
