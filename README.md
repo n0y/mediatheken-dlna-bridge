@@ -18,8 +18,8 @@ There're two options running the Mediatheken DLNA Bridge: Local installation, or
 * Download latest tar.gz from the [RELEASES] page.
 * unpack it
 * run the provided JAR file with `java -jar mediatheken-dlna-brige.jar`.
-* you may give a java parameter `-Xmx700m` or so for a memory limit. The memory will be used for a
-  database cache. Giving it more than 1GB doesn't improve things.
+* you may give a java parameter `-Xmx256m` or so for a memory limit. The memory will be used for a lucene query cache.
+  Giving it more than 512MB doesn't improve things.
 
 You may override any setting in three ways:
 
@@ -27,8 +27,8 @@ You may override any setting in three ways:
 * Add the settings to your `java` command line with `-DSETTING=VALUE`, or
 * Create environment variables `SETTING=VALUE`
 
-A local database will be created in a directory local to your working directory. It's a H2 database, with
-username/password of `sa`/`sa` (as usual with h2). Feel free to dig into it.
+A local index directory will be created in a directory local to your working directory. It's a Lucene index. Feel free
+to dig into it.
 
 ### Docker installation
 
@@ -36,8 +36,8 @@ Find the released Docker images at [DOCKERHUB]. Simply run them with:
 
 `docker run corelogicsde/mediatheken-dlna-bridge:latest`
 
-You may set a memory limit with adding `--memory=500M` to the docker line. The memory will be used for a
-database cache. Giving it more than 500 MB doesn't improve things.
+You may set a memory limit with adding `--memory=500M` to the docker line. The memory will be used for a lucene query
+cache. 128MB seem to work fine, and giving it more than 500 MB doesn't improve things.
 
 You may override any setting in two ways:
 
@@ -60,8 +60,8 @@ services:
     deploy:
       resources:
         limits:
-          memory: 400M
-    # This volume can be used to store the database outside of the container
+          memory: 256M
+    # This volume can be used to store the lucene index outside of the container
     #volumes:
     #  - source: ./data/mediathek-data
     #    target: /app/data
@@ -81,7 +81,7 @@ services:
 
 Common configuration
 
-* _DATABASE_LOCATION_ points to the directory and name of the H2 database. Defaults to `./data/clipdb`
+* _DATABASE_LOCATION_ points to the directory and name of the lucene index directory. Defaults to `./data/clipdb`
 * _UPDATEINTERVAL_FULL_HOURS_ number of hours between full db updates. Defaults to `24`.
 * _DISPLAY_NAME_ under this name, the Mediatheken-DLNA-Bridge will be visible in your network. Defaults to `Mediatheken`.
 
