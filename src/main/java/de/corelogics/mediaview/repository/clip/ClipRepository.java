@@ -132,6 +132,7 @@ public class ClipRepository {
     }
 
     private static final Logger LOGGER = LogManager.getLogger(ClipRepository.class);
+    private static final String DOCID_LAST_UPDATED = "last-update-stat";
     private static final FieldType TYPE_NO_TOKENIZE = new FieldType();
 
     static {
@@ -189,17 +190,14 @@ public class ClipRepository {
                 this.index = new NIOFSDirectory(new File(indexPath).toPath());
             }
 
-            StandardAnalyzer analyzer = new StandardAnalyzer();
-            IndexWriterConfig indexWriterConfig = new IndexWriterConfig(analyzer);
-            IndexWriter writter = new IndexWriter(this.index, indexWriterConfig);
-
+            // need at least one entry for a reader to work on...
+            var writer = new IndexWriter(this.index, new IndexWriterConfig(new StandardAnalyzer()));
             var document = new Document();
-            document.add(new NumericDocValuesField("cont", 0));
-            writter.addDocument(document);
-            writter.close();
+            document.add(new Field(ClipField.ID.term(), ClipField.ID.term("placeholder"), TYPE_NO_TOKENIZE));
+            writer.updateDocument(new Term(ClipField.ID.term(), ClipField.ID.term("placeholder")), document);
+            writer.close();
 
             IndexSearcher.setDefaultQueryCache(new LRUQueryCache(1000, cacheSize));
-
             this.searcherManager = new SearcherManager(this.index, null);
         } catch (final IOException e) {
             throw new IllegalStateException("Could not initialize FS directory on '" + indexPath + "'.", e);
@@ -226,7 +224,7 @@ public class ClipRepository {
     public Optional<ZonedDateTime> findLastFullImport() {
         LOGGER.debug("finding last full import");
         return withSearcher(searcher -> {
-            var result = searcher.search(new TermQuery(new Term(ClipField.ID.term(), ClipField.ID.term("last-update-stat"))), 1);
+            var result = searcher.search(new TermQuery(new Term(ClipField.ID.term(), ClipField.ID.term(DOCID_LAST_UPDATED))), 1);
             if (result.scoreDocs.length > 0) {
                 var doc = searcher.getIndexReader().document(result.scoreDocs[0].doc);
                 return Optional.of(ZonedDateTime.parse(doc.get(ClipField.IMPORTEDAT.value())));
@@ -242,10 +240,10 @@ public class ClipRepository {
             var indexWriterConfig = new IndexWriterConfig(analyzer);
             try (var writer = new IndexWriter(this.index, indexWriterConfig)) {
                 var d = new Document();
-                addToDocument(d, ClipField.ID, "last-update-stat");
+                addToDocument(d, ClipField.ID, DOCID_LAST_UPDATED);
                 addDateToDocument(d, ClipField.IMPORTEDAT, dateTime);
                 writer.updateDocument(
-                        new Term(ClipField.ID.term(), ClipField.ID.term("last-update-stat")),
+                        new Term(ClipField.ID.term(), ClipField.ID.term(DOCID_LAST_UPDATED)),
                         applyFacets(d));
             }
             searcherManager.maybeRefreshBlocking();
@@ -260,9 +258,9 @@ public class ClipRepository {
             var query = new MatchAllDocsQuery();
             var state = new DefaultSortedSetDocValuesReaderState(searcher.getIndexReader(), ClipField.CHANNELNAME.facet());
             var fc = new FacetsCollector();
-            FacetsCollector.search(searcher, query, 100, fc);
+            FacetsCollector.search(searcher, query, 10000, fc);
             var facets = new SortedSetDocValuesFacetCounts(state, fc);
-            return Stream.of(facets.getTopChildren(10, ClipField.CHANNELNAME.facet()).labelValues)
+            return Stream.of(facets.getTopChildren(10000, ClipField.CHANNELNAME.facet()).labelValues)
                     .map(l -> l.label)
                     .collect(Collectors.toList());
         });
@@ -277,9 +275,9 @@ public class ClipRepository {
             var query = new TermQuery(new Term(ClipField.CHANNELNAME.termLower(), ClipField.CHANNELNAME.termLower(channelName)));
             var state = new DefaultSortedSetDocValuesReaderState(searcher.getIndexReader(), ClipField.CONTAINEDIN.facet());
             var fc = new FacetsCollector();
-            FacetsCollector.search(searcher, query, 100, fc);
+            FacetsCollector.search(searcher, query, 10000, fc);
             var facets = new SortedSetDocValuesFacetCounts(state, fc);
-            return Stream.of(facets.getTopChildren(10, ClipField.CONTAINEDIN.facet()).labelValues)
+            return Stream.of(facets.getTopChildren(10000, ClipField.CONTAINEDIN.facet()).labelValues)
                     .map(l -> Map.entry(l.label, l.value.intValue()))
                     .collect(toMap(Map.Entry::getKey, Map.Entry::getValue));
 
@@ -298,9 +296,9 @@ public class ClipRepository {
                     .build();
             var state = new DefaultSortedSetDocValuesReaderState(searcher.getIndexReader(), ClipField.CONTAINEDIN.facet());
             var fc = new FacetsCollector();
-            FacetsCollector.search(searcher, query, 100, fc);
+            FacetsCollector.search(searcher, query, 10000, fc);
             var facets = new SortedSetDocValuesFacetCounts(state, fc);
-            return Stream.of(facets.getTopChildren(10, ClipField.CONTAINEDIN.facet()).labelValues)
+            return Stream.of(facets.getTopChildren(10000, ClipField.CONTAINEDIN.facet()).labelValues)
                     .map(l -> Map.entry(l.label, l.value.intValue()))
                     .collect(toMap(Map.Entry::getKey, Map.Entry::getValue));
         });
