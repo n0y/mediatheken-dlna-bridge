@@ -197,8 +197,8 @@ class ClipRepositoryTest {
         class WhenCalculatingCacheSizes {
             @Test
             void givenInOkRange_thenCalcSizeCorrectly() {
-                sut.maxMemorySupplier = () -> 400_000_000L;
-                assertThat(sut.calcCacheSize()).isEqualTo(250_000_000L);
+                sut.maxMemorySupplier = () -> 40_000_000L + 150_000_000L;
+                assertThat(sut.calcCacheSize()).isEqualTo(40_000_000L);
             }
 
             @Test
@@ -210,29 +210,9 @@ class ClipRepositoryTest {
             @Test
             void givenAboveLimit_thenReturnUpperLimit() {
                 sut.maxMemorySupplier = () -> 3_000_000_000L;
-                assertThat(sut.calcCacheSize()).isEqualTo(1_500_000_000L);
+                assertThat(sut.calcCacheSize()).isEqualTo(100_000_000L);
             }
         }
-
-//        @Nested
-//        @DisplayName("when calculating jdbc url")
-//        class WhenCalculatingJdbcUrl {
-//            @ParameterizedTest
-//            @ValueSource(strings = {"../test.url/location", "/home/x", "./data/calc"})
-//            void whenDatabaseLocationIsInserted_thenEnsureItsInTheUrl(String location) {
-//                when(config.dbLocation()).thenReturn(Optional.of(location));
-//                assertThat(sut.calcJdbcUrl(0)).startsWith("jdbc:h2:" + location + ";");
-//            }
-//
-//            @ParameterizedTest
-//            @ValueSource(longs = {1L, 1_000_000L, 5_000_000_000L})
-//            void whenCacheSizeIsInserted_thenEnsureItsInTheUrl(long cacheSize) {
-//                var cacheSizeKb = cacheSize / 1024;
-//                when(config.dbLocation()).thenReturn(Optional.empty());
-//                assertThat(sut.calcJdbcUrl(cacheSize))
-//                        .contains(";CACHE_SIZE=" + cacheSizeKb);
-//            }
-//        }
     }
 
     private ClipEntry createClip(String channel, String show, String title, int daysBefore) {
