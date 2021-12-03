@@ -24,4 +24,4 @@ VOLUME /app/cache
 
 WORKDIR /app
 ENTRYPOINT ["/init"]
-CMD ["s6-setuidgid", "medlna", "java", "-XX:MaxRAMPercentage=80", "-jar", "mediatheken-dlna-bridge.jar"]
+CMD ["s6-setuidgid", "medlna", "java", "-XX:MaxRAMPercentage=70", "-XX:+UseParallelGC", "-XX:MinHeapFreeRatio=5", "-XX:MaxHeapFreeRatio=10", "-XX:GCTimeRatio=4", "-XX:+UseAdaptiveSizePolicy", "-jar", "mediatheken-dlna-bridge.jar"]
