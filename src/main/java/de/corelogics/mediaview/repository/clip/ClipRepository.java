@@ -40,13 +40,15 @@ import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.search.*;
+import org.apache.lucene.store.ByteBuffersDirectory;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.NIOFSDirectory;
-import org.apache.lucene.store.RAMDirectory;
 import org.apache.lucene.util.BytesRef;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.function.Supplier;
@@ -185,17 +187,28 @@ public class ClipRepository {
     void openConnection(String indexPath, long cacheSize) {
         try {
             if ("<in-mem>".equals(indexPath)) {
-                this.index = new RAMDirectory();
+                this.index = new ByteBuffersDirectory();
             } else {
                 this.index = new NIOFSDirectory(new File(indexPath).toPath());
             }
 
-            // need at least one entry for a reader to work on...
-            var writer = new IndexWriter(this.index, new IndexWriterConfig(new StandardAnalyzer()));
-            var document = new Document();
-            document.add(new Field(ClipField.ID.term(), ClipField.ID.term("placeholder"), TYPE_NO_TOKENIZE));
-            writer.updateDocument(new Term(ClipField.ID.term(), ClipField.ID.term("placeholder")), document);
-            writer.close();
+            try {
+                // need at least one entry for a reader to work on...
+                var writer = new IndexWriter(this.index, new IndexWriterConfig(new StandardAnalyzer()));
+                var document = new Document();
+                document.add(new Field(ClipField.ID.term(), ClipField.ID.term("placeholder"), TYPE_NO_TOKENIZE));
+                writer.updateDocument(new Term(ClipField.ID.term(), ClipField.ID.term("placeholder")), document);
+                writer.close();
+            } catch (IOException | IllegalArgumentException e) {
+                // index got corrupted (or it's an old version). Delete index and re-index later.
+                this.index.close();
+                Files.walk(new File(indexPath).toPath())
+                        .sorted(Comparator.reverseOrder())
+                        .map(Path::toFile)
+                        .forEach(File::delete);
+                openConnection(indexPath, cacheSize);
+                return;
+            }
 
             IndexSearcher.setDefaultQueryCache(new LRUQueryCache(1000, cacheSize));
             this.searcherManager = new SearcherManager(this.index, null);
