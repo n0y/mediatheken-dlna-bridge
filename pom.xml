@@ -84,7 +84,7 @@
                 <groupId>org.slf4j</groupId>
                 <artifactId>slf4j-api</artifactId>
                 <scope>runtime</scope>
-                <version>1.7.35</version>
+                <version>1.7.36</version>
             </dependency>
             <dependency>
                 <groupId>org.eclipse.jetty</groupId>
