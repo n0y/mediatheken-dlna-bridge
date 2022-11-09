@@ -9,6 +9,7 @@ jobs:
       version: E-SNAPSHOT
 
   release:
+    runs-on: ubuntu-latest
     needs: build
     steps:
       - name: download target directory
