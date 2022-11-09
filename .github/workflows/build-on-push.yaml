@@ -17,6 +17,7 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: target
+          path: target
       - name: Conventional Changelog Action
         id: changelog
         uses: TriPSs/conventional-changelog-action@v3
