@@ -4,9 +4,6 @@ on: [push]
 
 jobs:
   build:
-    runs-on: ubuntu-latest
-
-    call-compile-and-test:
-      uses: ./.github/workflows/part-compile-and-test.yaml
-      with:
-        version: E-SNAPSHOT
+    uses: ./.github/workflows/part-compile-and-test.yaml
+    with:
+      version: E-SNAPSHOT
