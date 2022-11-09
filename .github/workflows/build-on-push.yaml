@@ -12,6 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     steps:
+      - uses: actions/checkout@v3
       - name: download target directory
         uses: actions/download-artifact@v3
         with:
