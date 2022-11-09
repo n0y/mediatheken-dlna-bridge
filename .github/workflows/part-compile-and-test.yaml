@@ -15,7 +15,7 @@ jobs:
         uses: actions/setup-java@v3
         with:
           java-version: 11
-          distribution: 'adopt'
+          distribution: 'corretto'
 
       - name: Cache Maven packages
         uses: actions/cache@v3
@@ -23,13 +23,13 @@ jobs:
           path: ~/.m2
           key: ${{ runner.os }}-m2
 
-      - name: Set tag name as version
-        run: mvn -B versions:set -DnewVersion=${{ inputs.version }} --file pom.xml
-
       - name: Set up Maven
         uses: stCarolas/setup-maven@v4
         with:
           maven-version: 3.6.1
+
+      - name: Set tag name as version
+        run: mvn -B versions:set -DnewVersion=${{ inputs.version }} --file pom.xml
 
       - name: Build with Maven
         run: mvn -B verify --file pom.xml
