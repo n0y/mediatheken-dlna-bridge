@@ -11,3 +11,4 @@ jobs:
   release:
     needs: build
     uses: ./.guthub/workflows/part-release.yaml
+    secrets: inherit
