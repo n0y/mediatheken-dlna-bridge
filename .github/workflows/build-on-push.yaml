@@ -26,7 +26,7 @@ jobs:
           skip-version-file: "true"
           skip-on-empty: "false"
           skip-commit: "true"
-          git-push: "false"
+#          git-push: "false"
 
       - name: TGZ up the release
         run: mkdir release && mkdir release/mediatheken-dlna-bridge-${{ steps.changelog.outputs.version }} && cp -r target/*.jar target/libraries release/mediatheken-dlna-bridge-${{ steps.changelog.outputs.version }} && cd release && tar cvfz mediatheken-dlna-bridge-${{ steps.changelog.outputs.version }}.tar.gz mediatheken-dlna-bridge-${{ steps.changelog.outputs.version }}
