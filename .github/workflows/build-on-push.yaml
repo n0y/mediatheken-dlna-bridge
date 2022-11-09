@@ -9,6 +9,7 @@ jobs:
       version: E-SNAPSHOT
 
   release:
+    if: github.ref == 'refs/heads/master'
     needs: build
     uses: ./.github/workflows/part-release.yaml
     secrets: inherit

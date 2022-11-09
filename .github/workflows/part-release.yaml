@@ -57,13 +57,13 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
-#      - name: Build and push
-#        uses: docker/build-push-action@v3
-#        with:
-#          context: .
-#          file: ./Dockerfile
-#          platforms: linux/amd64,linux/arm64
-#          push: true
-#          tags: |
-#            corelogicsde/mediatheken-dlna-bridge:latest
-#            corelogicsde/mediatheken-dlna-bridge:${{ steps.changelog.outputs.version }}
+      - name: Build and push
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            corelogicsde/mediatheken-dlna-bridge:latest
+            corelogicsde/mediatheken-dlna-bridge:${{ steps.changelog.outputs.version }}
