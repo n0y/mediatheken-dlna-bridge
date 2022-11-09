@@ -100,7 +100,7 @@ public class ImporterService {
                     }
                     var e = it.next();
                     if (numImported.incrementAndGet() % 10000 == 0) {
-                        logger.info("Full imported yielded {} clips until now", numImported::get);
+                        logger.info("Full import yielded {} clips until now", numImported::get);
                     }
                     entryUpdateList.add(e);
                     if (entryUpdateList.size() > 999) {
