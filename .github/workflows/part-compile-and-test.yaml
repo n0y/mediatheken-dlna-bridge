@@ -33,3 +33,13 @@ jobs:
 
       - name: Build with Maven
         run: mvn -B verify --file pom.xml
+
+      - name: upload built binaries
+        uses: actions/upload-artifact@v3
+        with:
+          name: target
+          path: target
+#      - name: use-this-to-download-built-binaries
+#        uses: actions/download-artifact@v3
+#        with:
+#          name: target
