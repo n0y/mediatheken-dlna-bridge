@@ -22,7 +22,8 @@ jobs:
         id: changelog
         uses: TriPSs/conventional-changelog-action@v3
         with:
-          git-push: "false"
           output-file: "false"
           skip-version-file: "true"
           skip-on-empty: "false"
+          skip-commit: "true"
+          git-push: "false"
