@@ -1,8 +1,9 @@
 {
   "extends": [
     "config:base",
+    ":semanticCommits",
     ":semanticCommitTypeAll(chore)",
-    ":semanticCommits"
+    ":semanticCommitScopeDisabled"
   ],
   "packageRules": [
     {
