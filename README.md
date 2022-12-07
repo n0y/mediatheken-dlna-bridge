@@ -17,7 +17,7 @@ There're two options running the Mediatheken DLNA Bridge: Local installation, or
 
 * Download latest tar.gz from the [RELEASES] page.
 * unpack it
-* run the provided JAR file with `java -jar mediatheken-dlna-brige.jar`.
+* run the provided JAR file with `java -jar mediatheken-dlna-bridge.jar`.
 * you may give a java parameter `-Xmx256m` or so for a memory limit. The memory will be used for a lucene query cache.
   Giving it more than 512MB doesn't improve things.
 
