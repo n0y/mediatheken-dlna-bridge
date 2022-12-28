@@ -42,7 +42,7 @@
         <log4j.version>2.19.0</log4j.version>
         <junit.version>5.9.1</junit.version>
         <mockito.version>4.10.0</mockito.version>
-        <kotlin.version>1.7.22</kotlin.version>
+        <kotlin.version>1.8.0</kotlin.version>
     </properties>
 
     <licenses>
