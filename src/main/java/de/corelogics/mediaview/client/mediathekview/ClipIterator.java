@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2021 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2023 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -46,9 +46,9 @@ class ClipIterator implements Iterator<ClipEntry> {
     private final JsonParser jParser;
     private final List<String> fields = new ArrayList<>();
     private Optional<ClipEntry> currentEntry = Optional.empty();
-    private final DateTimeFormatter dateTimeFormat = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss");
+    private final DateTimeFormatter dateTimeFormat = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm[:ss]");
     private final DateTimeFormatter dateFormat = DateTimeFormatter.ofPattern("dd.MM.yyyy");
-    private final DateTimeFormatter timeFormat = DateTimeFormatter.ofPattern("HH:mm:ss");
+    private final DateTimeFormatter timeFormat = DateTimeFormatter.ofPattern("HH:mm[:ss]");
 
     ClipIterator(InputStream in) throws IOException {
         this.in = in;
