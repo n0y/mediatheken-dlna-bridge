@@ -40,7 +40,7 @@
         <cling.version>2.1.2</cling.version>
         <lucene.version>9.5.0</lucene.version>
         <log4j.version>2.20.0</log4j.version>
-        <junit.version>5.9.2</junit.version>
+        <junit.version>5.9.3</junit.version>
         <mockito.version>5.3.1</mockito.version>
         <kotlin.version>1.8.21</kotlin.version>
     </properties>
