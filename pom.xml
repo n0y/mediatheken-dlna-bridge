@@ -38,7 +38,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <cling.version>2.1.2</cling.version>
-        <lucene.version>9.7.0</lucene.version>
+        <lucene.version>9.8.0</lucene.version>
         <log4j.version>2.20.0</log4j.version>
         <junit.version>5.10.0</junit.version>
         <mockito.version>5.5.0</mockito.version>
