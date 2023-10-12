@@ -27,8 +27,8 @@ package de.corelogics.mediaview.service.dlna.content;
 import de.corelogics.mediaview.repository.clip.ClipRepository;
 import de.corelogics.mediaview.service.dlna.DlnaRequest;
 import de.corelogics.mediaview.util.IdUtils;
-import org.fourthline.cling.support.model.DIDLContent;
-import org.fourthline.cling.support.model.container.StorageFolder;
+import org.jupnp.support.model.DIDLContent;
+import org.jupnp.support.model.container.StorageFolder;
 
 import java.time.LocalDate;
 import java.time.LocalTime;

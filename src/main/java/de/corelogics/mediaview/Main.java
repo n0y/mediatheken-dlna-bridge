@@ -31,6 +31,7 @@ import de.corelogics.mediaview.repository.clip.ClipRepository;
 import de.corelogics.mediaview.service.dlna.DlnaServer;
 import de.corelogics.mediaview.service.dlna.DlnaServiceModule;
 import de.corelogics.mediaview.service.importer.ImporterService;
+import de.corelogics.mediaview.service.networking.NetworkingModule;
 import de.corelogics.mediaview.service.proxy.ForwardingProxyModule;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -48,15 +49,18 @@ public class Main {
     public Main() throws IOException {
         var configModule = new ConfigurationModule();
         var mainConfiguration = configModule.getMainConfiguration();
+        var networkModule = new NetworkingModule();
 
         this.clipRepository = new ClipRepository(mainConfiguration);
         this.dlnaServer =
                 new DlnaServiceModule(
                         mainConfiguration,
+                        networkModule.getJettyServer(),
                         new ForwardingProxyModule(mainConfiguration, clipRepository)
                                 .buildClipContentUrlGenerator(),
                         clipRepository)
                         .getDlnaServer();
+        networkModule.startup();
         this.importerService = new ImporterService(
                 mainConfiguration,
                 new MediathekListClient(mainConfiguration, HttpClient.newBuilder().build()),

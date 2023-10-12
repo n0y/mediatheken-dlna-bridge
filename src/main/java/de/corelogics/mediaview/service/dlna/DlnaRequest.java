@@ -24,8 +24,8 @@
 
 package de.corelogics.mediaview.service.dlna;
 
-import org.fourthline.cling.support.model.BrowseFlag;
-import org.fourthline.cling.support.model.SortCriterion;
+import org.jupnp.support.model.BrowseFlag;
+import org.jupnp.support.model.SortCriterion;
 
 import java.util.List;
 

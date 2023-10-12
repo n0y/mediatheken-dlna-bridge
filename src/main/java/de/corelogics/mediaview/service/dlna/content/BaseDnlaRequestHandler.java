@@ -26,9 +26,9 @@ package de.corelogics.mediaview.service.dlna.content;
 
 import de.corelogics.mediaview.service.dlna.DlnaRequest;
 import de.corelogics.mediaview.service.dlna.DlnaRequestHandler;
-import org.fourthline.cling.support.contentdirectory.DIDLParser;
-import org.fourthline.cling.support.model.BrowseResult;
-import org.fourthline.cling.support.model.DIDLContent;
+import org.jupnp.support.contentdirectory.DIDLParser;
+import org.jupnp.support.model.BrowseResult;
+import org.jupnp.support.model.DIDLContent;
 
 import java.util.stream.Collectors;
 

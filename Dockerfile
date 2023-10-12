@@ -1,4 +1,4 @@
-FROM openjdk:11.0.16-jre
+FROM amazoncorretto:21.0.0-alpine
 
 LABEL org.label-schema.schema-version="1.0"
 LABEL org.label-schema.name="Mediatheken-DLNA-Bridge"

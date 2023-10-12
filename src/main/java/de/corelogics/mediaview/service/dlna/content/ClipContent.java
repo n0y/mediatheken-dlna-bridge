@@ -27,9 +27,9 @@ package de.corelogics.mediaview.service.dlna.content;
 import de.corelogics.mediaview.client.mediathekview.ClipEntry;
 import de.corelogics.mediaview.service.ClipContentUrlGenerator;
 import de.corelogics.mediaview.service.dlna.DlnaRequest;
-import org.fourthline.cling.support.model.DIDLContent;
-import org.fourthline.cling.support.model.Res;
-import org.fourthline.cling.support.model.item.VideoItem;
+import org.jupnp.support.model.DIDLContent;
+import org.jupnp.support.model.Res;
+import org.jupnp.support.model.item.VideoItem;
 
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;

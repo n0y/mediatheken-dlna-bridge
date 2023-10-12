@@ -26,27 +26,78 @@
 package de.corelogics.mediaview.service.dlna;
 
 import de.corelogics.mediaview.config.MainConfiguration;
+import de.corelogics.mediaview.service.fixups.JettyServletContainerFixed;
+import de.corelogics.mediaview.service.fixups.JettyStreamClientImplFixed;
+import de.corelogics.mediaview.service.fixups.ServletStreamServerImplFixed;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.fourthline.cling.UpnpServiceImpl;
-import org.fourthline.cling.binding.annotations.AnnotationLocalServiceBinder;
-import org.fourthline.cling.model.DefaultServiceManager;
-import org.fourthline.cling.model.ValidationException;
-import org.fourthline.cling.model.meta.*;
-import org.fourthline.cling.model.types.UDADeviceType;
-import org.fourthline.cling.model.types.UDN;
+import org.eclipse.jetty.server.Server;
+import org.jupnp.DefaultUpnpServiceConfiguration;
+import org.jupnp.UpnpServiceImpl;
+import org.jupnp.binding.annotations.AnnotationLocalServiceBinder;
+import org.jupnp.model.DefaultServiceManager;
+import org.jupnp.model.ValidationException;
+import org.jupnp.model.meta.*;
+import org.jupnp.model.types.UDADeviceType;
+import org.jupnp.model.types.UDN;
+import org.jupnp.transport.impl.ServletStreamServerConfigurationImpl;
+import org.jupnp.transport.impl.jetty.StreamClientConfigurationImpl;
+import org.jupnp.transport.spi.NetworkAddressFactory;
+import org.jupnp.transport.spi.StreamClient;
+import org.jupnp.transport.spi.StreamServer;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class DlnaServer {
     private final Logger logger = LogManager.getLogger(DlnaServer.class);
 
+    private static class DlnaUpnpServiceConfiguration extends DefaultUpnpServiceConfiguration {
+        private final JettyServletContainerFixed servletContainer;
+
+        private DlnaUpnpServiceConfiguration(Server jettyServer) {
+            this.servletContainer = new JettyServletContainerFixed(jettyServer);
+        }
+
+        @Override
+        protected ExecutorService createDefaultExecutorService() {
+            return Executors.newVirtualThreadPerTaskExecutor();
+        }
+
+        @Override
+        public StreamClient createStreamClient() {
+            return new JettyStreamClientImplFixed(new StreamClientConfigurationImpl(getSyncProtocolExecutorService()));
+        }
+
+        @Override
+        public StreamServer createStreamServer(NetworkAddressFactory networkAddressFactory) {
+            return new ServletStreamServerImplFixed(
+                    new ServletStreamServerConfigurationImpl(
+                            servletContainer,
+                            networkAddressFactory.getStreamListenPort())) {
+                @Override
+                public synchronized int getPort() {
+                    return super.getPort();
+                }
+            };
+        }
+
+        @Override
+        public int getRegistryMaintenanceIntervalMillis() {
+            return (int) SECONDS.toMillis(60);
+        }
+    }
+
     private final UpnpServiceImpl upnpService;
 
-    public DlnaServer(MainConfiguration mainConfiguration, Set<DlnaRequestHandler> handlers) throws ValidationException {
+    public DlnaServer(MainConfiguration mainConfiguration, Server jettyServer, Set<DlnaRequestHandler> handlers) throws ValidationException {
         logger.debug("Starting DLNA server");
+
         var type = new UDADeviceType("MediaServer", 1);
         var details = new DeviceDetails(
                 mainConfiguration.displayName(),
@@ -60,16 +111,19 @@ public class DlnaServer {
             }
         });
 
-        var localDevice = new LocalDevice(
+        final var localDevice = new LocalDevice(
                 new DeviceIdentity(new UDN(UUID.nameUUIDFromBytes(mainConfiguration.displayName().getBytes(StandardCharsets.UTF_8)))),
                 type,
                 details,
                 service);
 
-        this.upnpService = new UpnpServiceImpl();
-        upnpService.getRegistry().addDevice(localDevice);
+        this.upnpService = new UpnpServiceImpl(new DlnaUpnpServiceConfiguration(jettyServer));
+        this.upnpService.startup();
+        this.upnpService.getRegistry().addDevice(localDevice);
+        this.upnpService.getProtocolFactory().createSendingNotificationAlive(localDevice).run();
         logger.info(String.format("Successfully started DLNA server '%s'. It may take some time for it to become visible in the network.",
                 mainConfiguration.displayName()));
+
     }
 
     public void shutdown() {

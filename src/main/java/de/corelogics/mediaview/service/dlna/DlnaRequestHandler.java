@@ -24,7 +24,7 @@
 
 package de.corelogics.mediaview.service.dlna;
 
-import org.fourthline.cling.support.model.BrowseResult;
+import org.jupnp.support.model.BrowseResult;
 
 public interface DlnaRequestHandler {
     boolean canHandle(DlnaRequest request);

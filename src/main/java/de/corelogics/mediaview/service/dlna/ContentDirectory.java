@@ -26,14 +26,14 @@ package de.corelogics.mediaview.service.dlna;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.fourthline.cling.support.contentdirectory.AbstractContentDirectoryService;
-import org.fourthline.cling.support.contentdirectory.ContentDirectoryErrorCode;
-import org.fourthline.cling.support.contentdirectory.ContentDirectoryException;
-import org.fourthline.cling.support.contentdirectory.DIDLParser;
-import org.fourthline.cling.support.model.BrowseFlag;
-import org.fourthline.cling.support.model.BrowseResult;
-import org.fourthline.cling.support.model.DIDLContent;
-import org.fourthline.cling.support.model.SortCriterion;
+import org.jupnp.support.contentdirectory.AbstractContentDirectoryService;
+import org.jupnp.support.contentdirectory.ContentDirectoryErrorCode;
+import org.jupnp.support.contentdirectory.ContentDirectoryException;
+import org.jupnp.support.contentdirectory.DIDLParser;
+import org.jupnp.support.model.BrowseFlag;
+import org.jupnp.support.model.BrowseResult;
+import org.jupnp.support.model.DIDLContent;
+import org.jupnp.support.model.SortCriterion;
 
 import java.util.Arrays;
 import java.util.Collection;

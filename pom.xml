@@ -33,11 +33,11 @@
     <version>E-SNAPSHOT</version>
 
     <properties>
-        <maven.compiler.target>11</maven.compiler.target>
-        <maven.compiler.source>11</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
+        <maven.compiler.source>21</maven.compiler.source>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <cling.version>2.1.2</cling.version>
+        <jupnp.version>2.7.1</jupnp.version>
         <lucene.version>9.8.0</lucene.version>
         <log4j.version>2.20.0</log4j.version>
         <junit.version>5.10.0</junit.version>
@@ -52,22 +52,19 @@
         </license>
     </licenses>
 
-    <repositories>
-        <repository>
-            <id>4thline-repo</id>
-            <url>http://4thline.org/m2</url>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
-        </repository>
-    </repositories>
-
     <dependencyManagement>
         <dependencies>
             <dependency>
                 <groupId>com.fasterxml.jackson</groupId>
                 <artifactId>jackson-bom</artifactId>
                 <version>2.15.2</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.eclipse.jetty.ee8</groupId>
+                <artifactId>jetty-ee8-bom</artifactId>
+                <version>12.0.2</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -85,11 +82,6 @@
                 <artifactId>slf4j-api</artifactId>
                 <scope>runtime</scope>
                 <version>2.0.9</version>
-            </dependency>
-            <dependency>
-                <groupId>org.eclipse.jetty</groupId>
-                <artifactId>jetty-server</artifactId>
-                <scope>runtime</scope>
             </dependency>
             <dependency>
                 <groupId>org.eclipse.jetty.websocket</groupId>
@@ -123,20 +115,14 @@
 
     <dependencies>
         <dependency>
-            <groupId>org.fourthline.cling</groupId>
-            <artifactId>cling-core</artifactId>
-            <version>${cling.version}</version>
+            <groupId>org.jupnp</groupId>
+            <artifactId>org.jupnp</artifactId>
+            <version>${jupnp.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.fourthline.cling</groupId>
-            <artifactId>cling-support</artifactId>
-            <version>${cling.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.seamless</groupId>
-                    <artifactId>seamless-swing</artifactId>
-                </exclusion>
-            </exclusions>
+            <groupId>org.jupnp</groupId>
+            <artifactId>org.jupnp.support</artifactId>
+            <version>${jupnp.version}</version>
         </dependency>
         <dependency>
             <groupId>com.github.ben-manes.caffeine</groupId>
@@ -159,7 +145,7 @@
         </dependency>
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-slf4j-impl</artifactId>
+            <artifactId>log4j-slf4j2-impl</artifactId>
             <scope>runtime</scope>
         </dependency>
         <dependency>
@@ -197,14 +183,28 @@
             <version>${lucene.version}</version>
         </dependency>
         <dependency>
-            <groupId>com.sparkjava</groupId>
-            <artifactId>spark-core</artifactId>
-            <version>2.9.4</version>
+            <groupId>org.eclipse.jetty</groupId>
+            <artifactId>jetty-server</artifactId>
+            <version>12.0.2</version>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.jetty.ee8</groupId>
+            <artifactId>jetty-ee8-servlet</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.servlet</groupId>
+            <artifactId>jakarta.servlet-api</artifactId>
+            <version>6.0.0</version>
         </dependency>
         <dependency>
             <groupId>javax.servlet</groupId>
             <artifactId>javax.servlet-api</artifactId>
-            <version>3.1.0</version>
+            <version>4.0.1</version>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.jetty</groupId>
+            <artifactId>jetty-client</artifactId>
+            <version>12.0.2</version>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>

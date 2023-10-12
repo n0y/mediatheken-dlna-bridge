@@ -26,13 +26,13 @@ package de.corelogics.mediaview.service.proxy.downloader;
 
 import de.corelogics.mediaview.config.MainConfiguration;
 import de.corelogics.mediaview.util.HttpUtils;
+import jakarta.servlet.http.HttpServletResponse;
 import okhttp3.ConnectionPool;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import javax.servlet.http.HttpServletResponse;
 import java.io.Closeable;
 import java.io.EOFException;
 import java.io.IOException;

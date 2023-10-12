@@ -28,8 +28,8 @@ import de.corelogics.mediaview.config.FavouriteShow;
 import de.corelogics.mediaview.config.FavouriteVisitor;
 import de.corelogics.mediaview.config.MainConfiguration;
 import de.corelogics.mediaview.service.dlna.DlnaRequest;
-import org.fourthline.cling.support.model.DIDLContent;
-import org.fourthline.cling.support.model.container.StorageFolder;
+import org.jupnp.support.model.DIDLContent;
+import org.jupnp.support.model.container.StorageFolder;
 
 public class RootContent extends BaseDnlaRequestHandler {
     private final MainConfiguration mainConfiguration;

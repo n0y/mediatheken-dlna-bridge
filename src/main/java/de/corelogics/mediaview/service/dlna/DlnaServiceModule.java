@@ -28,7 +28,8 @@ import de.corelogics.mediaview.config.MainConfiguration;
 import de.corelogics.mediaview.repository.clip.ClipRepository;
 import de.corelogics.mediaview.service.ClipContentUrlGenerator;
 import de.corelogics.mediaview.service.dlna.content.*;
-import org.fourthline.cling.model.ValidationException;
+import org.eclipse.jetty.server.Server;
+import org.jupnp.model.ValidationException;
 
 import java.util.Set;
 
@@ -38,12 +39,16 @@ public class DlnaServiceModule {
     private final ClipRepository clipRepository;
     private final DlnaServer dlnaServer;
 
-    public DlnaServiceModule(MainConfiguration mainConfiguration, ClipContentUrlGenerator clipContentUrlGenerator, ClipRepository clipRepository) {
+    public DlnaServiceModule(
+            MainConfiguration mainConfiguration,
+            Server jettyServer,
+            ClipContentUrlGenerator clipContentUrlGenerator,
+            ClipRepository clipRepository) {
         try {
             this.mainConfiguration = mainConfiguration;
             this.clipContentUrlGenerator = clipContentUrlGenerator;
             this.clipRepository = clipRepository;
-            this.dlnaServer = new DlnaServer(mainConfiguration, buildRequestHandlers());
+            this.dlnaServer = new DlnaServer(mainConfiguration, jettyServer, buildRequestHandlers());
         } catch (ValidationException e) {
             throw new RuntimeException("Initialization failed", e);
         }
