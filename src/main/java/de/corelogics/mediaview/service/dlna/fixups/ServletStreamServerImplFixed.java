@@ -1,4 +1,4 @@
-package de.corelogics.mediaview.service.fixups;
+package de.corelogics.mediaview.service.dlna.fixups;
 
 import org.jupnp.transport.Router;
 import org.jupnp.transport.impl.ServletStreamServerConfigurationImpl;

@@ -26,9 +26,9 @@
 package de.corelogics.mediaview.service.dlna;
 
 import de.corelogics.mediaview.config.MainConfiguration;
-import de.corelogics.mediaview.service.fixups.JettyServletContainerFixed;
-import de.corelogics.mediaview.service.fixups.JettyStreamClientImplFixed;
-import de.corelogics.mediaview.service.fixups.ServletStreamServerImplFixed;
+import de.corelogics.mediaview.service.dlna.fixups.JettyServletContainerFixed;
+import de.corelogics.mediaview.service.dlna.fixups.JettyStreamClientImplFixed;
+import de.corelogics.mediaview.service.dlna.fixups.ServletStreamServerImplFixed;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.eclipse.jetty.server.Server;
@@ -36,6 +36,7 @@ import org.jupnp.DefaultUpnpServiceConfiguration;
 import org.jupnp.UpnpServiceImpl;
 import org.jupnp.binding.annotations.AnnotationLocalServiceBinder;
 import org.jupnp.model.DefaultServiceManager;
+import org.jupnp.model.Namespace;
 import org.jupnp.model.ValidationException;
 import org.jupnp.model.meta.*;
 import org.jupnp.model.types.UDADeviceType;
@@ -62,6 +63,11 @@ public class DlnaServer {
 
         private DlnaUpnpServiceConfiguration(Server jettyServer) {
             this.servletContainer = new JettyServletContainerFixed(jettyServer);
+        }
+
+        @Override
+        protected Namespace createNamespace() {
+            return new Namespace("/mydevice");
         }
 
         @Override

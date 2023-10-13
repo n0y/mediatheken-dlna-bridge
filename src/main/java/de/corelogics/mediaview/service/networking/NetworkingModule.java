@@ -1,5 +1,6 @@
 package de.corelogics.mediaview.service.networking;
 
+import de.corelogics.mediaview.config.MainConfiguration;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.util.thread.QueuedThreadPool;
@@ -13,8 +14,10 @@ import java.util.stream.StreamSupport;
 public class NetworkingModule {
     private final Server jettyServer;
     private final NetworkAddressFactory networkAddressFactory = new NetworkAddressFactoryImpl();
+    private final MainConfiguration mainConfiguration;
 
-    public NetworkingModule() {
+    public NetworkingModule(MainConfiguration mainConfiguration) {
+        this.mainConfiguration = mainConfiguration;
         jettyServer = createJettyServer();
     }
 
@@ -22,6 +25,13 @@ public class NetworkingModule {
         var threadPool = new QueuedThreadPool();
         threadPool.setVirtualThreadsExecutor(Executors.newVirtualThreadPerTaskExecutor());
         final var server = new Server(threadPool);
+
+        if (mainConfiguration.publicHttpPort() > 0) {
+            var sc = new ServerConnector(server);
+            sc.setPort(mainConfiguration.publicHttpPort());
+            server.addConnector(sc);
+        }
+
         StreamSupport
                 .stream(
                         ((Iterable<NetworkInterface>) networkAddressFactory::getNetworkInterfaces).spliterator(),

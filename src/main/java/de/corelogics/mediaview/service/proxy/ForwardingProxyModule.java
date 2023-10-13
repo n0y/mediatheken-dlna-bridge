@@ -29,14 +29,17 @@ import de.corelogics.mediaview.repository.clip.ClipRepository;
 import de.corelogics.mediaview.service.ClipContentUrlGenerator;
 import de.corelogics.mediaview.service.proxy.downloader.CacheDirectory;
 import de.corelogics.mediaview.service.proxy.downloader.DownloadManager;
+import org.eclipse.jetty.server.Server;
 
 public class ForwardingProxyModule {
     private final MainConfiguration mainConfiguration;
     private final ClipRepository clipRepository;
+    private final Server jettyServer;
 
-    public ForwardingProxyModule(MainConfiguration mainConfiguration, ClipRepository clipRepository) {
+    public ForwardingProxyModule(MainConfiguration mainConfiguration, Server jettyServer, ClipRepository clipRepository) {
         this.mainConfiguration = mainConfiguration;
         this.clipRepository = clipRepository;
+        this.jettyServer = jettyServer;
     }
 
     public ClipContentUrlGenerator buildClipContentUrlGenerator() {
@@ -50,6 +53,7 @@ public class ForwardingProxyModule {
     private ClipContentUrlGenerator buildForwardingProxyServer() {
         return new ForwardingProxyServer(
                 this.mainConfiguration,
+                this.jettyServer,
                 this.clipRepository,
                 buildDownloadManager());
     }

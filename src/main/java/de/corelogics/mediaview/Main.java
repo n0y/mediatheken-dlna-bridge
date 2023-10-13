@@ -49,14 +49,14 @@ public class Main {
     public Main() throws IOException {
         var configModule = new ConfigurationModule();
         var mainConfiguration = configModule.getMainConfiguration();
-        var networkModule = new NetworkingModule();
+        var networkModule = new NetworkingModule(mainConfiguration);
 
         this.clipRepository = new ClipRepository(mainConfiguration);
         this.dlnaServer =
                 new DlnaServiceModule(
                         mainConfiguration,
                         networkModule.getJettyServer(),
-                        new ForwardingProxyModule(mainConfiguration, clipRepository)
+                        new ForwardingProxyModule(mainConfiguration, networkModule.getJettyServer(), clipRepository)
                                 .buildClipContentUrlGenerator(),
                         clipRepository)
                         .getDlnaServer();
