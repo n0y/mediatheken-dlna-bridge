@@ -24,8 +24,13 @@
 
 package de.corelogics.mediaview.service.proxy.downloader;
 
+import lombok.Getter;
+import lombok.ToString;
+
 import java.util.Optional;
 
+@Getter
+@ToString
 public class ByteRange {
     private final boolean partial;
     private final long firstPosition;
@@ -53,24 +58,7 @@ public class ByteRange {
         this.lastPosition = Optional.of(lastPosition);
     }
 
-    public boolean isPartial() {
-        return false;
-    }
-
     public long rangeSize(long completeSize) {
         return 1 + lastPosition.orElse(completeSize) - firstPosition;
-    }
-
-    public long getFirstPosition() {
-        return this.firstPosition;
-    }
-
-    public Optional<Long> getLastPosition() {
-        return this.lastPosition;
-    }
-
-    @Override
-    public String toString() {
-        return "[" + firstPosition + "-" + lastPosition.map(Object::toString).orElse("") + "]";
     }
 }

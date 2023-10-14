@@ -31,15 +31,13 @@ import de.corelogics.mediaview.service.ClipContentUrlGenerator;
 import de.corelogics.mediaview.service.proxy.downloader.*;
 import de.corelogics.mediaview.util.HttpUtils;
 import de.corelogics.mediaview.util.IdUtils;
+import lombok.extern.log4j.Log4j2;
 import org.apache.commons.io.IOUtils;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.eclipse.jetty.ee8.servlet.ServletContextHandler;
 import org.eclipse.jetty.ee8.servlet.ServletHolder;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.ContextHandlerCollection;
 
-import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -51,9 +49,8 @@ import java.util.Base64;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
+@Log4j2
 public class ForwardingProxyServer implements ClipContentUrlGenerator {
-    private final Logger logger = LogManager.getLogger(ForwardingProxyServer.class);
-
     private final ClipRepository clipRepository;
     private final MainConfiguration mainConfiguration;
     private final DownloadManager downloadManager;
@@ -68,13 +65,12 @@ public class ForwardingProxyServer implements ClipContentUrlGenerator {
             var context = new ContextHandlerCollection();
             jettyServer.setHandler(context);
         }
-        logger.debug("Starting HTTP proxy server on port {}", mainConfiguration::publicHttpPort);
+        log.debug("Starting HTTP proxy server on port {}", mainConfiguration::publicHttpPort);
         var context = (ContextHandlerCollection) jettyServer.getHandler();
         if (null == context) {
             context = new ContextHandlerCollection();
             jettyServer.setHandler(context);
         }
-//        var handler = new ContextHandler("/api/v1/clips");
         var servletHandler = new ServletContextHandler(ServletContextHandler.NO_SESSIONS);
         servletHandler.setDisplayName("asd");
         servletHandler.setContextPath("/api/v1/clips");
@@ -91,7 +87,7 @@ public class ForwardingProxyServer implements ClipContentUrlGenerator {
         });
         servletHandler.addServlet(holder, "/*");
         context.addHandler(servletHandler);
-        logger.info("Successfully started prefetching HTTP proxy server on port {}", mainConfiguration::publicHttpPort);
+        log.info("Successfully started prefetching HTTP proxy server on port {}", mainConfiguration::publicHttpPort);
     }
 
     public String createLinkTo(ClipEntry e) {
@@ -108,7 +104,7 @@ public class ForwardingProxyServer implements ClipContentUrlGenerator {
         }
         var clipIdString = pathInContext[pathInContext.length - 1];
         var clipId = new String(Base64.getDecoder().decode(clipIdString), StandardCharsets.UTF_8);
-        logger.debug("HEAD Request for clip {}\n{}", clipId::toString, () ->
+        log.debug("HEAD Request for clip {}\n{}", clipId::toString, () ->
                 String.join("\n",
                         "   H:" + request.getServerName(),
                         "   P:" + pathInContextString,
@@ -123,29 +119,29 @@ public class ForwardingProxyServer implements ClipContentUrlGenerator {
                     response.addHeader(HttpUtils.HEADER_ACCEPT_RANGES, "bytes");
                     response.addHeader(HttpUtils.HEADER_CONTENT_LENGTH, Long.toString(stream.getMaxSize()));
                 } finally {
-                    logger.debug("Closing consumer stream");
+                    log.debug("Closing consumer stream");
                 }
             } catch (UpstreamNotFoundException e) {
-                logger.info("Clip {} wasn't found at upstream url {}", clip::getTitle, clip::getBestUrl);
+                log.info("Clip {} wasn't found at upstream url {}", clip::getTitle, clip::getBestUrl);
                 response.sendError(HttpServletResponse.SC_NOT_FOUND);
             } catch (EOFException e) {
-                logger.info("Requested range {} of clip {} is beyond clip. Redirecting client to original url: {}", byteRange, clip.getId(), clip.getBestUrl());
-                logger.debug("e");
+                log.info("Requested range {} of clip {} is beyond clip. Redirecting client to original url: {}", byteRange, clip.getId(), clip.getBestUrl());
+                log.debug("e");
                 response.sendError(HttpServletResponse.SC_REQUESTED_RANGE_NOT_SATISFIABLE);
             } catch (UpstreamReadFailedException e) {
-                logger.info("Upstream server failed for clip {}[{}]. Redirecting client to original url: {}", clip.getId(), byteRange, clip.getBestUrl());
-                logger.debug(e);
+                log.info("Upstream server failed for clip {}[{}]. Redirecting client to original url: {}", clip.getId(), byteRange, clip.getBestUrl());
+                log.debug(e);
                 response.sendRedirect(clip.getBestUrl());
             } catch (TooManyConcurrentConnectionsException e) {
-                logger.info("Can't proxy clip {}[{}], because there are too many concurrent connections open. Redirecting client to original url: {}", clip.getId(), byteRange, clip.getBestUrl());
+                log.info("Can't proxy clip {}[{}], because there are too many concurrent connections open. Redirecting client to original url: {}", clip.getId(), byteRange, clip.getBestUrl());
                 response.sendRedirect(clip.getBestUrl());
             } catch (CacheSizeExhaustedException e) {
-                logger.info("Cache size exhausted when requesting clip {}[{}]. Redirecting client to original url: {}", clip.getId(), byteRange, clip.getBestUrl());
-                logger.debug(e);
+                log.info("Cache size exhausted when requesting clip {}[{}]. Redirecting client to original url: {}", clip.getId(), byteRange, clip.getBestUrl());
+                log.debug(e);
                 response.sendRedirect(clip.getBestUrl());
             }
         } else {
-            logger.debug("Head request for {}: not found", clipId);
+            log.debug("Head request for {}: not found", clipId);
             response.sendError(HttpServletResponse.SC_NOT_FOUND);
         }
     }
@@ -159,7 +155,7 @@ public class ForwardingProxyServer implements ClipContentUrlGenerator {
         }
         var clipIdString = pathInContext[pathInContext.length - 1];
         var clipId = new String(Base64.getDecoder().decode(clipIdString), StandardCharsets.UTF_8);
-        logger.debug("Request for clip {}\n{}", clipId::toString, () ->
+        log.debug("Request for clip {}\n{}", clipId::toString, () ->
                 String.join("\n",
                         "   H:" + request.getServerName(),
                         "   P:" + pathInContextString,
@@ -183,33 +179,33 @@ public class ForwardingProxyServer implements ClipContentUrlGenerator {
                         }
                         response.addHeader(HttpUtils.HEADER_CONTENT_TYPE, stream.getContentType());
                         response.addHeader(HttpUtils.HEADER_ACCEPT_RANGES, "bytes");
-                        logger.debug("Answering with: " + headerStrings(response));
+                        log.debug("Answering with: " + headerStrings(response));
                         copyBytes(stream.getStream(), response);
                     }
                 } finally {
-                    logger.debug("Closing consumer stream");
+                    log.debug("Closing consumer stream");
                 }
             } catch (UpstreamNotFoundException e) {
-                logger.info("Clip {} wasn't found at upstream url {}", clip::getTitle, clip::getBestUrl);
+                log.info("Clip {} wasn't found at upstream url {}", clip::getTitle, clip::getBestUrl);
                 response.sendError(HttpServletResponse.SC_NOT_FOUND);
             } catch (EOFException e) {
-                logger.info("Requested range {} of clip {} is beyond clip. Redirecting client to original url: {}", byteRange, clip.getId(), clip.getBestUrl());
-                logger.debug("e");
+                log.info("Requested range {} of clip {} is beyond clip. Redirecting client to original url: {}", byteRange, clip.getId(), clip.getBestUrl());
+                log.debug("e");
                 response.sendError(HttpServletResponse.SC_REQUESTED_RANGE_NOT_SATISFIABLE);
             } catch (UpstreamReadFailedException e) {
-                logger.info("Upstream server failed for clip {}[{}]. Redirecting client to original url: {}", clip.getId(), byteRange, clip.getBestUrl());
-                logger.debug(e);
+                log.info("Upstream server failed for clip {}[{}]. Redirecting client to original url: {}", clip.getId(), byteRange, clip.getBestUrl());
+                log.debug(e);
                 response.sendRedirect(clip.getBestUrl());
             } catch (TooManyConcurrentConnectionsException e) {
-                logger.info("Can't proxy clip {}[{}], because there are too many concurrent connections open. Redirecting client to original url: {}", clip.getId(), byteRange, clip.getBestUrl());
+                log.info("Can't proxy clip {}[{}], because there are too many concurrent connections open. Redirecting client to original url: {}", clip.getId(), byteRange, clip.getBestUrl());
                 response.sendRedirect(clip.getBestUrl());
             } catch (CacheSizeExhaustedException e) {
-                logger.info("Cache size exhausted when requesting clip {}[{}]. Redirecting client to original url: {}", clip.getId(), byteRange, clip.getBestUrl());
-                logger.debug(e);
+                log.info("Cache size exhausted when requesting clip {}[{}]. Redirecting client to original url: {}", clip.getId(), byteRange, clip.getBestUrl());
+                log.debug(e);
                 response.sendRedirect(clip.getBestUrl());
             }
         } else {
-            logger.info("Requested clipId {} wasn't found in DB.", clipId);
+            log.info("Requested clipId {} wasn't found in DB.", clipId);
             response.sendError(HttpServletResponse.SC_NOT_FOUND);
         }
     }
@@ -230,7 +226,7 @@ public class ForwardingProxyServer implements ClipContentUrlGenerator {
         try (var toStream = to.getOutputStream()) {
             IOUtils.copy(from, toStream);
         } catch (final IOException e) {
-            logger.debug("Client closed connection. Aborting.", e);
+            log.debug("Client closed connection. Aborting.", e);
         }
     }
 }

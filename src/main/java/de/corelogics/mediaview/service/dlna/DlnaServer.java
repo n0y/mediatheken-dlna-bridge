@@ -28,10 +28,8 @@ package de.corelogics.mediaview.service.dlna;
 import de.corelogics.mediaview.config.MainConfiguration;
 import de.corelogics.mediaview.service.dlna.jupnp.DlnaUpnpServiceConfiguration;
 import de.corelogics.mediaview.service.dlna.jupnp.UpnpServiceImplFixed;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import lombok.extern.log4j.Log4j2;
 import org.eclipse.jetty.server.Server;
-import org.jupnp.UpnpServiceImpl;
 import org.jupnp.binding.annotations.AnnotationLocalServiceBinder;
 import org.jupnp.model.DefaultServiceManager;
 import org.jupnp.model.ValidationException;
@@ -44,13 +42,12 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+@Log4j2
 public class DlnaServer {
-    private final Logger logger = LogManager.getLogger(DlnaServer.class);
-
     private final UpnpServiceImplFixed upnpService;
 
     public DlnaServer(MainConfiguration mainConfiguration, Server jettyServer, Set<DlnaRequestHandler> handlers) throws ValidationException {
-        logger.debug("Starting DLNA server");
+        log.debug("Starting DLNA server");
 
         var type = new UDADeviceType("MediaServer", 1);
         var details = new DeviceDetails(
@@ -76,7 +73,7 @@ public class DlnaServer {
         this.upnpService.startup();
         this.upnpService.getRegistry().addDevice(localDevice);
         this.upnpService.getProtocolFactory().createSendingNotificationAlive(localDevice).run();
-        logger.info("Successfully started DLNA server '{}'. It may take some time for it to become visible in the network.", mainConfiguration.displayName());
+        log.info("Successfully started DLNA server '{}'. It may take some time for it to become visible in the network.", mainConfiguration.displayName());
 
     }
 

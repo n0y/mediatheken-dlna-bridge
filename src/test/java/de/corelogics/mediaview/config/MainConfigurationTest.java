@@ -121,9 +121,9 @@ class MainConfigurationTest {
     @ParameterizedTest
     @ValueSource(ints = {10, 100, 1000})
     void whenGetPublicHttpPort_thenReturnValue(int value) {
-        when(configAccessor.get("PUBLIC_HTTP_PORT", 8080)).thenReturn(value);
+        when(configAccessor.get("PUBLIC_HTTP_PORT", 9300)).thenReturn(value);
         assertThat(sut.publicHttpPort()).isEqualTo(value);
-        verify(configAccessor).get("PUBLIC_HTTP_PORT", 8080);
+        verify(configAccessor).get("PUBLIC_HTTP_PORT", 9300);
     }
 
     @ParameterizedTest
@@ -202,7 +202,7 @@ class MainConfigurationTest {
                             new FavouriteVisitor<String>() {
                                 @Override
                                 public String visitShow(FavouriteShow favouriteShow) {
-                                    return favouriteShow.getChannel() + ":" + favouriteShow.getTitle();
+                                    return favouriteShow.channel() + ":" + favouriteShow.title();
                                 }
                             })))
                     .containsExactly("channel-b:ShowB", "channel-c:ShowC");

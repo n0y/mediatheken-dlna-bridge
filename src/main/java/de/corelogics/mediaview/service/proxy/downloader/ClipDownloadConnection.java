@@ -26,11 +26,10 @@ package de.corelogics.mediaview.service.proxy.downloader;
 
 import de.corelogics.mediaview.config.MainConfiguration;
 import de.corelogics.mediaview.util.HttpUtils;
+import lombok.extern.log4j.Log4j2;
 import okhttp3.ConnectionPool;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -38,8 +37,8 @@ import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.concurrent.TimeUnit;
 
+@Log4j2
 class ClipDownloadConnection extends Thread implements Closeable {
-    private final Logger logger = LogManager.getLogger(ClipDownloadConnection.class);
     private final OkHttpClient httpClient;
     private final MainConfiguration mainConfiguration;
     private final String connectionId;
@@ -59,7 +58,7 @@ class ClipDownloadConnection extends Thread implements Closeable {
         var chunkSizeMb = chunkSizeBytes / (1024D * 1024D);
         var timeoutSecs = chunkSizeMb / reqMbPerSeconds;
         var callTimeout = Duration.of((long) (timeoutSecs * 1000), ChronoUnit.MILLIS);
-        logger.debug("Setting call timeout to {}", callTimeout);
+        log.debug("Setting call timeout to {}", callTimeout);
 
         this.httpClient = new OkHttpClient.Builder()
                 .connectionPool(new ConnectionPool(1, 10, TimeUnit.SECONDS))
@@ -95,7 +94,7 @@ class ClipDownloadConnection extends Thread implements Closeable {
                         this.mainConfiguration,
                         new Request.Builder()
                                 .url(downloader.getUrl())
-                                .addHeader(HttpUtils.HEADER_RANGE, "bytes=" + chunk.getFrom() + "-" + chunk.getTo()))
+                                .addHeader(HttpUtils.HEADER_RANGE, "bytes=" + chunk.from() + "-" + chunk.to()))
                         .build();
         try (var response = httpClient.newCall(request).execute()) {
             if (response.isSuccessful()) {

@@ -24,8 +24,8 @@
 
 package de.corelogics.mediaview.service.dlna;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import lombok.AllArgsConstructor;
+import lombok.extern.log4j.Log4j2;
 import org.jupnp.support.contentdirectory.AbstractContentDirectoryService;
 import org.jupnp.support.contentdirectory.ContentDirectoryErrorCode;
 import org.jupnp.support.contentdirectory.ContentDirectoryException;
@@ -38,14 +38,10 @@ import org.jupnp.support.model.SortCriterion;
 import java.util.Arrays;
 import java.util.Collection;
 
+@AllArgsConstructor
+@Log4j2
 class ContentDirectory extends AbstractContentDirectoryService {
-    private final Logger logger = LogManager.getLogger(ContentDirectory.class);
-
     private final Collection<DlnaRequestHandler> handlers;
-
-    public ContentDirectory(Collection<DlnaRequestHandler> handlers) {
-        this.handlers = handlers;
-    }
 
     @Override
     public BrowseResult browse(String objectID, BrowseFlag browseFlag,
@@ -53,7 +49,7 @@ class ContentDirectory extends AbstractContentDirectoryService {
                                long firstResult, long maxResults,
                                SortCriterion[] orderby)
             throws ContentDirectoryException {
-        logger.debug("Received browse request for oid={}, first={}, max={}", objectID, firstResult, maxResults);
+        log.debug("Received browse request for oid={}, first={}, max={}", objectID, firstResult, maxResults);
         try {
             var request = new DlnaRequest(
                     objectID, browseFlag, filter, firstResult, maxResults,
@@ -64,7 +60,7 @@ class ContentDirectory extends AbstractContentDirectoryService {
                     .map(h -> h.respond(request))
                     .orElseGet(this::emptyResult);
         } catch (RuntimeException e) {
-            logger.warn("Error creating a browse response", e);
+            log.warn("Error creating a browse response", e);
             throw new ContentDirectoryException(
                     ContentDirectoryErrorCode.CANNOT_PROCESS,
                     e.toString());

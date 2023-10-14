@@ -24,35 +24,12 @@
 
 package de.corelogics.mediaview.config;
 
-import java.util.StringJoiner;
-
-public class FavouriteShow implements Favourite {
-    private final String channel;
-    private final String title;
-
-    public FavouriteShow(String channel, String title) {
-        this.channel = channel;
-        this.title = title;
-    }
-
+public record FavouriteShow(
+        String channel,
+        String title
+) implements Favourite {
     @Override
     public <T> T accept(FavouriteVisitor<T> visitor) {
         return visitor.visitShow(this);
-    }
-
-    public String getChannel() {
-        return channel;
-    }
-
-    public String getTitle() {
-        return title;
-    }
-
-    @Override
-    public String toString() {
-        return new StringJoiner(", ", FavouriteShow.class.getSimpleName() + "[", "]")
-                .add("channel='" + channel + "'")
-                .add("title='" + title + "'")
-                .toString();
     }
 }

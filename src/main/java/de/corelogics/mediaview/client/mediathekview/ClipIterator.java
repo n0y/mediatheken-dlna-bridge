@@ -27,6 +27,7 @@ package de.corelogics.mediaview.client.mediathekview;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
+import lombok.Getter;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -42,6 +43,7 @@ class ClipIterator implements Iterator<ClipEntry> {
     private static final JsonFactory JSON_FACTORY = new JsonFactory();
 
     private final InputStream in;
+    @Getter
     private FilmlisteMetaData metaData = null;
     private final JsonParser jParser;
     private final List<String> fields = new ArrayList<>();
@@ -70,10 +72,6 @@ class ClipIterator implements Iterator<ClipEntry> {
         if (currentEntry.isEmpty()) {
             in.close();
         }
-    }
-
-    public FilmlisteMetaData getMetaData() {
-        return this.metaData;
     }
 
     @Override
@@ -171,8 +169,7 @@ class ClipIterator implements Iterator<ClipEntry> {
     }
 
     private String cleanString(String in) {
-        var cleaned = in.replaceAll("[\"”]", "").replaceAll("©.*", "").replaceFirst("^[^A-Za-z0-9]", "#").trim();
-        return cleaned;
+        return in.replaceAll("[\"”]", "").replaceAll("©.*", "").replaceFirst("^[^A-Za-z0-9]", "#").trim();
     }
 
     private long parseLong(String stringValue) {

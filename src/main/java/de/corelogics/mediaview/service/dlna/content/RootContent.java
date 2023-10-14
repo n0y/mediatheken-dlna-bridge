@@ -24,33 +24,21 @@
 
 package de.corelogics.mediaview.service.dlna.content;
 
-import de.corelogics.mediaview.config.FavouriteShow;
-import de.corelogics.mediaview.config.FavouriteVisitor;
 import de.corelogics.mediaview.config.MainConfiguration;
 import de.corelogics.mediaview.service.dlna.DlnaRequest;
+import lombok.AllArgsConstructor;
 import org.jupnp.support.model.DIDLContent;
-import org.jupnp.support.model.container.StorageFolder;
 
+@AllArgsConstructor
 public class RootContent extends BaseDnlaRequestHandler {
     private final MainConfiguration mainConfiguration;
     private final SendungAzContent sendungAzContent;
     private final ShowContent showContent;
     private final MissedShowsContent missedShowsContent;
 
-    public RootContent(
-            MainConfiguration mainConfiguration,
-            SendungAzContent sendungAzContent,
-            ShowContent showContent,
-            MissedShowsContent missedShowsContent) {
-        this.mainConfiguration = mainConfiguration;
-        this.sendungAzContent = sendungAzContent;
-        this.showContent = showContent;
-        this.missedShowsContent = missedShowsContent;
-    }
-
     @Override
     public boolean canHandle(DlnaRequest request) {
-        return "0".equals(request.getObjectId());
+        return "0".equals(request.objectId());
     }
 
     @Override
@@ -63,11 +51,10 @@ public class RootContent extends BaseDnlaRequestHandler {
     }
 
     private void addFavorites(DlnaRequest request, DIDLContent didl) {
-        mainConfiguration.getFavourites().stream().map(s -> s.accept(new FavouriteVisitor<StorageFolder>() {
-            @Override
-            public StorageFolder visitShow(FavouriteShow favouriteShow) {
-                return showContent.createAsLink(request, favouriteShow.getChannel(), favouriteShow.getTitle());
-            }
-        })).forEach(didl::addObject);
+        mainConfiguration.getFavourites().stream()
+                .map(s -> s.accept(
+                        favouriteShow ->
+                                showContent.createAsLink(request, favouriteShow.channel(), favouriteShow.title())))
+                .forEach(didl::addObject);
     }
 }

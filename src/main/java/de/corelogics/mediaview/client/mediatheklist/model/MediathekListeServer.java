@@ -24,28 +24,17 @@
 
 package de.corelogics.mediaview.client.mediatheklist.model;
 
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NonNull;
+import lombok.ToString;
+
+@ToString
+@Getter
+@AllArgsConstructor
 public class MediathekListeServer {
+    @NonNull
     private final String url;
+
     private final int prio;
-
-    public MediathekListeServer(String url, int prio) {
-        this.url = url;
-        this.prio = prio;
-    }
-
-    public String getUrl() {
-        return url;
-    }
-
-    public int getPrio() {
-        return prio;
-    }
-
-    @Override
-    public String toString() {
-        return "MediathekListeServer{" +
-                "url='" + url + '\'' +
-                ", prio=" + prio +
-                '}';
-    }
 }

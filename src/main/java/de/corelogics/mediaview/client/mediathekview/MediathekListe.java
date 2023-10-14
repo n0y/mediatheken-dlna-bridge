@@ -24,22 +24,14 @@
 
 package de.corelogics.mediaview.client.mediathekview;
 
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+
 import java.util.stream.Stream;
 
+@AllArgsConstructor
+@Getter()
 public class MediathekListe {
     private final Stream<ClipEntry> stream;
     private final FilmlisteMetaData metaData;
-
-    public MediathekListe(Stream<ClipEntry> stream, FilmlisteMetaData metaData) {
-        this.stream = stream;
-        this.metaData = metaData;
-    }
-
-    public FilmlisteMetaData getMetaData() {
-        return this.metaData;
-    }
-
-    public Stream<ClipEntry> stream() {
-        return stream;
-    }
 }

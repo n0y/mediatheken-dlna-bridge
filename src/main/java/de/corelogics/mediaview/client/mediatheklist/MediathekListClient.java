@@ -28,6 +28,8 @@ import de.corelogics.mediaview.client.mediatheklist.model.MediathekListeMetadata
 import de.corelogics.mediaview.client.mediatheklist.model.MediathekListeServer;
 import de.corelogics.mediaview.config.MainConfiguration;
 import de.corelogics.mediaview.util.HttpUtils;
+import lombok.AllArgsConstructor;
+import lombok.NonNull;
 import org.apache.commons.io.IOUtils;
 import org.tukaani.xz.XZInputStream;
 import org.w3c.dom.Element;
@@ -45,23 +47,22 @@ import java.util.Comparator;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+@AllArgsConstructor
 public class MediathekListClient {
+    @NonNull
     private final MainConfiguration mainConfiguration;
+
+    @NonNull
     private final HttpClient httpClient;
 
-    public MediathekListClient(MainConfiguration mainConfiguration, HttpClient httpClient) {
-        this.httpClient = httpClient;
-        this.mainConfiguration = mainConfiguration;
-    }
-
-    private void downloadToTempFile(File tempFile) throws IOException {
+    private void downloadToTempFile(@NonNull File tempFile) throws IOException {
         try {
             final var serverList = getMediathekListeMetadata();
             for (final var server : serverList.getServers()) {
                 var request =
                         HttpUtils.enhanceRequest(
-                                mainConfiguration,
-                                HttpRequest.newBuilder().uri(URI.create(server.getUrl())))
+                                        mainConfiguration,
+                                        HttpRequest.newBuilder().uri(URI.create(server.getUrl())))
                                 .build();
                 var response = httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
                 if (response.statusCode() == 200) {
@@ -103,9 +104,9 @@ public class MediathekListClient {
             var docBuilder = DocumentBuilderFactory.newDefaultInstance().newDocumentBuilder();
 
             var request = HttpUtils.enhanceRequest(
-                    mainConfiguration,
-                    HttpRequest.newBuilder().uri(
-                            URI.create(mainConfiguration.mediathekViewListBaseUrl()).resolve("/akt.xml")))
+                            mainConfiguration,
+                            HttpRequest.newBuilder().uri(
+                                    URI.create(mainConfiguration.mediathekViewListBaseUrl()).resolve("/akt.xml")))
                     .build();
             var response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 

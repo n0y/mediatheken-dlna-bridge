@@ -27,58 +27,21 @@ package de.corelogics.mediaview.service.proxy.downloader;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.ToString;
 
 import java.io.IOException;
 import java.util.BitSet;
-import java.util.StringJoiner;
 
+@ToString
+@Setter
+@Getter
 class ClipMetadata {
     private String contentType;
     private long size;
     private BitSet bitSet;
     private int numberOfChunks;
-
-    public String getContentType() {
-        return contentType;
-    }
-
-    public void setContentType(String contentType) {
-        this.contentType = contentType;
-    }
-
-    public long getSize() {
-        return size;
-    }
-
-    public void setSize(long size) {
-        this.size = size;
-    }
-
-    public void setBitSet(BitSet bitSet) {
-        this.bitSet = bitSet;
-    }
-
-    public BitSet getBitSet() {
-        return bitSet;
-    }
-
-    public void setNumberOfChunks(int numberOfChunks) {
-        this.numberOfChunks = numberOfChunks;
-    }
-
-    public int getNumberOfChunks() {
-        return numberOfChunks;
-    }
-
-    @Override
-    public String toString() {
-        return new StringJoiner(", ", ClipMetadata.class.getSimpleName() + "[", "]")
-                .add("contentType='" + contentType + "'")
-                .add("size=" + size)
-                .add("bitSet=" + bitSet)
-                .add("numberOfChunks=" + numberOfChunks)
-                .toString();
-    }
 
     void writeTo(JsonGenerator generator) throws IOException {
         generator.writeStartObject();

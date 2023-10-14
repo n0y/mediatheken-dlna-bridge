@@ -42,7 +42,7 @@ class MediathekViewImporterTest {
             a.assertThat(list.getMetaData().getVersion()).isPresent().get().isEqualTo("1");
             a.assertThat(list.getMetaData().getCreator()).isPresent().get().isEqualTo("creatorName");
             a.assertThat(list.getMetaData().getHash()).isPresent().get().isEqualTo("hashCode");
-            a.assertThat(list.stream()).hasSize(3);
+            a.assertThat(list.getStream()).hasSize(3);
         });
     }
 }

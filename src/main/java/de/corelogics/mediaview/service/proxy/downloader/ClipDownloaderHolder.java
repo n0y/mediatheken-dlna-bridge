@@ -24,20 +24,22 @@
 
 package de.corelogics.mediaview.service.proxy.downloader;
 
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+
 import java.io.EOFException;
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicInteger;
 
+@RequiredArgsConstructor
 class ClipDownloaderHolder {
     private final ClipDownloader clipDownloader;
     private final AtomicInteger numberOfOpenStreams = new AtomicInteger();
-    private long lastReadTs = System.currentTimeMillis();
 
-    public ClipDownloaderHolder(ClipDownloader clipDownloader) {
-        this.clipDownloader = clipDownloader;
-    }
+    @Getter
+    private long lastReadTs = System.currentTimeMillis();
 
     public int getNumberOfOpenStreams() {
         return numberOfOpenStreams.get();
@@ -79,9 +81,5 @@ class ClipDownloaderHolder {
 
     public void close() {
         clipDownloader.close();
-    }
-
-    public long getLastReadTs() {
-        return this.lastReadTs;
     }
 }

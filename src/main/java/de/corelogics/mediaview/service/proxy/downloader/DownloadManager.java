@@ -26,9 +26,8 @@ package de.corelogics.mediaview.service.proxy.downloader;
 
 import de.corelogics.mediaview.client.mediathekview.ClipEntry;
 import de.corelogics.mediaview.config.MainConfiguration;
+import lombok.extern.log4j.Log4j2;
 import org.apache.commons.io.input.BoundedInputStream;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.io.EOFException;
 import java.time.Duration;
@@ -40,8 +39,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+@Log4j2
 public class DownloadManager {
-    private final Logger logger = LogManager.getLogger(DownloadManager.class);
     private final Map<String, ClipDownloaderHolder> clipIdToDl = new HashMap<>();
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
     private final MainConfiguration mainConfiguration;
@@ -56,12 +55,12 @@ public class DownloadManager {
 
     private synchronized void closeIdlingDownloaders() {
         var tooOld = System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(30);
-        logger.debug("Closing downloaders idling for 30s");
+        log.debug("Closing downloaders idling for 30s");
 
         clipIdToDl.entrySet().stream()
                 .filter(e -> e.getValue().getNumberOfOpenStreams() == 0)
                 .filter(e -> e.getValue().getLastReadTs() < tooOld)
-                .peek(e -> logger.debug("Expiring downloader for {}", e.getKey()))
+                .peek(e -> log.debug("Expiring downloader for {}", e.getKey()))
                 .peek(e -> e.getValue().close())
                 .map(Map.Entry::getKey)
                 .collect(Collectors.toList())
@@ -69,13 +68,13 @@ public class DownloadManager {
     }
 
     private synchronized void tryToRemoveOneIdlingDownloader() {
-        logger.debug("Try to expire oldest idling downloader");
+        log.debug("Try to expire oldest idling downloader");
         clipIdToDl.entrySet().stream()
                 .filter(e -> e.getValue().getNumberOfOpenStreams() == 0)
                 .sorted(Comparator.comparingLong(entry -> entry.getValue().getLastReadTs()))
                 .findFirst()
                 .ifPresent(oldestEntry -> {
-                    logger.debug("Downloader for {} is idling since {}. Closing it.", oldestEntry.getKey(), oldestEntry.getValue().getLastReadTs());
+                    log.debug("Downloader for {} is idling since {}. Closing it.", oldestEntry.getKey(), oldestEntry.getValue().getLastReadTs());
                     try {
                         oldestEntry.getValue().close();
                     } finally {
@@ -86,7 +85,7 @@ public class DownloadManager {
     }
 
     public synchronized OpenedStream openStreamFor(ClipEntry clip, ByteRange byteRange) throws UpstreamNotFoundException, UpstreamReadFailedException, TooManyConcurrentConnectionsException, EOFException, CacheSizeExhaustedException {
-        logger.debug("Requested input stream for {} of {}", clip::getId, byteRange::toString);
+        log.debug("Requested input stream for {} of {}", clip::getId, byteRange::toString);
 
         var clipDownloaderHolder = clipIdToDl.get(clip.getId());
         if (null == clipDownloaderHolder) {
@@ -120,7 +119,7 @@ public class DownloadManager {
                         clip.getId(),
                         clip.getBestUrl());
             } catch (final CacheSizeExhaustedException e) {
-                logger.debug("Cache size exhausted. Trying to clean up");
+                log.debug("Cache size exhausted. Trying to clean up");
                 exh = e;
             }
         }

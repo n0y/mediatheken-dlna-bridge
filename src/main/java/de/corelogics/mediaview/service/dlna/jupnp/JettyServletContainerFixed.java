@@ -1,7 +1,7 @@
 package de.corelogics.mediaview.service.dlna.jupnp;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import lombok.AllArgsConstructor;
+import lombok.extern.log4j.Log4j2;
 import org.eclipse.jetty.ee8.servlet.ServletContextHandler;
 import org.eclipse.jetty.ee8.servlet.ServletHolder;
 import org.eclipse.jetty.server.Server;
@@ -12,17 +12,13 @@ import org.jupnp.transport.spi.ServletContainerAdapter;
 import javax.servlet.Servlet;
 import java.util.concurrent.ExecutorService;
 
+@AllArgsConstructor
+@Log4j2
 public class JettyServletContainerFixed implements ServletContainerAdapter {
     public static final String CONTEXT_DISPLAY_NAME = "jupnp-dlna";
-    private final Logger log = LogManager.getLogger(JettyServletContainerFixed.class);
+
     private final Server server;
-
     private final int port;
-
-    public JettyServletContainerFixed(Server server, int port) {
-        this.server = server;
-        this.port = port;
-    }
 
     @Override
     public synchronized void setExecutorService(ExecutorService executorService) {

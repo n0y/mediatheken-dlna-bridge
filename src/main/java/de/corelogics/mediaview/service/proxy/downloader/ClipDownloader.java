@@ -27,6 +27,7 @@ package de.corelogics.mediaview.service.proxy.downloader;
 import de.corelogics.mediaview.config.MainConfiguration;
 import de.corelogics.mediaview.util.HttpUtils;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.Getter;
 import okhttp3.ConnectionPool;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -57,6 +58,8 @@ class ClipDownloader implements Closeable {
     private final Logger logger = LogManager.getLogger(ClipDownloader.class);
     private final MainConfiguration mainConfiguration;
     private final CacheDirectory cacheDir;
+
+    @Getter
     private final String url;
     private final String clipId;
     private final int numParallelConnections;
@@ -92,21 +95,21 @@ class ClipDownloader implements Closeable {
     }
 
     public synchronized void onChunkReceived(String connectionId, ClipChunk clipChunk, byte[] bytes, long timeMs) {
-        logger.debug("Chunk {} received: {} bytes in {} ms (by {})", clipChunk.getChunkNumber(), bytes.length, timeMs, connectionId);
+        logger.debug("Chunk {} received: {} bytes in {} ms (by {})", clipChunk.chunkNumber(), bytes.length, timeMs, connectionId);
         if (!stopped) {
             try {
-                cacheDir.writeContent(this.clipId, clipChunk.getChunkNumber() * CHUNK_SIZE_BYTES, bytes);
+                cacheDir.writeContent(this.clipId, clipChunk.chunkNumber() * CHUNK_SIZE_BYTES, bytes);
             } catch (final IOException e) {
                 logger.warn("Could not write to content file.", e);
             }
-            this.metadata.getBitSet().set(clipChunk.getChunkNumber());
+            this.metadata.getBitSet().set(clipChunk.chunkNumber());
             this.updateMetadataFile();
         }
     }
 
     public synchronized void onChunkError(String connectionId, ClipChunk clipChunk, Exception e) {
-        logger.debug("Chunk {} not received due to {} (by {})", clipChunk.getChunkNumber(), e.getMessage(), connectionId);
-        this.chunksAvailableForDownload.set(clipChunk.getChunkNumber());
+        logger.debug("Chunk {} not received due to {} (by {})", clipChunk.chunkNumber(), e.getMessage(), connectionId);
+        this.chunksAvailableForDownload.set(clipChunk.chunkNumber());
     }
 
     public synchronized Optional<ClipChunk> nextChunk(String connectionId) {
@@ -133,10 +136,6 @@ class ClipDownloader implements Closeable {
     public synchronized void onConnectionTerminated(String connectionId) {
         logger.debug("connection {} terminated", connectionId);
         this.connections.remove(connectionId);
-    }
-
-    public String getUrl() {
-        return this.url;
     }
 
     private synchronized void ensureDownloadersPresent() {

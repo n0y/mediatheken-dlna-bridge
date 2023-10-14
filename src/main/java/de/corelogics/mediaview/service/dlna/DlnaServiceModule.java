@@ -28,6 +28,7 @@ import de.corelogics.mediaview.config.MainConfiguration;
 import de.corelogics.mediaview.repository.clip.ClipRepository;
 import de.corelogics.mediaview.service.ClipContentUrlGenerator;
 import de.corelogics.mediaview.service.dlna.content.*;
+import lombok.Getter;
 import org.eclipse.jetty.server.Server;
 import org.jupnp.model.ValidationException;
 
@@ -37,6 +38,8 @@ public class DlnaServiceModule {
     private final MainConfiguration mainConfiguration;
     private final ClipContentUrlGenerator clipContentUrlGenerator;
     private final ClipRepository clipRepository;
+
+    @Getter
     private final DlnaServer dlnaServer;
 
     public DlnaServiceModule(
@@ -61,9 +64,5 @@ public class DlnaServiceModule {
         var missedShowsContent = new MissedShowsContent(clipContent, this.clipRepository);
         var rootContent = new RootContent(mainConfiguration, sendungAzContent, showContent, missedShowsContent);
         return Set.of(clipContent, missedShowsContent, sendungAzContent, rootContent, showContent);
-    }
-
-    public DlnaServer getDlnaServer() {
-        return dlnaServer;
     }
 }

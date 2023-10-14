@@ -27,6 +27,7 @@ package de.corelogics.mediaview.service.dlna.content;
 import de.corelogics.mediaview.client.mediathekview.ClipEntry;
 import de.corelogics.mediaview.service.ClipContentUrlGenerator;
 import de.corelogics.mediaview.service.dlna.DlnaRequest;
+import lombok.AllArgsConstructor;
 import org.jupnp.support.model.DIDLContent;
 import org.jupnp.support.model.Res;
 import org.jupnp.support.model.item.VideoItem;
@@ -34,6 +35,7 @@ import org.jupnp.support.model.item.VideoItem;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 
+@AllArgsConstructor
 public class ClipContent extends BaseDnlaRequestHandler {
     private static final String MIME_TYPE_VIDEO_MP4 = "video/mp4";
     private static final String URN_PREFIX_CLIP = "urn:corelogics.de:mediaview:clip:";
@@ -42,10 +44,6 @@ public class ClipContent extends BaseDnlaRequestHandler {
     private static final DateTimeFormatter DTF_TIME = DateTimeFormatter.ofPattern("HH:mm").withLocale(Locale.GERMANY);
 
     private final ClipContentUrlGenerator clipContentUrlGenerator;
-
-    public ClipContent(ClipContentUrlGenerator clipContentUrlGenerator) {
-        this.clipContentUrlGenerator = clipContentUrlGenerator;
-    }
 
     @Override
     public boolean canHandle(DlnaRequest request) {
@@ -68,7 +66,7 @@ public class ClipContent extends BaseDnlaRequestHandler {
     private VideoItem createLink(DlnaRequest request, ClipEntry entry, DateTimeFormatter dateTimeFormat) {
         return new VideoItem(
                 idClip(entry),
-                request.getObjectId(),
+                request.objectId(),
                 dateTimeFormat.format(entry.getBroadcastedAt()) + " " + lengthLimit(entry.getTitle()),
                 "",
                 new Res(

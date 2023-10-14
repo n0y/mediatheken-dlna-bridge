@@ -24,6 +24,9 @@
 
 package de.corelogics.mediaview.service.proxy.downloader;
 
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.Setter;
 import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -31,34 +34,16 @@ import org.apache.logging.log4j.Logger;
 import java.io.Closeable;
 import java.io.InputStream;
 
+@AllArgsConstructor
+@Getter
 public class OpenedStream implements Closeable {
     private static final Logger logger = LogManager.getLogger(OpenedStream.class);
 
     private final String contentType;
     private final long maxSize;
+
+    @Setter
     private InputStream stream;
-
-    public OpenedStream(String contentType, long maxSize, InputStream stream) {
-        this.contentType = contentType;
-        this.maxSize = maxSize;
-        this.stream = stream;
-    }
-
-    public String getContentType() {
-        return contentType;
-    }
-
-    public long getMaxSize() {
-        return maxSize;
-    }
-
-    public InputStream getStream() {
-        return stream;
-    }
-
-    public void setStream(InputStream stream) {
-        this.stream = stream;
-    }
 
     @Override
     public void close() {

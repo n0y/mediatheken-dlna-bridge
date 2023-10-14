@@ -1,6 +1,7 @@
 package de.corelogics.mediaview.service.networking;
 
 import de.corelogics.mediaview.config.MainConfiguration;
+import lombok.Getter;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.util.thread.QueuedThreadPool;
@@ -8,12 +9,12 @@ import org.jetbrains.annotations.NotNull;
 import org.jupnp.transport.impl.NetworkAddressFactoryImpl;
 import org.jupnp.transport.spi.NetworkAddressFactory;
 
-import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.util.concurrent.Executors;
 import java.util.stream.StreamSupport;
 
 public class NetworkingModule {
+    @Getter
     private final Server jettyServer;
     private final NetworkAddressFactory networkAddressFactory = new NetworkAddressFactoryImpl();
     private final MainConfiguration mainConfiguration;
@@ -49,10 +50,6 @@ public class NetworkingModule {
         sc.setHost(host);
         sc.setPort(mainConfiguration.publicHttpPort());
         return sc;
-    }
-
-    public Server getJettyServer() {
-        return jettyServer;
     }
 
     public void startup() {

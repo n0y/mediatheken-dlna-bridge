@@ -1,6 +1,5 @@
 package de.corelogics.mediaview.service.dlna.jupnp;
 
-import de.corelogics.mediaview.service.dlna.jupnp.JettyServletContainerFixed;
 import org.eclipse.jetty.server.Server;
 import org.jupnp.DefaultUpnpServiceConfiguration;
 import org.jupnp.model.Namespace;

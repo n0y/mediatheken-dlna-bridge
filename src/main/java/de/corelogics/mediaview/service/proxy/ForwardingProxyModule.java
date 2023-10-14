@@ -29,18 +29,14 @@ import de.corelogics.mediaview.repository.clip.ClipRepository;
 import de.corelogics.mediaview.service.ClipContentUrlGenerator;
 import de.corelogics.mediaview.service.proxy.downloader.CacheDirectory;
 import de.corelogics.mediaview.service.proxy.downloader.DownloadManager;
+import lombok.RequiredArgsConstructor;
 import org.eclipse.jetty.server.Server;
 
+@RequiredArgsConstructor
 public class ForwardingProxyModule {
     private final MainConfiguration mainConfiguration;
-    private final ClipRepository clipRepository;
     private final Server jettyServer;
-
-    public ForwardingProxyModule(MainConfiguration mainConfiguration, Server jettyServer, ClipRepository clipRepository) {
-        this.mainConfiguration = mainConfiguration;
-        this.clipRepository = clipRepository;
-        this.jettyServer = jettyServer;
-    }
+    private final ClipRepository clipRepository;
 
     public ClipContentUrlGenerator buildClipContentUrlGenerator() {
         if (mainConfiguration.isPrefetchingEnabled()) {

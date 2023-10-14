@@ -30,9 +30,8 @@ import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.github.benmanes.caffeine.cache.RemovalCause;
 import de.corelogics.mediaview.config.MainConfiguration;
 import de.corelogics.mediaview.util.IdUtils;
+import lombok.extern.log4j.Log4j2;
 import org.apache.commons.io.IOUtils;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.io.*;
 import java.util.Arrays;
@@ -46,8 +45,8 @@ import java.util.stream.Collectors;
 
 import static java.util.Optional.ofNullable;
 
+@Log4j2
 public class CacheDirectory {
-    private final Logger logger = LogManager.getLogger(CacheDirectory.class);
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
     private final JsonFactory factory = new JsonFactory();
 
@@ -67,12 +66,12 @@ public class CacheDirectory {
         }
         this.cacheSizeBytes = 1024L * 1024L * 1024L * mainConfiguration.cacheSizeGb();
         this.cacheDirFile = new File(mainConfiguration.cacheDir());
-        logger.debug("Initializing cache download manager, with cache in directory [{}]", this.cacheDirFile::getAbsolutePath);
+        log.debug("Initializing cache download manager, with cache in directory [{}]", this.cacheDirFile::getAbsolutePath);
         if (!cacheDirFile.exists() && !cacheDirFile.mkdirs()) {
             throw new IllegalStateException("Could not create nonexisting cache directory at " + this.cacheDirFile.getAbsolutePath());
         }
         this.scheduler.scheduleAtFixedRate(this.openFiles::cleanUp, 10, 10, TimeUnit.SECONDS);
-        logger.info("Successfully started cache download manager, with cache in directory [{}]", this.cacheDirFile::getAbsolutePath);
+        log.info("Successfully started cache download manager, with cache in directory [{}]", this.cacheDirFile::getAbsolutePath);
     }
 
     private RandomAccessFile openFile(String filename) throws FileNotFoundException {
@@ -80,7 +79,7 @@ public class CacheDirectory {
     }
 
     private void closeFile(String name, RandomAccessFile file, RemovalCause cause) {
-        IOUtils.closeQuietly(file, e -> logger.debug("Could not (quietly) close file.", e));
+        IOUtils.closeQuietly(file, e -> log.debug("Could not (quietly) close file.", e));
     }
 
     private String contentFilename(String clipId) {
@@ -180,7 +179,7 @@ public class CacheDirectory {
     public synchronized boolean tryCleanupCacheDir(Set<String> currentlyOpenClipIds) {
         var currentlyOpenFilenames = currentlyOpenClipIds.stream().map(this::contentFilename).collect(Collectors.toSet());
 
-        logger.info("Cleaning up some space in cache directory");
+        log.info("Cleaning up some space in cache directory");
         return ofNullable(this.cacheDirFile
                 .listFiles((dir, name) -> name.endsWith(".mp4"))).stream()
                 .flatMap(Arrays::stream)
@@ -188,7 +187,7 @@ public class CacheDirectory {
                 .sorted(Comparator.comparing(File::lastModified))
                 .map(contentFileToRemove -> {
                     var metaFileToRemove = new File(this.cacheDirFile, contentFileToRemove.getName().replaceAll(".mp4", ".json"));
-                    logger.debug(
+                    log.debug(
                             "Trying to delete {}, and {} with size of {}",
                             metaFileToRemove::getName,
                             contentFileToRemove::getName,
@@ -197,8 +196,6 @@ public class CacheDirectory {
                     this.openFiles.invalidate(contentFileToRemove.getName());
                     return metaFileToRemove.delete() && contentFileToRemove.delete();
                 })
-                .filter(Boolean.TRUE::equals)
-                .findFirst()
-                .isPresent();
+                .anyMatch(Boolean.TRUE::equals);
     }
 }

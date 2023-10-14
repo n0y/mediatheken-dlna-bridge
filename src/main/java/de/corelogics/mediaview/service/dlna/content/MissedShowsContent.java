@@ -27,6 +27,7 @@ package de.corelogics.mediaview.service.dlna.content;
 import de.corelogics.mediaview.repository.clip.ClipRepository;
 import de.corelogics.mediaview.service.dlna.DlnaRequest;
 import de.corelogics.mediaview.util.IdUtils;
+import lombok.AllArgsConstructor;
 import org.jupnp.support.model.DIDLContent;
 import org.jupnp.support.model.container.StorageFolder;
 
@@ -40,6 +41,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.stream.LongStream;
 
+@AllArgsConstructor
 public class MissedShowsContent extends BaseDnlaRequestHandler {
     private static final DateTimeFormatter DATE_TIME_FORMAT = DateTimeFormatter.ofPattern("EEEE").localizedBy(Locale.GERMANY);
 
@@ -88,15 +90,10 @@ public class MissedShowsContent extends BaseDnlaRequestHandler {
         }
     }
 
-    public MissedShowsContent(ClipContent clipContent, ClipRepository clipRepository) {
-        this.clipContent = clipContent;
-        this.clipRepository = clipRepository;
-    }
-
     public StorageFolder createLink(DlnaRequest request) {
         return new StorageFolder(
                 URN_OVERVIEW,
-                request.getObjectId(), "Sendung Verpasst",
+                request.objectId(), "Sendung Verpasst",
                 "",
                 clipRepository.findAllChannels().size(),
                 null);
@@ -104,20 +101,20 @@ public class MissedShowsContent extends BaseDnlaRequestHandler {
 
     @Override
     public boolean canHandle(DlnaRequest request) {
-        return request.getObjectId().startsWith(URN_PREFIX);
+        return request.objectId().startsWith(URN_PREFIX);
     }
 
     @Override
     protected DIDLContent respondWithException(DlnaRequest request) throws Exception {
         var didl = new DIDLContent();
-        if (request.getObjectId().equals(URN_OVERVIEW)) {
+        if (request.objectId().equals(URN_OVERVIEW)) {
             addOverview(request, didl);
-        } else if (request.getObjectId().startsWith(URN_PREFIX_CHANNEL)) {
-            var split = request.getObjectId().split(":");
+        } else if (request.objectId().startsWith(URN_PREFIX_CHANNEL)) {
+            var split = request.objectId().split(":");
             var channelName = IdUtils.decodeId(split[split.length - 1]);
             addChannelTimes(request, channelName, didl);
-        } else if (request.getObjectId().startsWith(URN_PREFIX_CHANNELTIME)) {
-            var split = request.getObjectId().split(":");
+        } else if (request.objectId().startsWith(URN_PREFIX_CHANNELTIME)) {
+            var split = request.objectId().split(":");
             var channelName = IdUtils.decodeId(split[split.length - 3]);
             var daysBefore = Integer.parseInt(split[split.length - 2]);
             var time = ChannelTime.values()[Integer.parseInt(split[split.length - 1])];
@@ -144,7 +141,7 @@ public class MissedShowsContent extends BaseDnlaRequestHandler {
         LongStream.rangeClosed(0, 6).mapToObj(l -> Map.entry(l, today.minusDays(l))).flatMap(day ->
                 Arrays.stream(ChannelTime.values()).map(ct -> new StorageFolder(
                         URN_PREFIX_CHANNELTIME + IdUtils.encodeId(channelName) + ":" + day.getKey() + ":" + ct.ordinal(),
-                        request.getObjectId(),
+                        request.objectId(),
                         DATE_TIME_FORMAT.format(day.getValue()) + " " + ct.getTitle(),
                         "",
                         10,
@@ -156,7 +153,7 @@ public class MissedShowsContent extends BaseDnlaRequestHandler {
         clipRepository.findAllChannels().stream()
                 .map(channel -> new StorageFolder(
                         idChannel(channel),
-                        request.getObjectId(),
+                        request.objectId(),
                         channel,
                         "",
                         100,

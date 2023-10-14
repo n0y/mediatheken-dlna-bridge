@@ -27,6 +27,7 @@ package de.corelogics.mediaview.service.dlna.content;
 import de.corelogics.mediaview.repository.clip.ClipRepository;
 import de.corelogics.mediaview.service.dlna.DlnaRequest;
 import de.corelogics.mediaview.util.IdUtils;
+import lombok.AllArgsConstructor;
 import org.jupnp.support.model.DIDLContent;
 import org.jupnp.support.model.container.StorageFolder;
 
@@ -36,6 +37,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+@AllArgsConstructor
 public class SendungAzContent extends BaseDnlaRequestHandler {
     private static final Comparator<String> ORD_ALPHA = Comparator.comparing(
             s -> s.toLowerCase(Locale.GERMANY),
@@ -55,15 +57,10 @@ public class SendungAzContent extends BaseDnlaRequestHandler {
 
     private final ShowContent showContent;
 
-    public SendungAzContent(ClipRepository clipRepository, ShowContent showContent) {
-        this.clipRepository = clipRepository;
-        this.showContent = showContent;
-    }
-
     public StorageFolder createLink(DlnaRequest request) {
         return new StorageFolder(
                 URN_PREFIX_SENDUNG_AZ,
-                request.getObjectId(), "Sendungen A-Z",
+                request.objectId(), "Sendungen A-Z",
                 "",
                 clipRepository.findAllChannels().size(),
                 null);
@@ -71,28 +68,28 @@ public class SendungAzContent extends BaseDnlaRequestHandler {
 
     @Override
     public boolean canHandle(DlnaRequest request) {
-        return URN_PREFIX_SENDUNG_AZ.equals(request.getObjectId()) ||
-                request.getObjectId().startsWith(URN_PREFIX_CHANNEL) ||
-                request.getObjectId().startsWith(URN_PREFIX_SHOWGROUP);
+        return URN_PREFIX_SENDUNG_AZ.equals(request.objectId()) ||
+                request.objectId().startsWith(URN_PREFIX_CHANNEL) ||
+                request.objectId().startsWith(URN_PREFIX_SHOWGROUP);
 
     }
 
     @Override
     protected DIDLContent respondWithException(DlnaRequest request) throws Exception {
         var didl = new DIDLContent();
-        if (request.getObjectId().startsWith(URN_PREFIX_SENDUNG_AZ)) {
+        if (request.objectId().startsWith(URN_PREFIX_SENDUNG_AZ)) {
             clipRepository.findAllChannels().stream()
                     .map(channelName ->
                             new StorageFolder(
                                     idChannel(channelName),
-                                    request.getObjectId(),
+                                    request.objectId(),
                                     channelName,
                                     "",
                                     100,
                                     null))
                     .forEach(didl::addContainer);
-        } else if (request.getObjectId().startsWith(URN_PREFIX_CHANNEL)) {
-            var channelId = IdUtils.decodeId(request.getObjectId().substring(URN_PREFIX_CHANNEL.length()));
+        } else if (request.objectId().startsWith(URN_PREFIX_CHANNEL)) {
+            var channelId = IdUtils.decodeId(request.objectId().substring(URN_PREFIX_CHANNEL.length()));
             var containedIns = clipRepository.findAllContainedIns(channelId);
             if (containedIns.size() < 200) {
                 containedIns.entrySet().stream()
@@ -111,15 +108,15 @@ public class SendungAzContent extends BaseDnlaRequestHandler {
                         .sorted(ORD_ALPHA_CHARENTRY)
                         .map(letterEntry -> new StorageFolder(
                                 idShowGroup(channelId, letterEntry),
-                                request.getObjectId(),
+                                request.objectId(),
                                 letterEntry.getKey().toString(),
                                 "",
                                 letterEntry.getValue(),
                                 null))
                         .forEach(didl::addContainer);
             }
-        } else if (request.getObjectId().startsWith(URN_PREFIX_SHOWGROUP)) {
-            var split = request.getObjectId().split(":");
+        } else if (request.objectId().startsWith(URN_PREFIX_SHOWGROUP)) {
+            var split = request.objectId().split(":");
             var channelId = IdUtils.decodeId(split[split.length - 2]);
             var startingWith = IdUtils.decodeId(split[split.length - 1]);
             clipRepository.findAllContainedIns(channelId, startingWith).entrySet().stream()

@@ -38,8 +38,8 @@ abstract class BaseDnlaRequestHandler implements DlnaRequestHandler {
             var didl = respondWithException(request);
             var totalNumResults = didl.getCount();
             didl.setContainers(
-                    didl.getContainers().stream().skip(request.getFirstResult()).limit(request.getMaxResults()).collect(Collectors.toList()));
-            didl.setItems(didl.getItems().stream().skip(request.getFirstResult()).limit(request.getMaxResults()).collect(Collectors.toList()));
+                    didl.getContainers().stream().skip(request.firstResult()).limit(request.maxResults()).collect(Collectors.toList()));
+            didl.setItems(didl.getItems().stream().skip(request.firstResult()).limit(request.maxResults()).collect(Collectors.toList()));
             return new BrowseResult(new DIDLParser().generate(didl), didl.getCount(), totalNumResults);
         } catch (Exception e) {
             throw new RuntimeException(e);

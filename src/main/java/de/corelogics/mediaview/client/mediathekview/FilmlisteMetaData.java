@@ -24,22 +24,19 @@
 
 package de.corelogics.mediaview.client.mediathekview;
 
+import lombok.AllArgsConstructor;
+import lombok.ToString;
+
 import java.util.Optional;
 
+@AllArgsConstructor
+@ToString
 public class FilmlisteMetaData {
     private final String validUntil;
     private final String createdAt;
     private final String version;
     private final String creator;
     private final String hash;
-
-    public FilmlisteMetaData(String validUntil, String createdAt, String version, String creator, String hash) {
-        this.validUntil = validUntil;
-        this.createdAt = createdAt;
-        this.version = version;
-        this.creator = creator;
-        this.hash = hash;
-    }
 
     public Optional<String> getValidUntil() {
         return Optional.ofNullable(validUntil);
@@ -59,16 +56,5 @@ public class FilmlisteMetaData {
 
     public Optional<String> getHash() {
         return Optional.ofNullable(hash);
-    }
-
-    @Override
-    public String toString() {
-        return "FilmlisteMetaData{" +
-                "validUntil='" + validUntil + '\'' +
-                ", createdAt='" + createdAt + '\'' +
-                ", version='" + version + '\'' +
-                ", creator='" + creator + '\'' +
-                ", hash='" + hash + '\'' +
-                '}';
     }
 }

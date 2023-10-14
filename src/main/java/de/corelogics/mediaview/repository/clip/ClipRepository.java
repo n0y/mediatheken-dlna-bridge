@@ -26,8 +26,8 @@ package de.corelogics.mediaview.repository.clip;
 
 import de.corelogics.mediaview.client.mediathekview.ClipEntry;
 import de.corelogics.mediaview.config.MainConfiguration;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import lombok.AllArgsConstructor;
+import lombok.extern.log4j.Log4j2;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.*;
 import org.apache.lucene.facet.FacetsCollector;
@@ -58,6 +58,7 @@ import java.util.stream.Stream;
 import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.toMap;
 
+@Log4j2
 public class ClipRepository {
     private enum ClipField {
         ID(true, false),
@@ -133,7 +134,6 @@ public class ClipRepository {
         T search(IndexSearcher searcher) throws IOException;
     }
 
-    private static final Logger LOGGER = LogManager.getLogger(ClipRepository.class);
     private static final String DOCID_LAST_UPDATED = "last-update-stat";
     private static final FieldType TYPE_NO_TOKENIZE = new FieldType();
 
@@ -153,7 +153,7 @@ public class ClipRepository {
         this.mainConfiguration = mainConfiguration;
         openConnection(calcIndexPath(), calcCacheSize());
         initialize();
-        LOGGER.info("Successfully opened database at {} with {} Bytes cache",
+        log.info("Successfully opened database at {} with {} Bytes cache",
                 this::calcIndexPath,
                 this::calcCacheSize);
     }
@@ -173,13 +173,13 @@ public class ClipRepository {
     void initialize() {
         var indexPath = calcIndexPath();
         if (!"<in-mem>".equals(indexPath)) {
-            LOGGER.debug("Looking for old clipdb entries in '{}'", indexPath);
+            log.debug("Looking for old clipdb entries in '{}'", indexPath);
             ofNullable(new File(indexPath).getParentFile().listFiles((dir, name) -> name.startsWith("clipdb.")))
                     .stream()
                     .flatMap(Stream::of)
-                    .peek(file -> LOGGER.info("Removing old clip database file '{}'", file))
+                    .peek(file -> log.info("Removing old clip database file '{}'", file))
                     .filter(f -> !f.delete())
-                    .forEach(file -> LOGGER.warn("Could not remove old clip database file '{}'", file.getAbsolutePath()));
+                    .forEach(file -> log.warn("Could not remove old clip database file '{}'", file.getAbsolutePath()));
         }
 
     }
@@ -235,7 +235,7 @@ public class ClipRepository {
     }
 
     public Optional<ZonedDateTime> findLastFullImport() {
-        LOGGER.debug("finding last full import");
+        log.debug("finding last full import");
         return withSearcher(searcher -> {
             var result = searcher.search(new TermQuery(new Term(ClipField.ID.term(), ClipField.ID.term(DOCID_LAST_UPDATED))), 1);
             if (result.scoreDocs.length > 0) {
@@ -247,7 +247,7 @@ public class ClipRepository {
     }
 
     public synchronized void updateLastFullImport(ZonedDateTime dateTime) {
-        LOGGER.debug("Updating last full import time to {}", dateTime);
+        log.debug("Updating last full import time to {}", dateTime);
         try {
             var analyzer = new StandardAnalyzer();
             var indexWriterConfig = new IndexWriterConfig(analyzer);
@@ -266,7 +266,7 @@ public class ClipRepository {
     }
 
     public List<String> findAllChannels() {
-        LOGGER.debug("Finding all channels");
+        log.debug("Finding all channels");
         return withSearcher(searcher -> {
             var query = new MatchAllDocsQuery();
             var state = new DefaultSortedSetDocValuesReaderState(searcher.getIndexReader(), ClipField.CHANNELNAME.facet());
@@ -283,7 +283,7 @@ public class ClipRepository {
      * @return name to number of clips
      */
     public Map<String, Integer> findAllContainedIns(String channelName) {
-        LOGGER.debug("Finding all containedIns for channel '{}'", channelName);
+        log.debug("Finding all containedIns for channel '{}'", channelName);
         return withSearcher(searcher -> {
             var query = new TermQuery(new Term(ClipField.CHANNELNAME.termLower(), ClipField.CHANNELNAME.termLower(channelName)));
             var state = new DefaultSortedSetDocValuesReaderState(searcher.getIndexReader(), ClipField.CONTAINEDIN.facet());
@@ -301,7 +301,7 @@ public class ClipRepository {
      * @return name to number of clips
      */
     public Map<String, Integer> findAllContainedIns(String channelName, String startingWith) {
-        LOGGER.debug("Finding all containedIns for channel '{}' starting with '{}'", channelName, startingWith);
+        log.debug("Finding all containedIns for channel '{}' starting with '{}'", channelName, startingWith);
         return withSearcher(searcher -> {
             var query = new BooleanQuery.Builder()
                     .add(new TermQuery(new Term(ClipField.CHANNELNAME.termLower(), ClipField.CHANNELNAME.termLower(channelName))), BooleanClause.Occur.MUST)
@@ -330,7 +330,7 @@ public class ClipRepository {
     }
 
     public List<ClipEntry> findAllClips(String channelId, String containedIn) {
-        LOGGER.debug("Finding all clips for channel '{}' and containedIn '{}'", channelId, containedIn);
+        log.debug("Finding all clips for channel '{}' and containedIn '{}'", channelId, containedIn);
         return withSearcher(searcher -> {
             var result = searcher.search(
                     new BooleanQuery.Builder()
@@ -350,7 +350,7 @@ public class ClipRepository {
     }
 
     public Optional<ClipEntry> findClipById(String id) {
-        LOGGER.debug("Finding clip for id '{}'", id);
+        log.debug("Finding clip for id '{}'", id);
         return withSearcher(searcher -> {
             var result = searcher.search(new TermQuery(new Term(ClipField.ID.term(), ClipField.ID.term(id))), 1);
             if (result.scoreDocs.length > 0) {
@@ -361,7 +361,7 @@ public class ClipRepository {
     }
 
     public List<ClipEntry> findAllClipsForChannelBetween(String channelName, ZonedDateTime startDate, ZonedDateTime endDate) {
-        LOGGER.debug("Finding clips of channel '{}' between '{}' and '{}'", channelName, startDate, endDate);
+        log.debug("Finding clips of channel '{}' between '{}' and '{}'", channelName, startDate, endDate);
         return withSearcher(searcher -> {
             var result = searcher.search(
                     new BooleanQuery.Builder()
@@ -381,7 +381,7 @@ public class ClipRepository {
     }
 
     public synchronized void deleteClipsImportedBefore(ZonedDateTime startedAt) {
-        LOGGER.debug("Deleting all clips not imported at {}", startedAt);
+        log.debug("Deleting all clips not imported at {}", startedAt);
         try {
             var analyzer = new StandardAnalyzer();
             var indexWriterConfig = new IndexWriterConfig(analyzer);
@@ -397,13 +397,13 @@ public class ClipRepository {
     }
 
     public synchronized void addClips(Iterable<ClipEntry> clipEntries, ZonedDateTime importedAt) {
-        LOGGER.debug("Adding ClipEntries");
+        log.debug("Adding ClipEntries");
         try {
             var analyzer = new StandardAnalyzer();
             var indexWriterConfig = new IndexWriterConfig(analyzer);
             try (var writer = new IndexWriter(this.index, indexWriterConfig)) {
                 for (var e : clipEntries) {
-                    LOGGER.debug("Updating document with id '{}': '{}'", e.getId(), e.getTitle());
+                    log.debug("Updating document with id '{}': '{}'", e.getId(), e.getTitle());
                     var d = new Document();
                     addToDocument(d, ClipField.ID, e.getId());
                     addToDocument(d, ClipField.CHANNELNAME, e.getChannelName());
