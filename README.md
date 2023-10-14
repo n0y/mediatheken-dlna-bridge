@@ -84,22 +84,21 @@ Common configuration
 * _DATABASE_LOCATION_ points to the directory and name of the lucene index directory. Defaults to `./data/clipdb`
 * _UPDATEINTERVAL_FULL_HOURS_ number of hours between full db updates. Defaults to `24`.
 * _DISPLAY_NAME_ under this name, the Mediatheken-DLNA-Bridge will be visible in your network. Defaults to `Mediatheken`.
+* _PUBLIC_HTTP_PORT_ all DLNA and media data (if prefetching is enabled) will be answered using this port number.
 
 Configuration for prefetching
 
 * _ENABLE_PREFETCHING_ (boolean) decides if prefetching is turned on. Defaults to `false`.
 * _PUBLIC_BASE_URL_ needs to be set when server prefetching is enabled. It's the base HTTP path, where this service is published.
-  Could be `http://<your-hostname>:8080/` or any other location, if you put this behind a reverse proxy. *there is no default*, 
+  Could be `http://<your-hostname>:9300/` or any other location, if you put this behind a reverse proxy. *there is no default*, 
   you have to configure it when you're using prefetching.
-* _PUBLIC_HTTP_PORT_ the port this server should listen for connections, if prefetching is turned on. Defaults to `8080`.
+* _PUBLIC_HTTP_PORT_ the port this server should listen for connections, if prefetching is turned on. Defaults to `9300`.
 * _CACHE_DIRECTORY_ is path to a directory where prefetched files are placed. May be absolute or relative to the run directory. It defaults to `./cache`.
 * _CACHE_SIZE_GB_ the amount of disk space (in Gigabyte) dedicated to prefetched files. Defaults to `10`. Values below 10GB are rejected.
 * _CACHE_DOWNLODERS_PER_VIDEO_ number of parallel connections, per video, that are used to fetch the file. Defaults to `2`.   
 * _CACHE_MAX_PARALLEL_DOWNLOADS_ number of videos that can be prefetched in parallel. Defaults to `4`. Note that each downloads requires at least 1.3MBytes/s of bandwidth!
 
 ## Configure prefetching
-
-** This is an EXPERIMENTAL feature, and it's not yet fully tested. **
 
 Sometimes the Mediatheken's CDN is slow. Most of the time, that only means that some servers, or clusters are slow, over some time.
 

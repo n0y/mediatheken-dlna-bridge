@@ -31,9 +31,10 @@
         </Console>
     </Appenders>
     <Loggers>
-        <Logger name="org.fourthline.cling.protocol.RetrieveRemoteDescriptors" level="error"/>
-        <Logger name="org.jupnp.transport" level="trace"/>
+<!--        <Logger name="org.fourthline.cling.protocol.RetrieveRemoteDescriptors" level="error"/>-->
+<!--        <Logger name="org.jupnp.transport" level="trace"/>-->
         <Logger name="de.corelogics.mediaview" level="info"/>
+        <Logger name="de.corelogics.mediaview.service.proxy.ForwardingProxyServer" level="debug"/>
         <Root level="warn">
             <AppenderRef ref="Console"/>
         </Root>

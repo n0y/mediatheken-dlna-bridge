@@ -31,15 +31,10 @@ import java.util.List;
 
 public class DlnaRequest {
     private final String objectId;
-
     private final BrowseFlag browseFlag;
-
     private final String filer;
-
     private final long firstResult;
-
     private final long maxResults;
-
     private final List<SortCriterion> orderBy;
 
     public DlnaRequest(String objectId, BrowseFlag browseFlag, String filer, long firstResult, long maxResults,

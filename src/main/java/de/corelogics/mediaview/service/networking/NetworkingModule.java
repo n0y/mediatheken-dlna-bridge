@@ -4,9 +4,11 @@ import de.corelogics.mediaview.config.MainConfiguration;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.util.thread.QueuedThreadPool;
+import org.jetbrains.annotations.NotNull;
 import org.jupnp.transport.impl.NetworkAddressFactoryImpl;
 import org.jupnp.transport.spi.NetworkAddressFactory;
 
+import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.util.concurrent.Executors;
 import java.util.stream.StreamSupport;
@@ -25,12 +27,7 @@ public class NetworkingModule {
         var threadPool = new QueuedThreadPool();
         threadPool.setVirtualThreadsExecutor(Executors.newVirtualThreadPerTaskExecutor());
         final var server = new Server(threadPool);
-
-        if (mainConfiguration.publicHttpPort() > 0) {
-            var sc = new ServerConnector(server);
-            sc.setPort(mainConfiguration.publicHttpPort());
-            server.addConnector(sc);
-        }
+        server.setStopAtShutdown(true);
 
         StreamSupport
                 .stream(
@@ -38,13 +35,20 @@ public class NetworkingModule {
                         false)
                 .flatMap(NetworkInterface::inetAddresses)
                 .map(nwi -> {
-                    var sc = new ServerConnector(server);
-                    sc.setHost(nwi.getHostAddress());
-                    sc.setPort(0);
-                    return sc;
+                    return createConnector(nwi.getHostAddress(), server);
                 })
                 .forEach(server::addConnector);
+        server.addConnector(createConnector("127.0.0.1", server));
+        server.addConnector(createConnector("::1", server));
         return server;
+    }
+
+    @NotNull
+    private ServerConnector createConnector(String host, Server server) {
+        var sc = new ServerConnector(server);
+        sc.setHost(host);
+        sc.setPort(mainConfiguration.publicHttpPort());
+        return sc;
     }
 
     public Server getJettyServer() {

@@ -49,18 +49,18 @@ public class Main {
     public Main() throws IOException {
         var configModule = new ConfigurationModule();
         var mainConfiguration = configModule.getMainConfiguration();
-        var networkModule = new NetworkingModule(mainConfiguration);
+        var networkingModule = new NetworkingModule(mainConfiguration);
 
         this.clipRepository = new ClipRepository(mainConfiguration);
         this.dlnaServer =
                 new DlnaServiceModule(
                         mainConfiguration,
-                        networkModule.getJettyServer(),
-                        new ForwardingProxyModule(mainConfiguration, networkModule.getJettyServer(), clipRepository)
+                        networkingModule.getJettyServer(),
+                        new ForwardingProxyModule(mainConfiguration, networkingModule.getJettyServer(), clipRepository)
                                 .buildClipContentUrlGenerator(),
                         clipRepository)
                         .getDlnaServer();
-        networkModule.startup();
+        networkingModule.startup();
         this.importerService = new ImporterService(
                 mainConfiguration,
                 new MediathekListClient(mainConfiguration, HttpClient.newBuilder().build()),

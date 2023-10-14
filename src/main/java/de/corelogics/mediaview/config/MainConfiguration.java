@@ -69,7 +69,7 @@ public class MainConfiguration {
     }
 
     public int publicHttpPort() {
-        return configAccessor.get("PUBLIC_HTTP_PORT", 8080);
+        return configAccessor.get("PUBLIC_HTTP_PORT", 9300);
     }
 
     public int cacheMaxParallelDownloads() {

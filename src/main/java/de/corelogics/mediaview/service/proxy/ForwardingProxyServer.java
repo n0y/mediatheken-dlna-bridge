@@ -31,26 +31,25 @@ import de.corelogics.mediaview.service.ClipContentUrlGenerator;
 import de.corelogics.mediaview.service.proxy.downloader.*;
 import de.corelogics.mediaview.util.HttpUtils;
 import de.corelogics.mediaview.util.IdUtils;
-import jakarta.servlet.http.HttpServletResponse;
 import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.eclipse.jetty.http.HttpStatus;
-import org.eclipse.jetty.server.Handler;
-import org.eclipse.jetty.server.Request;
-import org.eclipse.jetty.server.Response;
+import org.eclipse.jetty.ee8.servlet.ServletContextHandler;
+import org.eclipse.jetty.ee8.servlet.ServletHolder;
 import org.eclipse.jetty.server.Server;
-import org.eclipse.jetty.server.handler.ContextHandler;
 import org.eclipse.jetty.server.handler.ContextHandlerCollection;
-import org.eclipse.jetty.util.Callback;
 
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
-import java.util.Locale;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 public class ForwardingProxyServer implements ClipContentUrlGenerator {
     private final Logger logger = LogManager.getLogger(ForwardingProxyServer.class);
@@ -75,154 +74,163 @@ public class ForwardingProxyServer implements ClipContentUrlGenerator {
             context = new ContextHandlerCollection();
             jettyServer.setHandler(context);
         }
-        var handler = new ContextHandler("/api/v1/clips");
-        handler.setHandler(new Handler.Abstract() {
+//        var handler = new ContextHandler("/api/v1/clips");
+        var servletHandler = new ServletContextHandler(ServletContextHandler.NO_SESSIONS);
+        servletHandler.setDisplayName("asd");
+        servletHandler.setContextPath("/api/v1/clips");
+        final ServletHolder holder = new ServletHolder("jUpnpServler", new HttpServlet() {
             @Override
-            public boolean handle(Request request, Response response, Callback callback) {
-                try {
-                    switch (request.getMethod().toUpperCase(Locale.US)) {
-                        case "HEAD":
-                            handleHead(request, response, callback);
-                            return true;
-                        case "GET":
-                            handleGetClip(request, response, callback);
-                            return true;
-                    }
-                } catch (RuntimeException e) {
-                    Response.writeError(request, response, callback, HttpStatus.INTERNAL_SERVER_ERROR_500);
-                }
-                return true;
+            protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+                handleGetClip(req, resp);
+            }
+
+            @Override
+            protected void doHead(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+                handleHead(req, resp);
             }
         });
-        context.addHandler(handler);
-//        Spark.port(mainConfiguration.publicHttpPort());
+        servletHandler.addServlet(holder, "/*");
+        context.addHandler(servletHandler);
         logger.info("Successfully started prefetching HTTP proxy server on port {}", mainConfiguration::publicHttpPort);
     }
 
     public String createLinkTo(ClipEntry e) {
         var baseUrl = mainConfiguration.publicBaseUrl();
-        return baseUrl + (baseUrl.endsWith("/") ? "" : "/") + "/api/v1/clips/" + IdUtils.encodeId(e.getId());
+        return baseUrl + (baseUrl.endsWith("/") ? "" : "/") + "api/v1/clips/" + IdUtils.encodeId(e.getId());
     }
 
 
-    private Object handleHead(Request request, Response response, Callback callback) {
-        var pathInContext = Request.getPathInContext(request).split("/");
+    private void handleHead(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        var pathInContextString = request.getPathInfo();
+        var pathInContext = pathInContextString.split("/");
         if (pathInContext.length == 0) {
-            throw new RuntimeException("cant extract clip from URL " + pathInContext);
+            throw new RuntimeException("cant extract clip from URL " + pathInContextString);
         }
         var clipIdString = pathInContext[pathInContext.length - 1];
         var clipId = new String(Base64.getDecoder().decode(clipIdString), StandardCharsets.UTF_8);
         logger.debug("HEAD Request for clip {}\n{}", clipId::toString, () ->
                 String.join("\n",
-                        "   H:" + request.getHttpURI().getHost(),
-                        "   P:" + pathInContext,
-                        request.getHeaders().stream().map(h -> "   " + h.getName() + ": " + h.getValue()).collect(Collectors.joining("\n"))));
-        clipRepository.findClipById(clipId).ifPresentOrElse(
-                clip -> {
-                    var byteRange = new ByteRange(0, 1);
-                    try (var stream = downloadManager.openStreamFor(clip, byteRange)) {
-                        try {
-                            response.getHeaders().add(HttpUtils.HEADER_CONTENT_TYPE, stream.getContentType());
-                            response.getHeaders().add(HttpUtils.HEADER_ACCEPT_RANGES, "bytes");
-                            response.getHeaders().add(HttpUtils.HEADER_CONTENT_LENGTH, Long.toString(stream.getMaxSize()));
-                        } finally {
-                            logger.debug("Closing consumer stream");
-                        }
-                    } catch (UpstreamNotFoundException e) {
-                        logger.info("Clip {} wasn't found at upstream url {}", clip::getTitle, clip::getBestUrl);
-                        response.setStatus(HttpServletResponse.SC_NOT_FOUND);
-                    } catch (EOFException e) {
-                        logger.info("Requested range {} of clip {} is beyond clip. Redirecting client to original url: {}", byteRange, clip.getId(), clip.getBestUrl());
-                        logger.debug("e");
-                        response.setStatus(HttpServletResponse.SC_REQUESTED_RANGE_NOT_SATISFIABLE);
-                    } catch (UpstreamReadFailedException e) {
-                        logger.info("Upstream server failed for clip {}[{}]. Redirecting client to original url: {}", clip.getId(), byteRange, clip.getBestUrl());
-                        logger.debug(e);
-                        Response.sendRedirect(request, response, callback, clip.getBestUrl());
-                    } catch (TooManyConcurrentConnectionsException e) {
-                        logger.info("Can't proxy clip {}[{}], because there are too many concurrent connections open. Redirecting client to original url: {}", clip.getId(), byteRange, clip.getBestUrl());
-                        Response.sendRedirect(request, response, callback, clip.getBestUrl());
-                    } catch (CacheSizeExhaustedException e) {
-                        logger.info("Cache size exhausted when requesting clip {}[{}]. Redirecting client to original url: {}", clip.getId(), byteRange, clip.getBestUrl());
-                        logger.debug(e);
-                        Response.sendRedirect(request, response, callback, clip.getBestUrl());
-                    }
-                },
-                () -> {
-                    logger.debug("Head request for {}: not found", clipId);
-                    Response.writeError(request, response, callback, HttpServletResponse.SC_NOT_FOUND);
-                });
-        return null;
+                        "   H:" + request.getServerName(),
+                        "   P:" + pathInContextString,
+                        headerStrings(request)));
+        var optionalClip = clipRepository.findClipById(clipId);
+        if (optionalClip.isPresent()) {
+            var clip = optionalClip.get();
+            var byteRange = new ByteRange(0, 1);
+            try (var stream = downloadManager.openStreamFor(clip, byteRange)) {
+                try {
+                    response.addHeader(HttpUtils.HEADER_CONTENT_TYPE, stream.getContentType());
+                    response.addHeader(HttpUtils.HEADER_ACCEPT_RANGES, "bytes");
+                    response.addHeader(HttpUtils.HEADER_CONTENT_LENGTH, Long.toString(stream.getMaxSize()));
+                } finally {
+                    logger.debug("Closing consumer stream");
+                }
+            } catch (UpstreamNotFoundException e) {
+                logger.info("Clip {} wasn't found at upstream url {}", clip::getTitle, clip::getBestUrl);
+                response.sendError(HttpServletResponse.SC_NOT_FOUND);
+            } catch (EOFException e) {
+                logger.info("Requested range {} of clip {} is beyond clip. Redirecting client to original url: {}", byteRange, clip.getId(), clip.getBestUrl());
+                logger.debug("e");
+                response.sendError(HttpServletResponse.SC_REQUESTED_RANGE_NOT_SATISFIABLE);
+            } catch (UpstreamReadFailedException e) {
+                logger.info("Upstream server failed for clip {}[{}]. Redirecting client to original url: {}", clip.getId(), byteRange, clip.getBestUrl());
+                logger.debug(e);
+                response.sendRedirect(clip.getBestUrl());
+            } catch (TooManyConcurrentConnectionsException e) {
+                logger.info("Can't proxy clip {}[{}], because there are too many concurrent connections open. Redirecting client to original url: {}", clip.getId(), byteRange, clip.getBestUrl());
+                response.sendRedirect(clip.getBestUrl());
+            } catch (CacheSizeExhaustedException e) {
+                logger.info("Cache size exhausted when requesting clip {}[{}]. Redirecting client to original url: {}", clip.getId(), byteRange, clip.getBestUrl());
+                logger.debug(e);
+                response.sendRedirect(clip.getBestUrl());
+            }
+        } else {
+            logger.debug("Head request for {}: not found", clipId);
+            response.sendError(HttpServletResponse.SC_NOT_FOUND);
+        }
     }
 
     //
-    private Object handleGetClip(Request request, Response response, Callback callback) {
-        var pathInContext = Request.getPathInContext(request).split("/");
+    private void handleGetClip(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        var pathInContextString = request.getPathInfo();
+        var pathInContext = pathInContextString.split("/");
         if (pathInContext.length == 0) {
-            throw new RuntimeException("cant extract clip from URL " + pathInContext);
+            throw new RuntimeException("cant extract clip from URL " + pathInContextString);
         }
         var clipIdString = pathInContext[pathInContext.length - 1];
         var clipId = new String(Base64.getDecoder().decode(clipIdString), StandardCharsets.UTF_8);
         logger.debug("Request for clip {}\n{}", clipId::toString, () ->
                 String.join("\n",
-                        "   H:" + request.getHttpURI().getHost(),
-                        "   P:" + pathInContext,
-                        request.getHeaders().stream().map(h -> "   " + h.getName() + ": " + h.getValue()).collect(Collectors.joining("\n"))));
-        clipRepository.findClipById(clipId).ifPresentOrElse(
-                clip -> {
-                    var byteRange = new ByteRange(request.getHeaders().get(HttpUtils.HEADER_RANGE));
-                    try (var stream = downloadManager.openStreamFor(clip, byteRange)) {
-                        try {
-                            if (byteRange.getFirstPosition() >= stream.getMaxSize()) {
-                                response.setStatus(HttpServletResponse.SC_REQUESTED_RANGE_NOT_SATISFIABLE);
-                            } else {
-                                response.getHeaders().add(HttpUtils.HEADER_CONTENT_TYPE, stream.getContentType());
-                                response.getHeaders().add(HttpUtils.HEADER_ACCEPT_RANGES, "bytes");
-                                if (request.getHeaders().get(HttpUtils.HEADER_RANGE) != null) {
-                                    response.getHeaders().add(HttpUtils.HEADER_CONTENT_RANGE, "bytes " + byteRange.getFirstPosition() + "-" + byteRange.getLastPosition().orElse(stream.getMaxSize() - 1) + "/" + stream.getMaxSize());
-                                    response.getHeaders().add(HttpUtils.HEADER_CONTENT_LENGTH, Long.toString(byteRange.getLastPosition().orElse(stream.getMaxSize()) - byteRange.getFirstPosition()));
-                                } else {
-                                    response.getHeaders().add(HttpUtils.HEADER_CONTENT_LENGTH, Long.toString(stream.getMaxSize()));
-                                }
-                                copyBytes(request, stream.getStream(), response);
-                                callback.succeeded();
-                            }
-                        } finally {
-                            logger.debug("Closing consumer stream");
-                        }
-                    } catch (UpstreamNotFoundException e) {
-                        logger.info("Clip {} wasn't found at upstream url {}", clip::getTitle, clip::getBestUrl);
-                        response.setStatus(HttpServletResponse.SC_NOT_FOUND);
-                    } catch (EOFException e) {
-                        logger.info("Requested range {} of clip {} is beyond clip. Redirecting client to original url: {}", byteRange, clip.getId(), clip.getBestUrl());
-                        logger.debug("e");
+                        "   H:" + request.getServerName(),
+                        "   P:" + pathInContextString,
+                        headerStrings(request)));
+        var optionalClip = clipRepository.findClipById(clipId);
+        if (optionalClip.isPresent()) {
+            var clip = optionalClip.get();
+            var byteRange = new ByteRange(request.getHeader(HttpUtils.HEADER_RANGE));
+            try (var stream = downloadManager.openStreamFor(clip, byteRange)) {
+                try {
+                    if (byteRange.getFirstPosition() >= stream.getMaxSize()) {
                         response.setStatus(HttpServletResponse.SC_REQUESTED_RANGE_NOT_SATISFIABLE);
-                    } catch (UpstreamReadFailedException e) {
-                        logger.info("Upstream server failed for clip {}[{}]. Redirecting client to original url: {}", clip.getId(), byteRange, clip.getBestUrl());
-                        logger.debug(e);
-                        Response.sendRedirect(request, response, callback, clip.getBestUrl());
-                    } catch (TooManyConcurrentConnectionsException e) {
-                        logger.info("Can't proxy clip {}[{}], because there are too many concurrent connections open. Redirecting client to original url: {}", clip.getId(), byteRange, clip.getBestUrl());
-                        Response.sendRedirect(request, response, callback, clip.getBestUrl());
-                    } catch (CacheSizeExhaustedException e) {
-                        logger.info("Cache size exhausted when requesting clip {}[{}]. Redirecting client to original url: {}", clip.getId(), byteRange, clip.getBestUrl());
-                        logger.debug(e);
-                        Response.sendRedirect(request, response, callback, clip.getBestUrl());
+                    } else {
+                        if (request.getHeader(HttpUtils.HEADER_RANGE) != null) {
+                            response.setStatus(HttpServletResponse.SC_PARTIAL_CONTENT);
+                            response.addHeader(HttpUtils.HEADER_CONTENT_RANGE, "bytes " + byteRange.getFirstPosition() + "-" + byteRange.getLastPosition().orElse(stream.getMaxSize() - 1) + "/" + stream.getMaxSize());
+                            response.addHeader(HttpUtils.HEADER_CONTENT_LENGTH, Long.toString(byteRange.getLastPosition().orElse(stream.getMaxSize()) - byteRange.getFirstPosition()));
+                        } else {
+                            response.setStatus(HttpServletResponse.SC_OK);
+                            response.addHeader(HttpUtils.HEADER_CONTENT_LENGTH, Long.toString(stream.getMaxSize()));
+                        }
+                        response.addHeader(HttpUtils.HEADER_CONTENT_TYPE, stream.getContentType());
+                        response.addHeader(HttpUtils.HEADER_ACCEPT_RANGES, "bytes");
+                        logger.debug("Answering with: " + headerStrings(response));
+                        copyBytes(stream.getStream(), response);
                     }
-                },
-                () -> {
-                    logger.info("Requested clipId {} wasn't found in DB.", clipId);
-                    Response.writeError(request, response, callback, HttpServletResponse.SC_NOT_FOUND);
+                } finally {
+                    logger.debug("Closing consumer stream");
                 }
-        );
-        return null;
+            } catch (UpstreamNotFoundException e) {
+                logger.info("Clip {} wasn't found at upstream url {}", clip::getTitle, clip::getBestUrl);
+                response.sendError(HttpServletResponse.SC_NOT_FOUND);
+            } catch (EOFException e) {
+                logger.info("Requested range {} of clip {} is beyond clip. Redirecting client to original url: {}", byteRange, clip.getId(), clip.getBestUrl());
+                logger.debug("e");
+                response.sendError(HttpServletResponse.SC_REQUESTED_RANGE_NOT_SATISFIABLE);
+            } catch (UpstreamReadFailedException e) {
+                logger.info("Upstream server failed for clip {}[{}]. Redirecting client to original url: {}", clip.getId(), byteRange, clip.getBestUrl());
+                logger.debug(e);
+                response.sendRedirect(clip.getBestUrl());
+            } catch (TooManyConcurrentConnectionsException e) {
+                logger.info("Can't proxy clip {}[{}], because there are too many concurrent connections open. Redirecting client to original url: {}", clip.getId(), byteRange, clip.getBestUrl());
+                response.sendRedirect(clip.getBestUrl());
+            } catch (CacheSizeExhaustedException e) {
+                logger.info("Cache size exhausted when requesting clip {}[{}]. Redirecting client to original url: {}", clip.getId(), byteRange, clip.getBestUrl());
+                logger.debug(e);
+                response.sendRedirect(clip.getBestUrl());
+            }
+        } else {
+            logger.info("Requested clipId {} wasn't found in DB.", clipId);
+            response.sendError(HttpServletResponse.SC_NOT_FOUND);
+        }
     }
 
-    private void copyBytes(Request request, InputStream from, Response to) {
-        try (var toStream = Response.asBufferedOutputStream(request, to)) {
-            IOUtils.copyLarge(from, toStream);
+    private String headerStrings(HttpServletRequest request) {
+        return StreamSupport.stream(((Iterable<String>) () -> request.getHeaderNames().asIterator()).spliterator(), false)
+                .map(h -> "   " + h + ": " + request.getHeader(h))
+                .collect(Collectors.joining("\n"));
+    }
+
+    private String headerStrings(HttpServletResponse response) {
+        return response.getHeaderNames().stream()
+                .map(h -> "   " + h + ": " + response.getHeader(h))
+                .collect(Collectors.joining("\n"));
+    }
+
+    private void copyBytes(InputStream from, HttpServletResponse to) {
+        try (var toStream = to.getOutputStream()) {
+            IOUtils.copy(from, toStream);
         } catch (final IOException e) {
-            logger.debug("Client closed connection. Aborting.");
+            logger.debug("Client closed connection. Aborting.", e);
         }
     }
 }
