@@ -72,9 +72,9 @@ class TypedConfigurationAccessor {
 
     public Map<String, String> getStartingWith(String startingWith) {
         return propertiesSource.getConfigKeys().stream()
-                .filter(s -> s.startsWith(startingWith))
-                .collect(Collectors.toMap(
-                        Function.identity(),
-                        key -> this.get(key, "")));
+            .filter(s -> s.startsWith(startingWith))
+            .collect(Collectors.toMap(
+                Function.identity(),
+                key -> this.get(key, "")));
     }
 }

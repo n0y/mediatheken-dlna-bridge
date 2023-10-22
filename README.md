@@ -1,7 +1,7 @@
 # Mediatheken DLNA Bridge
 
 Mediatheken DLNA Bridge is a java standalone program, which consumes contents of various (german) Mediatheken,
-and serves it's content to your local network using DLNA.
+and serves its content to your local network using DLNA.
 
 Find us at our [HOME].
 
@@ -11,7 +11,7 @@ For a list of all authors, see the [AUTHORS] file.
 
 ## Usage
 
-There're two options running the Mediatheken DLNA Bridge: Local installation, or docker.
+There are two options running the Mediatheken DLNA Bridge: Local installation, or docker.
 
 ### Local installation
 
@@ -106,7 +106,7 @@ To use prefetching, you need to:
 
 * create, and maybe mount a temporary directory for prefetched files
 * configure the base URL, where this server will be reachable, using the `PUBLIC_HTTP_PORT` configuration. For standalone operation, this will be `http://<hostname>:8080/`.
-  For docker, the port may differ. You are free to place the Mediathek-Dlna-Bridge behind a reverse proxy. In that case, you may also add an URL prefix here. 
+  For docker, the port may differ. You are free to place the Mediathek-Dlna-Bridge behind a reverse proxy. In that case, you may also add a URL prefix here. 
 * maybe override the cache directory, using the `CACHE_DIRECTORY` configuration
 * decide on how much space you'll assign to prefetched videos. Use the `CACHE_SIZE_GB` configuration. Mediathek-Dlna-Bridge will never use more disk space than that.
 * set the 'ENABLE_PREFETCHING' configuration to `true`

@@ -27,6 +27,7 @@ package de.corelogics.mediaview.service.proxy.downloader;
 import de.corelogics.mediaview.client.mediathekview.ClipEntry;
 import de.corelogics.mediaview.config.MainConfiguration;
 import lombok.extern.log4j.Log4j2;
+import lombok.val;
 import org.apache.commons.io.input.BoundedInputStream;
 
 import java.io.EOFException;
@@ -34,53 +35,51 @@ import java.time.Duration;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
+
+import static java.lang.Thread.ofVirtual;
+import static java.util.concurrent.Executors.newScheduledThreadPool;
 
 @Log4j2
 public class DownloadManager {
     private final Map<String, ClipDownloaderHolder> clipIdToDl = new HashMap<>();
-    private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
     private final MainConfiguration mainConfiguration;
     private final CacheDirectory cacheDirectory;
 
     public DownloadManager(MainConfiguration mainConfiguration, CacheDirectory cacheDirectory) {
         this.mainConfiguration = mainConfiguration;
         this.cacheDirectory = cacheDirectory;
-
-        scheduler.scheduleAtFixedRate(this::closeIdlingDownloaders, 10, 10, TimeUnit.SECONDS);
+        newScheduledThreadPool(0, ofVirtual().factory())
+            .scheduleAtFixedRate(this::closeIdlingDownloaders, 10, 10, TimeUnit.SECONDS);
     }
 
     private synchronized void closeIdlingDownloaders() {
-        var tooOld = System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(30);
+        val tooOld = System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(30);
         log.debug("Closing downloaders idling for 30s");
 
         clipIdToDl.entrySet().stream()
-                .filter(e -> e.getValue().getNumberOfOpenStreams() == 0)
-                .filter(e -> e.getValue().getLastReadTs() < tooOld)
-                .peek(e -> log.debug("Expiring downloader for {}", e.getKey()))
-                .peek(e -> e.getValue().close())
-                .map(Map.Entry::getKey)
-                .collect(Collectors.toList())
-                .forEach(clipIdToDl::remove);
+            .filter(e -> e.getValue().getNumberOfOpenStreams() == 0)
+            .filter(e -> e.getValue().getLastReadTs() < tooOld)
+            .peek(e -> log.debug("Expiring downloader for {}", e.getKey()))
+            .peek(e -> e.getValue().close())
+            .map(Map.Entry::getKey)
+            .toList()
+            .forEach(clipIdToDl::remove);
     }
 
     private synchronized void tryToRemoveOneIdlingDownloader() {
         log.debug("Try to expire oldest idling downloader");
         clipIdToDl.entrySet().stream()
-                .filter(e -> e.getValue().getNumberOfOpenStreams() == 0)
-                .sorted(Comparator.comparingLong(entry -> entry.getValue().getLastReadTs()))
-                .findFirst()
-                .ifPresent(oldestEntry -> {
-                    log.debug("Downloader for {} is idling since {}. Closing it.", oldestEntry.getKey(), oldestEntry.getValue().getLastReadTs());
-                    try {
-                        oldestEntry.getValue().close();
-                    } finally {
-                        clipIdToDl.remove(oldestEntry.getKey());
-                    }
-                });
+            .filter(e -> e.getValue().getNumberOfOpenStreams() == 0)
+            .min(Comparator.comparingLong(entry -> entry.getValue().getLastReadTs()))
+            .ifPresent(oldestEntry -> {
+                log.debug("Downloader for {} is idling since {}. Closing it.", oldestEntry.getKey(), oldestEntry.getValue().getLastReadTs());
+                try {
+                    oldestEntry.getValue().close();
+                } finally {
+                    clipIdToDl.remove(oldestEntry.getKey());
+                }
+            });
 
     }
 
@@ -100,9 +99,9 @@ public class DownloadManager {
         if (null == clipDownloaderHolder) {
             throw new TooManyConcurrentConnectionsException("More then " + mainConfiguration.cacheMaxParallelDownloads() + " connections active. Can't proxy more.");
         } else {
-            var openedStream = clipDownloaderHolder.openInputStreamStartingFrom(byteRange.getFirstPosition(), Duration.ofSeconds(20));
+            val openedStream = clipDownloaderHolder.openInputStreamStartingFrom(byteRange.getFirstPosition(), Duration.ofSeconds(20));
             if (byteRange.getLastPosition().isPresent()) {
-                var length = byteRange.getLastPosition().get() - byteRange.getFirstPosition();
+                val length = byteRange.getLastPosition().get() - byteRange.getFirstPosition();
                 openedStream.setStream(new BoundedInputStream(openedStream.getStream(), length));
             }
             return openedStream;
@@ -114,10 +113,10 @@ public class DownloadManager {
         for (var maybeBytesAreFree = true; maybeBytesAreFree; maybeBytesAreFree = this.cacheDirectory.tryCleanupCacheDir(this.clipIdToDl.keySet())) {
             try {
                 return new ClipDownloader(
-                        this.mainConfiguration,
-                        this.cacheDirectory,
-                        clip.getId(),
-                        clip.getBestUrl());
+                    this.mainConfiguration,
+                    this.cacheDirectory,
+                    clip.getId(),
+                    clip.getBestUrl());
             } catch (final CacheSizeExhaustedException e) {
                 log.debug("Cache size exhausted. Trying to clean up");
                 exh = e;

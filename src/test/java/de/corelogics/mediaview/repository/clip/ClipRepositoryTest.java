@@ -56,11 +56,6 @@ class ClipRepositoryTest {
         sut.initialize();
     }
 
-    @AfterEach
-    void closeDbase() {
-        sut.shutdown();
-    }
-
     @Nested
     @DisplayName("given everything works fine")
     class GivenOnHapyPathTests {

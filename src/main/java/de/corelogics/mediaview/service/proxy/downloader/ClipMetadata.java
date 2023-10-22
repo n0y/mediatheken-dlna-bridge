@@ -30,6 +30,7 @@ import com.fasterxml.jackson.core.JsonToken;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
+import lombok.val;
 
 import java.io.IOException;
 import java.util.BitSet;
@@ -64,7 +65,7 @@ class ClipMetadata {
     }
 
     static ClipMetadata readFrom(JsonParser parser) throws IOException {
-        var m = new ClipMetadata();
+        val m = new ClipMetadata();
         while (parser.nextToken() != JsonToken.END_OBJECT) {
             String name = parser.getCurrentName();
             if (null != name) {
@@ -94,7 +95,7 @@ class ClipMetadata {
         var size = 0;
         byte[] bytes = null;
         while (parser.nextToken() != JsonToken.END_OBJECT) {
-            var name = parser.currentName();
+            val name = parser.currentName();
             if ("size".equals(name)) {
                 size = parser.nextIntValue(0);
             } else if ("bits".equals(name)) {
@@ -105,8 +106,8 @@ class ClipMetadata {
         if (size == 0 || null == bytes) {
             throw new IOException("Missing some fields in bitset");
         }
-        var b = new BitSet(size);
-        var n = BitSet.valueOf(bytes);
+        val b = new BitSet(size);
+        val n = BitSet.valueOf(bytes);
         b.or(n);
         return b;
     }

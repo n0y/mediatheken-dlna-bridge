@@ -28,11 +28,12 @@ import de.corelogics.mediaview.repository.clip.ClipRepository;
 import de.corelogics.mediaview.service.dlna.DlnaRequest;
 import de.corelogics.mediaview.util.IdUtils;
 import lombok.AllArgsConstructor;
+import lombok.val;
 import org.jupnp.support.model.DIDLContent;
 import org.jupnp.support.model.container.StorageFolder;
 
 @AllArgsConstructor
-public class ShowContent extends BaseDnlaRequestHandler {
+public class ShowContent extends BaseDlnaRequestHandler {
     private static final String URN_PREFIX_SHOW = "urn:corelogics.de:mediaview:show:";
 
     private final ClipContent clipContent;
@@ -46,29 +47,29 @@ public class ShowContent extends BaseDnlaRequestHandler {
 
     public StorageFolder createAsLink(DlnaRequest request, String channelId, String containedIn) {
         return this.createAsLink(request, channelId, containedIn,
-                clipRepository.findAllClips(channelId, containedIn).size());
+            clipRepository.findAllClips(channelId, containedIn).size());
     }
 
     public StorageFolder createAsLink(DlnaRequest request, String channelId, String containedIn, int numberOfElements) {
         return new StorageFolder(
-                idShow(channelId, containedIn),
-                request.objectId(),
-                containedIn,
-                "",
-                numberOfElements,
-                null);
+            idShow(channelId, containedIn),
+            request.objectId(),
+            containedIn,
+            "",
+            numberOfElements,
+            null);
     }
 
     @Override
-    protected DIDLContent respondWithException(DlnaRequest request) throws Exception {
-        var didl = new DIDLContent();
+    protected DIDLContent respondWithException(DlnaRequest request) {
+        val didl = new DIDLContent();
         if (request.objectId().startsWith(URN_PREFIX_SHOW)) {
-            var split = request.objectId().split(":");
-            var channelId = IdUtils.decodeId(split[split.length - 2]);
-            var containedIn = IdUtils.decodeId(split[split.length - 1]);
+            val split = request.objectId().split(":");
+            val channelId = IdUtils.decodeId(split[split.length - 2]);
+            val containedIn = IdUtils.decodeId(split[split.length - 1]);
             clipRepository.findAllClips(channelId, containedIn).stream()
-                    .map(e -> clipContent.createLinkWithDatePrefix(request, e))
-                    .forEach(didl::addItem);
+                .map(e -> clipContent.createLinkWithDatePrefix(request, e))
+                .forEach(didl::addItem);
         }
         return didl;
     }

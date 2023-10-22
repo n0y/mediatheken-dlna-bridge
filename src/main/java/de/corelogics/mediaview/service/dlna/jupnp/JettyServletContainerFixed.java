@@ -2,6 +2,7 @@ package de.corelogics.mediaview.service.dlna.jupnp;
 
 import lombok.AllArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import lombok.val;
 import org.eclipse.jetty.ee8.servlet.ServletContextHandler;
 import org.eclipse.jetty.ee8.servlet.ServletHolder;
 import org.eclipse.jetty.server.Server;
@@ -32,22 +33,24 @@ public class JettyServletContainerFixed implements ServletContainerAdapter {
 
     @Override
     public synchronized void registerServlet(String contextPath, Servlet servlet) {
-        var context = (ContextHandlerCollection) server.getHandler();
-        if (null == context) {
+        final ContextHandlerCollection context;
+        if (server.getHandler() instanceof ContextHandlerCollection coll) {
+            context = coll;
+        } else {
             context = new ContextHandlerCollection();
             server.setHandler(context);
         }
 
         if (context.getDescendants(ContextHandler.class).stream()
-                .map(ContextHandler::getDisplayName)
-                .noneMatch(CONTEXT_DISPLAY_NAME::equals)) {
+            .map(ContextHandler::getDisplayName)
+            .noneMatch(CONTEXT_DISPLAY_NAME::equals)) {
             log.debug("Registering DLNA servlet below {}", contextPath);
-            var servletHandler = new ServletContextHandler(ServletContextHandler.NO_SESSIONS);
+            val servletHandler = new ServletContextHandler(ServletContextHandler.NO_SESSIONS);
             servletHandler.setDisplayName(CONTEXT_DISPLAY_NAME);
             if (contextPath != null && !contextPath.isEmpty()) {
                 servletHandler.setContextPath(contextPath);
             }
-            final ServletHolder holder = new ServletHolder("jUpnpServler", servlet);
+            final ServletHolder holder = new ServletHolder("jUpnpServlet", servlet);
             servletHandler.addServlet(holder, "/*");
             context.addHandler(servletHandler);
         }

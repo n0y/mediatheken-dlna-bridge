@@ -25,8 +25,8 @@
 package de.corelogics.mediaview.config;
 
 public record FavouriteShow(
-        String channel,
-        String title
+    String channel,
+    String title
 ) implements Favourite {
     @Override
     public <T> T accept(FavouriteVisitor<T> visitor) {

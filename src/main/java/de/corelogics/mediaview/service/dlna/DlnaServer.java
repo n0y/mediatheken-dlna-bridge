@@ -29,6 +29,7 @@ import de.corelogics.mediaview.config.MainConfiguration;
 import de.corelogics.mediaview.service.dlna.jupnp.DlnaUpnpServiceConfiguration;
 import de.corelogics.mediaview.service.dlna.jupnp.UpnpServiceImplFixed;
 import lombok.extern.log4j.Log4j2;
+import lombok.val;
 import org.eclipse.jetty.server.Server;
 import org.jupnp.binding.annotations.AnnotationLocalServiceBinder;
 import org.jupnp.model.DefaultServiceManager;
@@ -49,12 +50,12 @@ public class DlnaServer {
     public DlnaServer(MainConfiguration mainConfiguration, Server jettyServer, Set<DlnaRequestHandler> handlers) throws ValidationException {
         log.debug("Starting DLNA server");
 
-        var type = new UDADeviceType("MediaServer", 1);
-        var details = new DeviceDetails(
-                mainConfiguration.displayName(),
-                new ManufacturerDetails("Mediatheken DLNA Gateway"),
-                new ModelDetails("Mediatheken", "v1", "v.1.0.0", "https://github.com/n0y/mediatheken-dlna-bridge"));
-        var service = (LocalService<ContentDirectory>) new AnnotationLocalServiceBinder().read(ContentDirectory.class);
+        val type = new UDADeviceType("MediaServer", 1);
+        val details = new DeviceDetails(
+            mainConfiguration.displayName(),
+            new ManufacturerDetails("Mediatheken DLNA Gateway"),
+            new ModelDetails("Mediatheken", "v1", "v.1.0.0", "https://github.com/n0y/mediatheken-dlna-bridge"));
+        val service = (LocalService<ContentDirectory>) new AnnotationLocalServiceBinder().read(ContentDirectory.class);
         service.setManager(new DefaultServiceManager<>(service, ContentDirectory.class) {
             @Override
             protected ContentDirectory createServiceInstance() {
@@ -62,11 +63,11 @@ public class DlnaServer {
             }
         });
 
-        final var localDevice = new LocalDevice(
-                new DeviceIdentity(new UDN(UUID.nameUUIDFromBytes(mainConfiguration.displayName().getBytes(StandardCharsets.UTF_8)))),
-                type,
-                details,
-                service);
+        final val localDevice = new LocalDevice(
+            new DeviceIdentity(new UDN(UUID.nameUUIDFromBytes(mainConfiguration.displayName().getBytes(StandardCharsets.UTF_8)))),
+            type,
+            details,
+            service);
 
         this.upnpService = new UpnpServiceImplFixed(new DlnaUpnpServiceConfiguration(jettyServer, mainConfiguration.publicHttpPort()));
         this.upnpService.activate(Map.of("initialSearchEnabled", false));

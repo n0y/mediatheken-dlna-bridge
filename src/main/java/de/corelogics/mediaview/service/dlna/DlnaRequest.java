@@ -32,11 +32,11 @@ import java.util.List;
 import java.util.Optional;
 
 public record DlnaRequest(
-        String objectId,
-        BrowseFlag browseFlag,
-        String filer,
-        long firstResult,
-        long maxResults,
-        List<SortCriterion> orderBy,
-        Optional<InetAddress> localAddress) {
+    String objectId,
+    BrowseFlag browseFlag,
+    String filer,
+    long firstResult,
+    long maxResults,
+    List<SortCriterion> orderBy,
+    Optional<InetAddress> localAddress) {
 }

@@ -30,30 +30,30 @@ public class NetworkingModule {
     }
 
     private Server createJettyServer() {
-        var threadPool = new QueuedThreadPool();
+        val threadPool = new QueuedThreadPool();
         threadPool.setVirtualThreadsExecutor(Executors.newVirtualThreadPerTaskExecutor());
-        final var server = new Server(threadPool);
+        val server = new Server(threadPool);
         server.setStopAtShutdown(true);
 
         val connectors = StreamSupport
-                .stream(
-                        ((Iterable<NetworkInterface>) networkAddressFactory::getNetworkInterfaces).spliterator(),
-                        false)
-                .flatMap(NetworkInterface::inetAddresses)
-                .map(nwi -> createConnector(nwi.getHostAddress(), server))
-                .toList();
+            .stream(
+                ((Iterable<NetworkInterface>) networkAddressFactory::getNetworkInterfaces).spliterator(),
+                false)
+            .flatMap(NetworkInterface::inetAddresses)
+            .map(nwi -> createConnector(nwi.getHostAddress(), server))
+            .toList();
         connectors.forEach(server::addConnector);
         server.addConnector(createConnector("127.0.0.1", server));
         server.addConnector(createConnector("::1", server));
         log.info("Started HTTP server on port {} for this IPs: 127.0.0.1, ::1, {}",
-                mainConfiguration::publicHttpPort,
-                () -> connectors.stream().map(AbstractNetworkConnector::getHost).collect(Collectors.joining(", ")));
+            mainConfiguration::publicHttpPort,
+            () -> connectors.stream().map(AbstractNetworkConnector::getHost).collect(Collectors.joining(", ")));
         return server;
     }
 
     @NotNull
     private ServerConnector createConnector(String host, Server server) {
-        var sc = new ServerConnector(server);
+        val sc = new ServerConnector(server);
         sc.setHost(host);
         sc.setPort(mainConfiguration.publicHttpPort());
         return sc;

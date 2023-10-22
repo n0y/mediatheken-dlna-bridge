@@ -28,11 +28,13 @@ import de.corelogics.mediaview.config.MainConfiguration;
 import de.corelogics.mediaview.util.HttpUtils;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.Getter;
+import lombok.val;
 import okhttp3.ConnectionPool;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.Closeable;
 import java.io.EOFException;
@@ -45,6 +47,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import static java.util.Optional.ofNullable;
 
 class ClipDownloader implements Closeable {
     private static final double REQUIRED_MB_PER_SECONDS = 1.3D;
@@ -64,27 +68,27 @@ class ClipDownloader implements Closeable {
     private final String clipId;
     private final int numParallelConnections;
     private final OkHttpClient httpClient;
-    private ClipMetadata metadata;
+    private final ClipMetadata metadata;
     private BitSet chunksAvailableForDownload;
     private int lastReadInChunk = 0;
     private boolean stopped = false;
 
     public ClipDownloader(
-            MainConfiguration mainConfiguration,
-            CacheDirectory cacheDir,
-            String clipId,
-            String url) throws UpstreamNotFoundException, UpstreamReadFailedException, CacheSizeExhaustedException {
+        MainConfiguration mainConfiguration,
+        CacheDirectory cacheDir,
+        String clipId,
+        String url) throws UpstreamNotFoundException, UpstreamReadFailedException, CacheSizeExhaustedException {
         this.mainConfiguration = mainConfiguration;
         this.cacheDir = cacheDir;
         this.url = url;
         this.clipId = clipId;
         this.numParallelConnections = mainConfiguration.cacheParallelDownloadsPerVideo();
         this.httpClient = new OkHttpClient.Builder()
-                .connectionPool(new ConnectionPool(1, 10, TimeUnit.SECONDS))
-                .callTimeout(10, TimeUnit.SECONDS)
-                .readTimeout(10, TimeUnit.SECONDS)
-                .connectTimeout(5, TimeUnit.SECONDS)
-                .build();
+            .connectionPool(new ConnectionPool(1, 10, TimeUnit.SECONDS))
+            .callTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(10, TimeUnit.SECONDS)
+            .connectTimeout(5, TimeUnit.SECONDS)
+            .build();
         logger.debug("Starting download for {}", this.url);
         this.metadata = loadOrFetchMetaData();
         logger.debug("Initialized metadata to {}", this.metadata);
@@ -116,7 +120,7 @@ class ClipDownloader implements Closeable {
         if (!stopped) {
             var chunkNum = this.chunksAvailableForDownload.nextSetBit(lastReadInChunk);
             if (this.chunksAvailableForDownload.get(this.metadata.getNumberOfChunks() - 1)) {
-                // first DL latest chunk, for meta data queried by various players
+                // first DL latest chunk, for metadata queried by various players
                 chunkNum = this.metadata.getNumberOfChunks() - 1;
             }
             if (chunkNum < 0 || chunkNum >= this.metadata.getNumberOfChunks()) {
@@ -124,7 +128,7 @@ class ClipDownloader implements Closeable {
             }
             if (chunkNum >= 0 && chunkNum < this.metadata.getNumberOfChunks()) {
                 this.chunksAvailableForDownload.clear(chunkNum);
-                var chunk = new ClipChunk(chunkNum, chunkNum * CHUNK_SIZE_BYTES, (1 + chunkNum) * CHUNK_SIZE_BYTES - 1);
+                val chunk = new ClipChunk(chunkNum, chunkNum * CHUNK_SIZE_BYTES, (1 + chunkNum) * CHUNK_SIZE_BYTES - 1);
                 logger.debug("handing out {} to {}", chunk, connectionId);
                 return Optional.of(chunk);
             }
@@ -135,25 +139,25 @@ class ClipDownloader implements Closeable {
 
     public synchronized void onConnectionTerminated(String connectionId) {
         logger.debug("connection {} terminated", connectionId);
-        this.connections.remove(connectionId);
+        ofNullable(this.connections.remove(connectionId)).ifPresent(ClipDownloadConnection::close);
     }
 
     private synchronized void ensureDownloadersPresent() {
         while (this.connections.size() < numParallelConnections && this.chunksAvailableForDownload.nextSetBit(0) < this.metadata.getNumberOfChunks()) {
-            var connectionId = "dl-thrd-" + currentConnectionId.incrementAndGet();
+            val connectionId = "dl-thrd-" + currentConnectionId.incrementAndGet();
             logger.debug("Starting new connection {}", connectionId);
             this.connections.put(connectionId, new ClipDownloadConnection(
-                    this, mainConfiguration,
-                    connectionId,
-                    CHUNK_SIZE_BYTES,
-                    REQUIRED_MB_PER_SECONDS / numParallelConnections));
+                this, mainConfiguration,
+                connectionId,
+                CHUNK_SIZE_BYTES,
+                REQUIRED_MB_PER_SECONDS / numParallelConnections));
             this.connections.get(connectionId).start();
         }
     }
 
     private void initializeBitsets() {
         if (null == this.metadata.getBitSet()) {
-            var bitsetSize = 1 + (int) (this.metadata.getSize() / CHUNK_SIZE_BYTES);
+            val bitsetSize = 1 + (int) (this.metadata.getSize() / CHUNK_SIZE_BYTES);
             logger.debug("creating new bitset of size {}", bitsetSize);
             this.metadata.setNumberOfChunks(bitsetSize);
             this.metadata.setBitSet(new BitSet(this.metadata.getNumberOfChunks()));
@@ -185,7 +189,7 @@ class ClipDownloader implements Closeable {
 
     private ClipMetadata loadOrFetchMetaData() throws UpstreamNotFoundException, UpstreamReadFailedException {
         try {
-            var fromFile = this.cacheDir.loadMetadata(clipId);
+            val fromFile = this.cacheDir.loadMetadata(clipId);
             if (fromFile.isPresent()) {
                 return fromFile.get();
             }
@@ -198,16 +202,16 @@ class ClipDownloader implements Closeable {
     private ClipMetadata fetchMetadataFromUrl() throws UpstreamNotFoundException, UpstreamReadFailedException {
         logger.debug("Loading metadata via HEAD request from {}", this.url);
         try {
-            var request = HttpUtils.enhanceRequest(
+            val request = HttpUtils.enhanceRequest(
                     this.mainConfiguration,
                     new Request.Builder()
-                            .url(this.url)
-                            .head())
-                    .build();
-            try (var response = this.httpClient.newCall(request).execute()) {
+                        .url(this.url)
+                        .head())
+                .build();
+            try (val response = this.httpClient.newCall(request).execute()) {
                 if (response.isSuccessful()) {
-                    logger.debug("successfull HEAD request with headers: {} for HEAD {}", response.headers(), url);
-                    var meta = new ClipMetadata();
+                    logger.debug("successful HEAD request with headers: {} for HEAD {}", response.headers(), url);
+                    val meta = new ClipMetadata();
                     meta.setContentType(response.header("Content-Type"));
                     meta.setSize(Long.parseLong(response.header("Content-Length")));
                     return meta;
@@ -238,9 +242,9 @@ class ClipDownloader implements Closeable {
 
             @Override
             public int read() throws IOException {
-                var timeoutAt = System.currentTimeMillis() + readTimeout.toMillis();
+                val timeoutAt = System.currentTimeMillis() + readTimeout.toMillis();
                 while (System.currentTimeMillis() < timeoutAt) {
-                    var chunkNo = (int) (currentPosition / CHUNK_SIZE_BYTES);
+                    val chunkNo = (int) (currentPosition / CHUNK_SIZE_BYTES);
                     updateLastReadChunk(chunkNo);
                     if (metadata.getBitSet().get(chunkNo)) {
                         return cacheDir.readContentByte(clipId, currentPosition++);
@@ -256,20 +260,20 @@ class ClipDownloader implements Closeable {
             }
 
             @Override
-            public int read(byte[] b, int off, int len) throws IOException {
+            public int read(@NotNull byte[] b, int off, int len) throws IOException {
                 // we only read to the chunk limit...
-                var timeoutAt = System.currentTimeMillis() + readTimeout.toMillis();
+                val timeoutAt = System.currentTimeMillis() + readTimeout.toMillis();
                 while (System.currentTimeMillis() < timeoutAt) {
-                    var chunkNo = (int) (currentPosition / CHUNK_SIZE_BYTES);
+                    val chunkNo = (int) (currentPosition / CHUNK_SIZE_BYTES);
                     if (chunkNo >= metadata.getNumberOfChunks()) {
                         logger.debug("Read position {}} is beyond size of {}}", currentPosition, metadata.getSize());
                         return -1;
                     }
                     updateLastReadChunk(chunkNo);
                     if (metadata.getBitSet().get(chunkNo)) {
-                        var availableBytesInChunk = (chunkNo + 1) * CHUNK_SIZE_BYTES - currentPosition;
-                        var toRead = (int) Math.min(len, availableBytesInChunk);
-                        var readBytesFromFile = cacheDir.readContentBytes(clipId, currentPosition, b, off, toRead);
+                        val availableBytesInChunk = (chunkNo + 1) * CHUNK_SIZE_BYTES - currentPosition;
+                        val toRead = (int) Math.min(len, availableBytesInChunk);
+                        val readBytesFromFile = cacheDir.readContentBytes(clipId, currentPosition, b, off, toRead);
                         currentPosition += readBytesFromFile;
                         return readBytesFromFile;
                     } else {

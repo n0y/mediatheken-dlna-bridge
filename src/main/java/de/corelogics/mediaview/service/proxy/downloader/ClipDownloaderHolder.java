@@ -26,6 +26,8 @@ package de.corelogics.mediaview.service.proxy.downloader;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.val;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.EOFException;
 import java.io.FilterInputStream;
@@ -47,36 +49,36 @@ class ClipDownloaderHolder {
 
     public OpenedStream openInputStreamStartingFrom(long position, Duration readTimeout) throws EOFException {
         numberOfOpenStreams.incrementAndGet();
-        var metadata = clipDownloader.getMetaData();
+        val metadata = clipDownloader.getMetaData();
         return new OpenedStream(
-                metadata.getContentType(),
-                metadata.getSize(),
+            metadata.getContentType(),
+            metadata.getSize(),
 
-                new FilterInputStream(clipDownloader.openInputStreamStartingFrom(position, readTimeout)) {
-                    @Override
-                    public int read() throws IOException {
-                        try {
-                            return super.read();
-                        } finally {
-                            lastReadTs = System.currentTimeMillis();
-                        }
+            new FilterInputStream(clipDownloader.openInputStreamStartingFrom(position, readTimeout)) {
+                @Override
+                public int read() throws IOException {
+                    try {
+                        return super.read();
+                    } finally {
+                        lastReadTs = System.currentTimeMillis();
                     }
+                }
 
-                    @Override
-                    public int read(byte[] b, int off, int len) throws IOException {
-                        try {
-                            return super.read(b, off, len);
-                        } finally {
-                            lastReadTs = System.currentTimeMillis();
-                        }
+                @Override
+                public int read(@NotNull byte[] b, int off, int len) throws IOException {
+                    try {
+                        return super.read(b, off, len);
+                    } finally {
+                        lastReadTs = System.currentTimeMillis();
                     }
+                }
 
-                    @Override
-                    public void close() throws IOException {
-                        numberOfOpenStreams.updateAndGet(i -> Math.max(i - 1, 0));
-                        super.close();
-                    }
-                });
+                @Override
+                public void close() throws IOException {
+                    numberOfOpenStreams.updateAndGet(i -> Math.max(i - 1, 0));
+                    super.close();
+                }
+            });
     }
 
     public void close() {

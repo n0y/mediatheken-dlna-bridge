@@ -28,8 +28,4 @@ public class UpstreamReadFailedException extends Exception {
     public UpstreamReadFailedException(String message) {
         super(message);
     }
-
-    public UpstreamReadFailedException(String message, Throwable cause) {
-        super(message, cause);
-    }
 }

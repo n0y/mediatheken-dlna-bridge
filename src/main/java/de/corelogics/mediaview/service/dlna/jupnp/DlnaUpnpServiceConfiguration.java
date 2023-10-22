@@ -48,9 +48,9 @@ public class DlnaUpnpServiceConfiguration extends DefaultUpnpServiceConfiguratio
     @Override
     public StreamServer<ServletStreamServerConfigurationImpl> createStreamServer(NetworkAddressFactory networkAddressFactory) {
         return new ServletStreamServerImpl(
-                new ServletStreamServerConfigurationImpl(
-                        servletContainer,
-                        networkAddressFactory.getStreamListenPort()));
+            new ServletStreamServerConfigurationImpl(
+                servletContainer,
+                networkAddressFactory.getStreamListenPort()));
     }
 
 

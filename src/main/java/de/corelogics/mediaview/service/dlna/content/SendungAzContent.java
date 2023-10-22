@@ -28,6 +28,7 @@ import de.corelogics.mediaview.repository.clip.ClipRepository;
 import de.corelogics.mediaview.service.dlna.DlnaRequest;
 import de.corelogics.mediaview.util.IdUtils;
 import lombok.AllArgsConstructor;
+import lombok.val;
 import org.jupnp.support.model.DIDLContent;
 import org.jupnp.support.model.container.StorageFolder;
 
@@ -38,11 +39,11 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @AllArgsConstructor
-public class SendungAzContent extends BaseDnlaRequestHandler {
+public class SendungAzContent extends BaseDlnaRequestHandler {
     private static final Comparator<String> ORD_ALPHA = Comparator.comparing(
-            s -> s.toLowerCase(Locale.GERMANY),
-            Collator.getInstance(Locale.GERMANY));
-    private static final Comparator<Map.Entry<String, ?>> ORD_ALPHA_STRINGENTRY = Comparator.comparing(Map.Entry::getKey, ORD_ALPHA);
+        s -> s.toLowerCase(Locale.GERMANY),
+        Collator.getInstance(Locale.GERMANY));
+    private static final Comparator<Map.Entry<String, Integer>> ORD_ALPHA_STRINGENTRY = Map.Entry.comparingByKey(ORD_ALPHA);
     private static final Comparator<Map.Entry<Character, ?>> ORD_ALPHA_CHARENTRY = Comparator.comparing(e -> e.getKey().toString(), ORD_ALPHA);
 
     private static final String URN_PREFIX_SHOW = "urn:corelogics.de:mediaview:show:";
@@ -59,71 +60,71 @@ public class SendungAzContent extends BaseDnlaRequestHandler {
 
     public StorageFolder createLink(DlnaRequest request) {
         return new StorageFolder(
-                URN_PREFIX_SENDUNG_AZ,
-                request.objectId(), "Sendungen A-Z",
-                "",
-                clipRepository.findAllChannels().size(),
-                null);
+            URN_PREFIX_SENDUNG_AZ,
+            request.objectId(), "Sendungen A-Z",
+            "",
+            clipRepository.findAllChannels().size(),
+            null);
     }
 
     @Override
     public boolean canHandle(DlnaRequest request) {
         return URN_PREFIX_SENDUNG_AZ.equals(request.objectId()) ||
-                request.objectId().startsWith(URN_PREFIX_CHANNEL) ||
-                request.objectId().startsWith(URN_PREFIX_SHOWGROUP);
+            request.objectId().startsWith(URN_PREFIX_CHANNEL) ||
+            request.objectId().startsWith(URN_PREFIX_SHOWGROUP);
 
     }
 
     @Override
-    protected DIDLContent respondWithException(DlnaRequest request) throws Exception {
-        var didl = new DIDLContent();
+    protected DIDLContent respondWithException(DlnaRequest request) {
+        val didl = new DIDLContent();
         if (request.objectId().startsWith(URN_PREFIX_SENDUNG_AZ)) {
             clipRepository.findAllChannels().stream()
-                    .map(channelName ->
-                            new StorageFolder(
-                                    idChannel(channelName),
-                                    request.objectId(),
-                                    channelName,
-                                    "",
-                                    100,
-                                    null))
-                    .forEach(didl::addContainer);
+                .map(channelName ->
+                    new StorageFolder(
+                        idChannel(channelName),
+                        request.objectId(),
+                        channelName,
+                        "",
+                        100,
+                        null))
+                .forEach(didl::addContainer);
         } else if (request.objectId().startsWith(URN_PREFIX_CHANNEL)) {
-            var channelId = IdUtils.decodeId(request.objectId().substring(URN_PREFIX_CHANNEL.length()));
-            var containedIns = clipRepository.findAllContainedIns(channelId);
+            val channelId = IdUtils.decodeId(request.objectId().substring(URN_PREFIX_CHANNEL.length()));
+            val containedIns = clipRepository.findAllContainedIns(channelId);
             if (containedIns.size() < 200) {
                 containedIns.entrySet().stream()
-                        .sorted(ORD_ALPHA_STRINGENTRY)
-                        .map(containedIn -> showContent.createAsLink(request, channelId, containedIn.getKey(),
-                                containedIn.getValue()))
-                        .forEach(didl::addContainer);
+                    .sorted(ORD_ALPHA_STRINGENTRY)
+                    .map(containedIn -> showContent.createAsLink(request, channelId, containedIn.getKey(),
+                        containedIn.getValue()))
+                    .forEach(didl::addContainer);
             } else {
                 containedIns.entrySet().stream()
-                        .map(e -> {
-                            var char0 = Character.toUpperCase(e.getKey().charAt(0));
-                            return Map.entry(Character.isAlphabetic(char0) ? char0 : '#', e.getValue());
-                        })
-                        .collect(Collectors.groupingBy(Map.Entry::getKey, Collectors.summingInt(Map.Entry::getValue)))
-                        .entrySet().stream()
-                        .sorted(ORD_ALPHA_CHARENTRY)
-                        .map(letterEntry -> new StorageFolder(
-                                idShowGroup(channelId, letterEntry),
-                                request.objectId(),
-                                letterEntry.getKey().toString(),
-                                "",
-                                letterEntry.getValue(),
-                                null))
-                        .forEach(didl::addContainer);
+                    .map(e -> {
+                        val char0 = Character.toUpperCase(e.getKey().charAt(0));
+                        return Map.entry(Character.isAlphabetic(char0) ? char0 : '#', e.getValue());
+                    })
+                    .collect(Collectors.groupingBy(Map.Entry::getKey, Collectors.summingInt(Map.Entry::getValue)))
+                    .entrySet().stream()
+                    .sorted(ORD_ALPHA_CHARENTRY)
+                    .map(letterEntry -> new StorageFolder(
+                        idShowGroup(channelId, letterEntry),
+                        request.objectId(),
+                        letterEntry.getKey().toString(),
+                        "",
+                        letterEntry.getValue(),
+                        null))
+                    .forEach(didl::addContainer);
             }
         } else if (request.objectId().startsWith(URN_PREFIX_SHOWGROUP)) {
-            var split = request.objectId().split(":");
-            var channelId = IdUtils.decodeId(split[split.length - 2]);
-            var startingWith = IdUtils.decodeId(split[split.length - 1]);
+            val split = request.objectId().split(":");
+            val channelId = IdUtils.decodeId(split[split.length - 2]);
+            val startingWith = IdUtils.decodeId(split[split.length - 1]);
             clipRepository.findAllContainedIns(channelId, startingWith).entrySet().stream()
-                    .sorted(ORD_ALPHA_STRINGENTRY)
-                    .map(containedIn -> showContent.createAsLink(
-                            request, channelId, containedIn.getKey(), containedIn.getValue()))
-                    .forEach(didl::addContainer);
+                .sorted(ORD_ALPHA_STRINGENTRY)
+                .map(containedIn -> showContent.createAsLink(
+                    request, channelId, containedIn.getKey(), containedIn.getValue()))
+                .forEach(didl::addContainer);
         }
 
         return didl;

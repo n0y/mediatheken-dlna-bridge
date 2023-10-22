@@ -24,7 +24,8 @@
 
 package de.corelogics.mediaview.config;
 
-import java.util.Comparator;
+import lombok.val;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -89,9 +90,9 @@ public class MainConfiguration {
     }
 
     public String getBuildVersion() {
-        var version = configAccessor.get("BUILD_VERSION", "E-SNAPSHOT");
+        val version = configAccessor.get("BUILD_VERSION", "E-SNAPSHOT");
         if (version.equalsIgnoreCase("${project.version}")) {
-            // no filtering is applied when using RUN in a IDE
+            // no filtering is applied when using RUN in an IDE
             return "E-SNAPSHOT";
         }
         return version;
@@ -99,19 +100,19 @@ public class MainConfiguration {
 
     public List<Favourite> getFavourites() {
         return configAccessor
-                .getStartingWith("FAVOURITE_")
-                .entrySet().stream()
-                .sorted(Comparator.comparing(Map.Entry::getKey))
-                .map(Map.Entry::getValue)
-                .map(this::toFavourite)
-                .filter(Optional::isPresent)
-                .map(Optional::get)
-                .collect(Collectors.toList());
+            .getStartingWith("FAVOURITE_")
+            .entrySet().stream()
+            .sorted(Map.Entry.comparingByKey())
+            .map(Map.Entry::getValue)
+            .map(this::toFavourite)
+            .filter(Optional::isPresent)
+            .map(Optional::get)
+            .collect(Collectors.toList());
     }
 
     private Optional<Favourite> toFavourite(String favConfig) {
-        var showPattern = Pattern.compile("^show:([^:]+):(.+)$");
-        var showMatcher = showPattern.matcher(favConfig);
+        val showPattern = Pattern.compile("^show:([^:]+):(.+)$");
+        val showMatcher = showPattern.matcher(favConfig);
         if (showMatcher.matches()) {
             return Optional.of(new FavouriteShow(showMatcher.group(1), showMatcher.group(2)));
         }

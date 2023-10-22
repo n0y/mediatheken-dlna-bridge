@@ -48,10 +48,10 @@ public class ForwardingProxyModule {
 
     private ClipContentUrlGenerator buildForwardingProxyServer() {
         return new ForwardingProxyServer(
-                this.mainConfiguration,
-                this.jettyServer,
-                this.clipRepository,
-                buildDownloadManager());
+            this.mainConfiguration,
+            this.jettyServer,
+            this.clipRepository,
+            buildDownloadManager());
     }
 
     private DownloadManager buildDownloadManager() {

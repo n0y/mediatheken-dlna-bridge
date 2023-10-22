@@ -1,0 +1,11 @@
+[*]
+charset = utf-8
+end_of_line = crlf
+indent_size = 4
+indent_style = space
+insert_final_newline = true
+max_line_length = 160
+tab_width = 4
+
+[{*.json,*.yaml,*.yml}]
+indent_size = 2

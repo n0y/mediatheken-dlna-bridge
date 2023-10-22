@@ -24,23 +24,22 @@
 
 package de.corelogics.mediaview.config;
 
+import lombok.Getter;
+
 import java.io.File;
 import java.io.IOException;
 
+@Getter
 public class ConfigurationModule {
     private final MainConfiguration mainConfiguration;
 
     public ConfigurationModule() throws IOException {
         this.mainConfiguration = new MainConfiguration(
-                new TypedConfigurationAccessor(
-                        new LayeredPropertySource(
-                                new PropertiesConfigurationSource(System.getProperties()),
-                                new MapConfigurationSource(System.getenv()),
-                                new PropertiesConfigurationSource(new File("./config/application.properties")),
-                                new PropertiesConfigurationSource(ConfigurationModule.class.getResource("/application.properties")))));
-    }
-
-    public MainConfiguration getMainConfiguration() {
-        return mainConfiguration;
+            new TypedConfigurationAccessor(
+                new LayeredPropertySource(
+                    new PropertiesConfigurationSource(System.getProperties()),
+                    new MapConfigurationSource(System.getenv()),
+                    new PropertiesConfigurationSource(new File("./config/application.properties")),
+                    new PropertiesConfigurationSource(ConfigurationModule.class.getResource("/application.properties")))));
     }
 }

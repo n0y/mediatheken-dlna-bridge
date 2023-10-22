@@ -26,6 +26,7 @@ package de.corelogics.mediaview.service.proxy.downloader;
 
 import lombok.Getter;
 import lombok.ToString;
+import lombok.val;
 
 import java.util.Optional;
 
@@ -39,7 +40,7 @@ public class ByteRange {
     public ByteRange(String optionalRangeHeader) {
         partial = null != optionalRangeHeader;
         if (partial) {
-            var split = optionalRangeHeader.split("[-,=]");
+            val split = optionalRangeHeader.split("[-,=]");
             this.firstPosition = Long.parseLong(split[1]);
             if (split.length > 2) {
                 this.lastPosition = Optional.of(Long.parseLong(split[2]));

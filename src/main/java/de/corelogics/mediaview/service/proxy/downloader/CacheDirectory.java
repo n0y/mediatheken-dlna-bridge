@@ -31,14 +31,15 @@ import com.github.benmanes.caffeine.cache.RemovalCause;
 import de.corelogics.mediaview.config.MainConfiguration;
 import de.corelogics.mediaview.util.IdUtils;
 import lombok.extern.log4j.Log4j2;
+import lombok.val;
 import org.apache.commons.io.IOUtils;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.*;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -48,17 +49,15 @@ import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 
 @Log4j2
 public class CacheDirectory {
-    private final ScheduledExecutorService scheduler = newSingleThreadScheduledExecutor(ofVirtual().factory());
     private final JsonFactory factory = new JsonFactory();
-
     private final File cacheDirFile;
     private final long cacheSizeBytes;
 
     private final LoadingCache<String, RandomAccessFile> openFiles = Caffeine.newBuilder()
-            .maximumSize(40)
-            .expireAfterAccess(120, TimeUnit.SECONDS)
-            .removalListener(this::closeFile)
-            .build(this::openFile);
+        .maximumSize(40)
+        .expireAfterAccess(120, TimeUnit.SECONDS)
+        .removalListener(this::closeFile)
+        .build(this::openFile);
 
 
     public CacheDirectory(MainConfiguration mainConfiguration) {
@@ -69,9 +68,9 @@ public class CacheDirectory {
         this.cacheDirFile = new File(mainConfiguration.cacheDir());
         log.debug("Initializing cache download manager, with cache in directory [{}]", this.cacheDirFile::getAbsolutePath);
         if (!cacheDirFile.exists() && !cacheDirFile.mkdirs()) {
-            throw new IllegalStateException("Could not create nonexisting cache directory at " + this.cacheDirFile.getAbsolutePath());
+            throw new IllegalStateException("Could not create nonexistent cache directory at " + this.cacheDirFile.getAbsolutePath());
         }
-        this.scheduler.scheduleAtFixedRate(this.openFiles::cleanUp, 10, 10, TimeUnit.SECONDS);
+        newSingleThreadScheduledExecutor(ofVirtual().factory()).scheduleAtFixedRate(this.openFiles::cleanUp, 10, 10, TimeUnit.SECONDS);
         log.info("Successfully started cache download manager, with cache in directory [{}]", this.cacheDirFile::getAbsolutePath);
     }
 
@@ -94,14 +93,14 @@ public class CacheDirectory {
 
     private long directorySize() {
         return ofNullable(this.cacheDirFile.listFiles()).stream()
-                .flatMap(Arrays::stream)
-                .filter(File::isFile)
-                .mapToLong(File::length)
-                .sum();
+            .flatMap(Arrays::stream)
+            .filter(File::isFile)
+            .mapToLong(File::length)
+            .sum();
     }
 
     public synchronized void writeContent(String clipId, long position, byte[] bytes) throws IOException {
-        var contentFile = this.openFiles.get(contentFilename(clipId));
+        val contentFile = this.openFiles.get(contentFilename(clipId));
         synchronized (contentFile) {
             contentFile.seek(position);
             contentFile.write(bytes);
@@ -109,13 +108,13 @@ public class CacheDirectory {
     }
 
     public synchronized int readContentByte(String clipId, long position) throws IOException {
-        var contentFilename = contentFilename(clipId);
-        var contentFile = new File(this.cacheDirFile, contentFilename);
+        val contentFilename = contentFilename(clipId);
+        val contentFile = new File(this.cacheDirFile, contentFilename);
         if (!contentFile.exists()) {
             throw new FileNotFoundException(contentFilename);
         }
 
-        var contentAccess = this.openFiles.get(contentFilename);
+        val contentAccess = this.openFiles.get(contentFilename);
         if (position >= contentAccess.length()) {
             throw new EOFException(contentFilename + ": " + position + " >" + contentFile.length());
         }
@@ -124,79 +123,80 @@ public class CacheDirectory {
     }
 
     public synchronized int readContentBytes(String clipId, long position, byte[] buffer, int off, int len) throws IOException {
-        var contentFilename = contentFilename(clipId);
-        var contentFile = new File(this.cacheDirFile, contentFilename);
+        val contentFilename = contentFilename(clipId);
+        val contentFile = new File(this.cacheDirFile, contentFilename);
         if (!contentFile.exists()) {
             throw new FileNotFoundException(contentFilename);
         }
 
-        var contentAccess = this.openFiles.get(contentFilename);
+        val contentAccess = this.openFiles.get(contentFilename);
         if (position >= contentAccess.length()) {
             return -1;
         }
         contentAccess.seek(position);
-        var bytesLeftInFile = contentAccess.length() - position;
+        val bytesLeftInFile = contentAccess.length() - position;
         return contentAccess.read(buffer, off, (int) Math.min(bytesLeftInFile, len));
     }
 
     public synchronized void growContentFile(String clipId, long newSize) throws IOException, CacheSizeExhaustedException {
-        var contentFilename = contentFilename(clipId);
-        var contentFile = this.openFiles.get(contentFilename);
-        var dirSize = directorySize();
-        var contentFileSizePrior = contentFile.length();
-        var dirSizeAfter = dirSize - contentFileSizePrior + newSize;
+        val contentFilename = contentFilename(clipId);
+        val contentFile = this.openFiles.get(contentFilename);
+        val dirSize = directorySize();
+        val contentFileSizePrior = contentFile.length();
+        val dirSizeAfter = dirSize - contentFileSizePrior + newSize;
         if (dirSizeAfter > this.cacheSizeBytes) {
             throw new CacheSizeExhaustedException(
-                    String.format(
-                            "growing [%s] to [%d] would exceed cache size limit of %d with new size of %d",
-                            contentFilename,
-                            newSize,
-                            this.cacheSizeBytes,
-                            dirSizeAfter));
+                String.format(
+                    "growing [%s] to [%d] would exceed cache size limit of %d with new size of %d",
+                    contentFilename,
+                    newSize,
+                    this.cacheSizeBytes,
+                    dirSizeAfter));
         }
         contentFile.setLength(newSize);
     }
 
 
-    public synchronized void writeMetadata(String clipId, ClipMetadata metadata) throws IOException {
-        var metaFile = this.openFiles.get(metaFilename(clipId));
+    synchronized void writeMetadata(String clipId, @NotNull ClipMetadata metadata) throws IOException {
+        val metaFile = this.openFiles.get(metaFilename(clipId));
         metaFile.seek(0);
-        try (var generator = factory.createGenerator(metaFile)) {
+        try (val generator = factory.createGenerator(metaFile)) {
             metadata.writeTo(generator);
         }
         metaFile.setLength(metaFile.getFilePointer());
     }
 
-    public synchronized Optional<ClipMetadata> loadMetadata(String clipId) throws IOException {
-        var metaFile = new File(this.cacheDirFile, metaFilename(clipId));
+    synchronized Optional<ClipMetadata> loadMetadata(String clipId) throws IOException {
+        val metaFile = new File(this.cacheDirFile, metaFilename(clipId));
         if (!metaFile.exists()) {
             return Optional.empty();
         }
-        var metaFileAccess = this.openFiles.get(metaFilename(clipId));
+        val metaFileAccess = this.openFiles.get(metaFilename(clipId));
         metaFileAccess.seek(0);
         return Optional.of(ClipMetadata.readFrom(factory.createParser(metaFileAccess)));
     }
 
     public synchronized boolean tryCleanupCacheDir(Set<String> currentlyOpenClipIds) {
-        var currentlyOpenFilenames = currentlyOpenClipIds.stream().map(this::contentFilename).collect(Collectors.toSet());
+        val currentlyOpenFilenames = currentlyOpenClipIds.stream().map(this::contentFilename).collect(Collectors.toSet());
 
         log.info("Cleaning up some space in cache directory");
         return ofNullable(this.cacheDirFile
-                .listFiles((dir, name) -> name.endsWith(".mp4"))).stream()
-                .flatMap(Arrays::stream)
-                .filter(f -> !currentlyOpenFilenames.contains(f.getName()))
-                .sorted(Comparator.comparing(File::lastModified))
-                .map(contentFileToRemove -> {
-                    var metaFileToRemove = new File(this.cacheDirFile, contentFileToRemove.getName().replaceAll(".mp4", ".json"));
-                    log.debug(
-                            "Trying to delete {}, and {} with size of {}",
-                            metaFileToRemove::getName,
-                            contentFileToRemove::getName,
-                            () -> metaFileToRemove.length() + contentFileToRemove.length());
-                    this.openFiles.invalidate(metaFileToRemove.getName());
-                    this.openFiles.invalidate(contentFileToRemove.getName());
-                    return metaFileToRemove.delete() && contentFileToRemove.delete();
-                })
-                .anyMatch(Boolean.TRUE::equals);
+            .listFiles((dir, name) -> name.endsWith(".mp4"))).stream()
+            .flatMap(Arrays::stream)
+            .filter(f -> !currentlyOpenFilenames.contains(f.getName()))
+            .sorted(Comparator.comparing(File::lastModified))
+            .map(contentFileToRemove -> {
+                val metaFileToRemove = new File(this.cacheDirFile, contentFileToRemove.getName().replaceAll(".mp4", ".json"));
+                log.debug(
+                    "Trying to delete {}, and {} with size of {}",
+                    metaFileToRemove::getName,
+                    contentFileToRemove::getName,
+                    () -> metaFileToRemove.length() + contentFileToRemove.length());
+                this.openFiles.invalidate(metaFileToRemove.getName());
+                this.openFiles.invalidate(contentFileToRemove.getName());
+                return metaFileToRemove.delete() && contentFileToRemove.delete();
+            })
+            .findFirst()
+            .orElse(Boolean.FALSE);
     }
 }

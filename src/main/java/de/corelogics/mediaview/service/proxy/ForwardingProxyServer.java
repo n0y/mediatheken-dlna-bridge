@@ -69,15 +69,18 @@ public class ForwardingProxyServer implements ClipContentUrlGenerator {
             val context = new ContextHandlerCollection();
             jettyServer.setHandler(context);
         }
-        var context = (ContextHandlerCollection) jettyServer.getHandler();
-        if (null == context) {
+        final ContextHandlerCollection context;
+        if (jettyServer.getHandler() instanceof ContextHandlerCollection coll) {
+            context = coll;
+        } else {
             context = new ContextHandlerCollection();
             jettyServer.setHandler(context);
         }
+
         val servletHandler = new ServletContextHandler(ServletContextHandler.NO_SESSIONS);
         servletHandler.setDisplayName("asd");
         servletHandler.setContextPath("/api/v1/clips");
-        final ServletHolder holder = new ServletHolder("jUpnpServler", new HttpServlet() {
+        final ServletHolder holder = new ServletHolder("jUpnpServlet", new HttpServlet() {
             @Override
             protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
                 handleGetClip(req, resp);
@@ -96,13 +99,13 @@ public class ForwardingProxyServer implements ClipContentUrlGenerator {
     @Override
     public String createLinkTo(ClipEntry e, @Nullable InetAddress optionalLocalAddressQueried) {
         val baseUrl = mainConfiguration.publicBaseUrl()
-                .orElseGet(() -> null == optionalLocalAddressQueried ?
-                        "" :
-                        "http://%s:%d".formatted(optionalLocalAddressQueried.getHostName(), mainConfiguration.publicHttpPort()));
+            .orElseGet(() -> null == optionalLocalAddressQueried ?
+                "" :
+                "http://%s:%d".formatted(optionalLocalAddressQueried.getHostName(), mainConfiguration.publicHttpPort()));
         return "%s%sapi/v1/clips/%s".formatted(
-                baseUrl,
-                baseUrl.endsWith("/") ? "" : "/",
-                IdUtils.encodeId(e.getId()));
+            baseUrl,
+            baseUrl.endsWith("/") ? "" : "/",
+            IdUtils.encodeId(e.getId()));
     }
 
 
@@ -204,27 +207,27 @@ public class ForwardingProxyServer implements ClipContentUrlGenerator {
         val clipIdString = pathInContext[pathInContext.length - 1];
         val clipId = new String(Base64.getDecoder().decode(clipIdString), StandardCharsets.UTF_8);
         log.debug(
-                "Loading clip for {} request: clip {}\n{}",
-                request::getMethod,
-                clipId::toString,
-                () -> String.join(
-                        "\n",
-                        "   H:" + request.getServerName(),
-                        "   P:" + pathInContextString,
-                        headerStrings(request)));
+            "Loading clip for {} request: clip {}\n{}",
+            request::getMethod,
+            clipId::toString,
+            () -> String.join(
+                "\n",
+                "   H:" + request.getServerName(),
+                "   P:" + pathInContextString,
+                headerStrings(request)));
         return clipId;
     }
 
     private String headerStrings(HttpServletRequest request) {
         return StreamSupport.stream(((Iterable<String>) () -> request.getHeaderNames().asIterator()).spliterator(), false)
-                .map(h -> "   " + h + ": " + request.getHeader(h))
-                .collect(Collectors.joining("\n"));
+            .map(h -> "   " + h + ": " + request.getHeader(h))
+            .collect(Collectors.joining("\n"));
     }
 
     private String headerStrings(HttpServletResponse response) {
         return response.getHeaderNames().stream()
-                .map(h -> "   " + h + ": " + response.getHeader(h))
-                .collect(Collectors.joining("\n"));
+            .map(h -> "   " + h + ": " + response.getHeader(h))
+            .collect(Collectors.joining("\n"));
     }
 
     private void copyBytes(InputStream from, HttpServletResponse to) {

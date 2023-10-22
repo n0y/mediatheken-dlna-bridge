@@ -33,6 +33,7 @@ import de.corelogics.mediaview.service.dlna.DlnaServiceModule;
 import de.corelogics.mediaview.service.importer.ImporterService;
 import de.corelogics.mediaview.service.networking.NetworkingModule;
 import de.corelogics.mediaview.service.proxy.ForwardingProxyModule;
+import lombok.val;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -44,28 +45,27 @@ public class Main {
 
     private final ImporterService importerService;
     private final DlnaServer dlnaServer;
-    private final ClipRepository clipRepository;
 
     public Main() throws IOException {
-        var configModule = new ConfigurationModule();
-        var mainConfiguration = configModule.getMainConfiguration();
-        var networkingModule = new NetworkingModule(mainConfiguration);
+        val configModule = new ConfigurationModule();
+        val mainConfiguration = configModule.getMainConfiguration();
+        val networkingModule = new NetworkingModule(mainConfiguration);
 
-        this.clipRepository = new ClipRepository(mainConfiguration);
+        val clipRepository = new ClipRepository(mainConfiguration);
         this.dlnaServer =
-                new DlnaServiceModule(
-                        mainConfiguration,
-                        networkingModule.getJettyServer(),
-                        new ForwardingProxyModule(mainConfiguration, networkingModule.getJettyServer(), clipRepository)
-                                .buildClipContentUrlGenerator(),
-                        clipRepository)
-                        .getDlnaServer();
+            new DlnaServiceModule(
+                mainConfiguration,
+                networkingModule.getJettyServer(),
+                new ForwardingProxyModule(mainConfiguration, networkingModule.getJettyServer(), clipRepository)
+                    .buildClipContentUrlGenerator(),
+                clipRepository)
+                .getDlnaServer();
         networkingModule.startup();
         this.importerService = new ImporterService(
-                mainConfiguration,
-                new MediathekListClient(mainConfiguration, HttpClient.newBuilder().build()),
-                new MediathekViewImporter(),
-                clipRepository);
+            mainConfiguration,
+            new MediathekListClient(mainConfiguration, HttpClient.newBuilder().build()),
+            new MediathekViewImporter(),
+            clipRepository);
         this.importerService.scheduleImport();
     }
 
@@ -82,6 +82,5 @@ public class Main {
         logger.info("Shutting down");
         importerService.shutdown();
         dlnaServer.shutdown();
-        clipRepository.shutdown();
     }
 }

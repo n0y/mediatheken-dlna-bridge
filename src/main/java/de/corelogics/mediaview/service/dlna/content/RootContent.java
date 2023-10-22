@@ -27,10 +27,11 @@ package de.corelogics.mediaview.service.dlna.content;
 import de.corelogics.mediaview.config.MainConfiguration;
 import de.corelogics.mediaview.service.dlna.DlnaRequest;
 import lombok.AllArgsConstructor;
+import lombok.val;
 import org.jupnp.support.model.DIDLContent;
 
 @AllArgsConstructor
-public class RootContent extends BaseDnlaRequestHandler {
+public class RootContent extends BaseDlnaRequestHandler {
     private final MainConfiguration mainConfiguration;
     private final SendungAzContent sendungAzContent;
     private final ShowContent showContent;
@@ -43,7 +44,7 @@ public class RootContent extends BaseDnlaRequestHandler {
 
     @Override
     protected DIDLContent respondWithException(DlnaRequest request) {
-        var didl = new DIDLContent();
+        val didl = new DIDLContent();
         addFavorites(request, didl);
         didl.addContainer(sendungAzContent.createLink(request));
         didl.addContainer(missedShowsContent.createLink(request));
@@ -52,9 +53,9 @@ public class RootContent extends BaseDnlaRequestHandler {
 
     private void addFavorites(DlnaRequest request, DIDLContent didl) {
         mainConfiguration.getFavourites().stream()
-                .map(s -> s.accept(
-                        favouriteShow ->
-                                showContent.createAsLink(request, favouriteShow.channel(), favouriteShow.title())))
-                .forEach(didl::addObject);
+            .map(s -> s.accept(
+                favouriteShow ->
+                    showContent.createAsLink(request, favouriteShow.channel(), favouriteShow.title())))
+            .forEach(didl::addObject);
     }
 }

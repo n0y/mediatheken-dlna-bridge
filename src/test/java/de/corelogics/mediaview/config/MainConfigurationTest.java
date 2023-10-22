@@ -114,16 +114,16 @@ class MainConfigurationTest {
     @ValueSource(strings = {"value1", "value2"})
     void whenGetPublicBaseUrl_thenReturnValue(String value) {
         when(configAccessor.get("PUBLIC_BASE_URL", null)).thenReturn(value);
-        assertThat(sut.publicBaseUrl()).isEqualTo(value);
+        assertThat(sut.publicBaseUrl()).isPresent().get().isEqualTo(value);
         verify(configAccessor).get("PUBLIC_BASE_URL", null);
     }
 
     @ParameterizedTest
     @ValueSource(ints = {10, 100, 1000})
     void whenGetPublicHttpPort_thenReturnValue(int value) {
-        when(configAccessor.get("PUBLIC_HTTP_PORT", 9300)).thenReturn(value);
+        when(configAccessor.get("PUBLIC_HTTP_PORT", 9301)).thenReturn(value);
         assertThat(sut.publicHttpPort()).isEqualTo(value);
-        verify(configAccessor).get("PUBLIC_HTTP_PORT", 9300);
+        verify(configAccessor).get("PUBLIC_HTTP_PORT", 9301);
     }
 
     @ParameterizedTest

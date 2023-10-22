@@ -28,8 +28,4 @@ public class UpstreamNotFoundException extends Exception {
     public UpstreamNotFoundException(String url, int statusCode) {
         super(String.format("Upstream not found, status %d at [%s]", statusCode, url));
     }
-
-    public UpstreamNotFoundException(String url, int statusCode, Throwable cause) {
-        super(String.format("Upstream not found, status %d at [%s]", statusCode, url), cause);
-    }
 }

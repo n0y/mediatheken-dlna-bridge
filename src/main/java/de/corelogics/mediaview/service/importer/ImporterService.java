@@ -31,6 +31,7 @@ import de.corelogics.mediaview.config.MainConfiguration;
 import de.corelogics.mediaview.repository.clip.ClipRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import lombok.val;
 
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
@@ -57,13 +58,13 @@ public class ImporterService {
     }
 
     private void scheduleNextFullImport() {
-        var now = ZonedDateTime.now();
-        var nextFullUpdateAt = clipRepository
-                .findLastFullImport()
-                .map(t -> t.plus(mainConfiguration.updateIntervalFullHours(), ChronoUnit.HOURS))
-                .filter(now::isBefore)
-                .orElseGet(() -> now.plus(10, ChronoUnit.SECONDS));
-        long inSeconds = ChronoUnit.SECONDS.between(now, nextFullUpdateAt);
+        val now = ZonedDateTime.now();
+        val nextFullUpdateAt = clipRepository
+            .findLastFullImport()
+            .map(t -> t.plusHours(mainConfiguration.updateIntervalFullHours()))
+            .filter(now::isBefore)
+            .orElseGet(() -> now.plusSeconds(10));
+        final long inSeconds = ChronoUnit.SECONDS.between(now, nextFullUpdateAt);
         log.info("Scheduling next full import at {} (in {} seconds from now)", nextFullUpdateAt, inSeconds);
         scheduler.schedule(this::fullImport, inSeconds, TimeUnit.SECONDS);
     }
@@ -79,19 +80,19 @@ public class ImporterService {
 
     private void fullImport() {
         log.info("Starting a full import");
-        var startedAt = ZonedDateTime.now();
+        val startedAt = ZonedDateTime.now();
         try {
-            var entryUpdateList = new ArrayList<ClipEntry>(1000);
-            var numImported = new AtomicInteger();
-            try (var input = mediathekListeClient.openMediathekListeFull()) {
-                var list = importer.createList(input);
-                var it = list.getStream().iterator();
+            val entryUpdateList = new ArrayList<ClipEntry>(1000);
+            val numImported = new AtomicInteger();
+            try (val input = mediathekListeClient.openMediathekListeFull()) {
+                val list = importer.createList(input);
+                val it = list.getStream().iterator();
                 while (it.hasNext()) {
                     if (stopped) {
                         log.debug("Stopped: terminating import");
                         return;
                     }
-                    var e = it.next();
+                    val e = it.next();
                     if (numImported.incrementAndGet() % 10000 == 0) {
                         log.info("Full import yielded {} clips until now", numImported::get);
                     }
@@ -103,7 +104,6 @@ public class ImporterService {
                 }
                 clipRepository.addClips(entryUpdateList, startedAt);
                 clipRepository.deleteClipsImportedBefore(startedAt);
-                clipRepository.compact();
                 log.info("Successfully performed a full import, yielding {} clips", numImported::get);
             }
         } catch (final Exception e) {

@@ -25,9 +25,9 @@
 package de.corelogics.mediaview.service.proxy.downloader;
 
 record ClipChunk(
-        int chunkNumber,
-        long from,
-        long to) {
+    int chunkNumber,
+    long from,
+    long to) {
     @Override
     public String toString() {
         return String.format("{#%d: %d-%d}", chunkNumber, from, to);

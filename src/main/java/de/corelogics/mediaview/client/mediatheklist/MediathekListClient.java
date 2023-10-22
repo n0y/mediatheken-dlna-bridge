@@ -30,6 +30,7 @@ import de.corelogics.mediaview.config.MainConfiguration;
 import de.corelogics.mediaview.util.HttpUtils;
 import lombok.AllArgsConstructor;
 import lombok.NonNull;
+import lombok.val;
 import org.apache.commons.io.IOUtils;
 import org.tukaani.xz.XZInputStream;
 import org.w3c.dom.Element;
@@ -57,16 +58,16 @@ public class MediathekListClient {
 
     private void downloadToTempFile(@NonNull File tempFile) throws IOException {
         try {
-            final var serverList = getMediathekListeMetadata();
-            for (final var server : serverList.getServers()) {
-                var request =
-                        HttpUtils.enhanceRequest(
-                                        mainConfiguration,
-                                        HttpRequest.newBuilder().uri(URI.create(server.getUrl())))
-                                .build();
-                var response = httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
+            val serverList = getMediathekListeMetadata();
+            for (val server : serverList.getServers()) {
+                val request =
+                    HttpUtils.enhanceRequest(
+                            mainConfiguration,
+                            HttpRequest.newBuilder().uri(URI.create(server.getUrl())))
+                        .build();
+                val response = httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
                 if (response.statusCode() == 200) {
-                    try (var output = new FileOutputStream(tempFile)) {
+                    try (val output = new FileOutputStream(tempFile)) {
                         IOUtils.copyLarge(response.body(), output);
                     }
                     return;
@@ -80,7 +81,7 @@ public class MediathekListClient {
     }
 
     public InputStream openMediathekListeFull() throws IOException {
-        final var tempFile = File.createTempFile("full-list", ".xml.xz");
+        val tempFile = File.createTempFile("full-list", ".xml.xz");
         try {
             downloadToTempFile(tempFile);
             return new FilterInputStream(new XZInputStream(new BufferedInputStream(new FileInputStream(tempFile)))) {
@@ -101,27 +102,27 @@ public class MediathekListClient {
 
     MediathekListeMetadata getMediathekListeMetadata() throws IOException {
         try {
-            var docBuilder = DocumentBuilderFactory.newDefaultInstance().newDocumentBuilder();
+            val docBuilder = DocumentBuilderFactory.newDefaultInstance().newDocumentBuilder();
 
-            var request = HttpUtils.enhanceRequest(
-                            mainConfiguration,
-                            HttpRequest.newBuilder().uri(
-                                    URI.create(mainConfiguration.mediathekViewListBaseUrl()).resolve("/akt.xml")))
-                    .build();
-            var response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            val request = HttpUtils.enhanceRequest(
+                    mainConfiguration,
+                    HttpRequest.newBuilder().uri(
+                        URI.create(mainConfiguration.mediathekViewListBaseUrl()).resolve("/akt.xml")))
+                .build();
+            val response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
             try {
-                var doc = docBuilder.parse(new InputSource(new StringReader(response.body())));
-                var servers = doc.getDocumentElement().getElementsByTagName("Server");
+                val doc = docBuilder.parse(new InputSource(new StringReader(response.body())));
+                val servers = doc.getDocumentElement().getElementsByTagName("Server");
                 return new MediathekListeMetadata(IntStream.range(0, servers.getLength())
-                        .mapToObj(servers::item)
-                        .filter(Element.class::isInstance)
-                        .map(Element.class::cast)
-                        .map(l -> new MediathekListeServer(
-                                l.getElementsByTagName("URL").item(0).getTextContent(),
-                                Integer.parseInt(l.getElementsByTagName("Prio").item(0).getTextContent())))
-                        .sorted(Comparator.comparing(MediathekListeServer::getPrio))
-                        .collect(Collectors.toList()));
+                    .mapToObj(servers::item)
+                    .filter(Element.class::isInstance)
+                    .map(Element.class::cast)
+                    .map(l -> new MediathekListeServer(
+                        l.getElementsByTagName("URL").item(0).getTextContent(),
+                        Integer.parseInt(l.getElementsByTagName("Prio").item(0).getTextContent())))
+                    .sorted(Comparator.comparing(MediathekListeServer::getPrio))
+                    .collect(Collectors.toList()));
             } catch (final RuntimeException e) {
                 throw new IOException("Didn't understand received file format.", e);
             } catch (SAXException e) {

@@ -27,6 +27,7 @@ package de.corelogics.mediaview.service.dlna;
 import de.corelogics.mediaview.service.dlna.jupnp.LocalAddressHolder;
 import lombok.AllArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import lombok.val;
 import org.jupnp.support.contentdirectory.AbstractContentDirectoryService;
 import org.jupnp.support.contentdirectory.ContentDirectoryErrorCode;
 import org.jupnp.support.contentdirectory.ContentDirectoryException;
@@ -46,32 +47,32 @@ class ContentDirectory extends AbstractContentDirectoryService {
 
     @Override
     public BrowseResult browse(
-            String objectID,
-            BrowseFlag browseFlag,
-            String filter,
-            long firstResult, long maxResults,
-            SortCriterion[] orderby)
-            throws ContentDirectoryException {
+        String objectID,
+        BrowseFlag browseFlag,
+        String filter,
+        long firstResult, long maxResults,
+        SortCriterion[] orderBy)
+        throws ContentDirectoryException {
         log.debug("Received browse request for oid={}, first={}, max={}", objectID, firstResult, maxResults);
         try {
-            var request = new DlnaRequest(
-                    objectID,
-                    browseFlag,
-                    filter,
-                    firstResult,
-                    maxResults,
-                    Arrays.asList(orderby),
-                    LocalAddressHolder.getMemoizedLocalAddress());
+            val request = new DlnaRequest(
+                objectID,
+                browseFlag,
+                filter,
+                firstResult,
+                maxResults,
+                Arrays.asList(orderBy),
+                LocalAddressHolder.getMemoizedLocalAddress());
             return handlers.stream()
-                    .filter(h -> h.canHandle(request))
-                    .findAny()
-                    .map(h -> h.respond(request))
-                    .orElseGet(this::emptyResult);
+                .filter(h -> h.canHandle(request))
+                .findAny()
+                .map(h -> h.respond(request))
+                .orElseGet(this::emptyResult);
         } catch (RuntimeException e) {
             log.warn("Error creating a browse response", e);
             throw new ContentDirectoryException(
-                    ContentDirectoryErrorCode.CANNOT_PROCESS,
-                    e.toString());
+                ContentDirectoryErrorCode.CANNOT_PROCESS,
+                e.toString());
         }
     }
 

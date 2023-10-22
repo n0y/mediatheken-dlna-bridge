@@ -29,6 +29,7 @@ import de.corelogics.mediaview.repository.clip.ClipRepository;
 import de.corelogics.mediaview.service.ClipContentUrlGenerator;
 import de.corelogics.mediaview.service.dlna.content.*;
 import lombok.Getter;
+import lombok.val;
 import org.eclipse.jetty.server.Server;
 import org.jupnp.model.ValidationException;
 
@@ -43,10 +44,10 @@ public class DlnaServiceModule {
     private final DlnaServer dlnaServer;
 
     public DlnaServiceModule(
-            MainConfiguration mainConfiguration,
-            Server jettyServer,
-            ClipContentUrlGenerator clipContentUrlGenerator,
-            ClipRepository clipRepository) {
+        MainConfiguration mainConfiguration,
+        Server jettyServer,
+        ClipContentUrlGenerator clipContentUrlGenerator,
+        ClipRepository clipRepository) {
         try {
             this.mainConfiguration = mainConfiguration;
             this.clipContentUrlGenerator = clipContentUrlGenerator;
@@ -58,11 +59,11 @@ public class DlnaServiceModule {
     }
 
     private Set<DlnaRequestHandler> buildRequestHandlers() {
-        var clipContent = new ClipContent(this.clipContentUrlGenerator);
-        var showContent = new ShowContent(clipContent, this.clipRepository);
-        var sendungAzContent = new SendungAzContent(this.clipRepository, showContent);
-        var missedShowsContent = new MissedShowsContent(clipContent, this.clipRepository);
-        var rootContent = new RootContent(mainConfiguration, sendungAzContent, showContent, missedShowsContent);
+        val clipContent = new ClipContent(this.clipContentUrlGenerator);
+        val showContent = new ShowContent(clipContent, this.clipRepository);
+        val sendungAzContent = new SendungAzContent(this.clipRepository, showContent);
+        val missedShowsContent = new MissedShowsContent(clipContent, this.clipRepository);
+        val rootContent = new RootContent(mainConfiguration, sendungAzContent, showContent, missedShowsContent);
         return Set.of(clipContent, missedShowsContent, sendungAzContent, rootContent, showContent);
     }
 }

@@ -36,7 +36,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 
 @AllArgsConstructor
-public class ClipContent extends BaseDnlaRequestHandler {
+public class ClipContent extends BaseDlnaRequestHandler {
     private static final String MIME_TYPE_VIDEO_MP4 = "video/mp4";
     private static final String URN_PREFIX_CLIP = "urn:corelogics.de:mediaview:clip:";
 
@@ -51,7 +51,7 @@ public class ClipContent extends BaseDnlaRequestHandler {
     }
 
     @Override
-    protected DIDLContent respondWithException(DlnaRequest request) throws Exception {
+    protected DIDLContent respondWithException(DlnaRequest request) {
         return new DIDLContent();
     }
 
@@ -65,16 +65,16 @@ public class ClipContent extends BaseDnlaRequestHandler {
 
     private VideoItem createLink(DlnaRequest request, ClipEntry entry, DateTimeFormatter dateTimeFormat) {
         return new VideoItem(
-                idClip(entry),
-                request.objectId(),
-                dateTimeFormat.format(entry.getBroadcastedAt()) + " " + lengthLimit(entry.getTitle()),
-                "",
-                new Res(
-                        MIME_TYPE_VIDEO_MP4,
-                        entry.getSize(),
-                        entry.getDuration(),
-                        2000L,
-                        clipContentUrlGenerator.createLinkTo(entry, request.localAddress().orElse(null))));
+            idClip(entry),
+            request.objectId(),
+            dateTimeFormat.format(entry.getBroadcastedAt()) + " " + lengthLimit(entry.getTitle()),
+            "",
+            new Res(
+                MIME_TYPE_VIDEO_MP4,
+                entry.getSize(),
+                entry.getDuration(),
+                2000L,
+                clipContentUrlGenerator.createLinkTo(entry, request.localAddress().orElse(null))));
     }
 
     private String idClip(ClipEntry entry) {

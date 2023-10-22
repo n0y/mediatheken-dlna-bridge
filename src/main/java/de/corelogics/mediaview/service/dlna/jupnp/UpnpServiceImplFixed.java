@@ -1,5 +1,6 @@
 package de.corelogics.mediaview.service.dlna.jupnp;
 
+import lombok.val;
 import org.jupnp.UpnpServiceConfiguration;
 import org.jupnp.UpnpServiceImpl;
 import org.jupnp.model.message.StreamRequestMessage;
@@ -34,8 +35,7 @@ public class UpnpServiceImplFixed extends UpnpServiceImpl {
                         // This hack is here because JUpnp doesn't hand over the local address
                         // to the ContentDirectory, where we need it to propagate the
                         // correct clip URLs.
-                        try (final var ignored = LocalAddressHolder.memoizeLocalAddress(
-                                getInputMessage().getConnection().getLocalAddress())) {
+                        try (val ignored = LocalAddressHolder.memoizeLocalAddress(getInputMessage().getConnection().getLocalAddress())) {
                             return super.executeSync();
                         }
                     }
