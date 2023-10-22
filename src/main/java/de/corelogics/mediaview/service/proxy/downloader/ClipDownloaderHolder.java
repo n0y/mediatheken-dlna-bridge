@@ -51,8 +51,8 @@ class ClipDownloaderHolder {
         numberOfOpenStreams.incrementAndGet();
         val metadata = clipDownloader.getMetaData();
         return new OpenedStream(
-            metadata.getContentType(),
-            metadata.getSize(),
+            metadata.contentType(),
+            metadata.size(),
 
             new FilterInputStream(clipDownloader.openInputStreamStartingFrom(position, readTimeout)) {
                 @Override

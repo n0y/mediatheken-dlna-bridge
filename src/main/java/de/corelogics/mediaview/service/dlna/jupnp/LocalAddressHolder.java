@@ -9,7 +9,7 @@ public class LocalAddressHolder {
     private static final ThreadLocal<InetAddress> LOCAL_ADDRESS = new ThreadLocal<>();
 
     private LocalAddressHolder() {
-
+        super();
     }
 
     public static NoExceptionAutoCloseable memoizeLocalAddress(InetAddress localAddress) {

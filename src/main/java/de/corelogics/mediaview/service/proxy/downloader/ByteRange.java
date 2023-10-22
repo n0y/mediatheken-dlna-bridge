@@ -30,6 +30,8 @@ import lombok.val;
 
 import java.util.Optional;
 
+import static java.lang.Long.parseLong;
+
 @Getter
 @ToString
 public class ByteRange {
@@ -41,9 +43,9 @@ public class ByteRange {
         partial = null != optionalRangeHeader;
         if (partial) {
             val split = optionalRangeHeader.split("[-,=]");
-            this.firstPosition = Long.parseLong(split[1]);
+            this.firstPosition = split[1].isEmpty() ? 0 : parseLong(split[1]);
             if (split.length > 2) {
-                this.lastPosition = Optional.of(Long.parseLong(split[2]));
+                this.lastPosition = Optional.of(parseLong(split[2]));
             } else {
                 this.lastPosition = Optional.empty();
             }

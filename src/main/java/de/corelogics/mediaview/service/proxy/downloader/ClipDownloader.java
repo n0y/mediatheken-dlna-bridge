@@ -106,7 +106,7 @@ class ClipDownloader implements Closeable {
             } catch (final IOException e) {
                 logger.warn("Could not write to content file.", e);
             }
-            this.metadata.getBitSet().set(clipChunk.chunkNumber());
+            this.metadata.bitSet().set(clipChunk.chunkNumber());
             this.updateMetadataFile();
         }
     }
@@ -119,14 +119,14 @@ class ClipDownloader implements Closeable {
     public synchronized Optional<ClipChunk> nextChunk(String connectionId) {
         if (!stopped) {
             var chunkNum = this.chunksAvailableForDownload.nextSetBit(lastReadInChunk);
-            if (this.chunksAvailableForDownload.get(this.metadata.getNumberOfChunks() - 1)) {
+            if (this.chunksAvailableForDownload.get(this.metadata.numberOfChunks() - 1)) {
                 // first DL latest chunk, for metadata queried by various players
-                chunkNum = this.metadata.getNumberOfChunks() - 1;
+                chunkNum = this.metadata.numberOfChunks() - 1;
             }
-            if (chunkNum < 0 || chunkNum >= this.metadata.getNumberOfChunks()) {
+            if (chunkNum < 0 || chunkNum >= this.metadata.numberOfChunks()) {
                 chunkNum = this.chunksAvailableForDownload.nextSetBit(0);
             }
-            if (chunkNum >= 0 && chunkNum < this.metadata.getNumberOfChunks()) {
+            if (chunkNum >= 0 && chunkNum < this.metadata.numberOfChunks()) {
                 this.chunksAvailableForDownload.clear(chunkNum);
                 val chunk = new ClipChunk(chunkNum, chunkNum * CHUNK_SIZE_BYTES, (1 + chunkNum) * CHUNK_SIZE_BYTES - 1);
                 logger.debug("handing out {} to {}", chunk, connectionId);
@@ -143,7 +143,7 @@ class ClipDownloader implements Closeable {
     }
 
     private synchronized void ensureDownloadersPresent() {
-        while (this.connections.size() < numParallelConnections && this.chunksAvailableForDownload.nextSetBit(0) < this.metadata.getNumberOfChunks()) {
+        while (this.connections.size() < numParallelConnections && this.chunksAvailableForDownload.nextSetBit(0) < this.metadata.numberOfChunks()) {
             val connectionId = "dl-thrd-" + currentConnectionId.incrementAndGet();
             logger.debug("Starting new connection {}", connectionId);
             this.connections.put(connectionId, new ClipDownloadConnection(
@@ -156,21 +156,21 @@ class ClipDownloader implements Closeable {
     }
 
     private void initializeBitsets() {
-        if (null == this.metadata.getBitSet()) {
-            val bitsetSize = 1 + (int) (this.metadata.getSize() / CHUNK_SIZE_BYTES);
+        if (null == this.metadata.bitSet()) {
+            val bitsetSize = 1 + (int) (this.metadata.size() / CHUNK_SIZE_BYTES);
             logger.debug("creating new bitset of size {}", bitsetSize);
-            this.metadata.setNumberOfChunks(bitsetSize);
-            this.metadata.setBitSet(new BitSet(this.metadata.getNumberOfChunks()));
+            this.metadata.numberOfChunks(bitsetSize);
+            this.metadata.bitSet(new BitSet(this.metadata.numberOfChunks()));
         }
-        this.chunksAvailableForDownload = new BitSet(this.metadata.getNumberOfChunks());
-        this.chunksAvailableForDownload.set(0, this.metadata.getNumberOfChunks());
-        this.chunksAvailableForDownload.xor(this.metadata.getBitSet());
+        this.chunksAvailableForDownload = new BitSet(this.metadata.numberOfChunks());
+        this.chunksAvailableForDownload.set(0, this.metadata.numberOfChunks());
+        this.chunksAvailableForDownload.xor(this.metadata.bitSet());
     }
 
     private void growContentFile() throws CacheSizeExhaustedException {
-        logger.debug("setting content file to length {}", this.metadata::getSize);
+        logger.debug("setting content file to length {}", this.metadata::size);
         try {
-            this.cacheDir.growContentFile(this.clipId, this.metadata.getSize());
+            this.cacheDir.growContentFile(this.clipId, this.metadata.size());
         } catch (final IOException e) {
             throw new RuntimeException(e);
         }
@@ -212,8 +212,8 @@ class ClipDownloader implements Closeable {
                 if (response.isSuccessful()) {
                     logger.debug("successful HEAD request with headers: {} for HEAD {}", response.headers(), url);
                     val meta = new ClipMetadata();
-                    meta.setContentType(response.header("Content-Type"));
-                    meta.setSize(Long.parseLong(response.header("Content-Length")));
+                    meta.contentType(response.header("Content-Type"));
+                    meta.size(Long.parseLong(response.header("Content-Length")));
                     return meta;
                 }
                 if (response.code() == HttpServletResponse.SC_NOT_FOUND) {
@@ -234,8 +234,8 @@ class ClipDownloader implements Closeable {
     }
 
     public InputStream openInputStreamStartingFrom(long position, Duration readTimeout) throws EOFException {
-        if (position < 0 || position > metadata.getSize()) {
-            throw new EOFException(String.format("Position %d outside of allowed range: [0-%d]", position, metadata.getSize()));
+        if (position < 0 || position > metadata.size()) {
+            throw new EOFException(String.format("Position %d outside of allowed range: [0-%d]", position, metadata.size()));
         }
         return new InputStream() {
             long currentPosition = position;
@@ -246,7 +246,7 @@ class ClipDownloader implements Closeable {
                 while (System.currentTimeMillis() < timeoutAt) {
                     val chunkNo = (int) (currentPosition / CHUNK_SIZE_BYTES);
                     updateLastReadChunk(chunkNo);
-                    if (metadata.getBitSet().get(chunkNo)) {
+                    if (metadata.bitSet().get(chunkNo)) {
                         return cacheDir.readContentByte(clipId, currentPosition++);
                     } else {
                         try {
@@ -265,12 +265,12 @@ class ClipDownloader implements Closeable {
                 val timeoutAt = System.currentTimeMillis() + readTimeout.toMillis();
                 while (System.currentTimeMillis() < timeoutAt) {
                     val chunkNo = (int) (currentPosition / CHUNK_SIZE_BYTES);
-                    if (chunkNo >= metadata.getNumberOfChunks()) {
-                        logger.debug("Read position {}} is beyond size of {}}", currentPosition, metadata.getSize());
+                    if (chunkNo >= metadata.numberOfChunks()) {
+                        logger.debug("Read position {}} is beyond size of {}}", currentPosition, metadata.size());
                         return -1;
                     }
                     updateLastReadChunk(chunkNo);
-                    if (metadata.getBitSet().get(chunkNo)) {
+                    if (metadata.bitSet().get(chunkNo)) {
                         val availableBytesInChunk = (chunkNo + 1) * CHUNK_SIZE_BYTES - currentPosition;
                         val toRead = (int) Math.min(len, availableBytesInChunk);
                         val readBytesFromFile = cacheDir.readContentBytes(clipId, currentPosition, b, off, toRead);

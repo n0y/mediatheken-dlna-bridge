@@ -34,6 +34,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.io.File;
 import java.util.Map;
 
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
@@ -69,10 +70,10 @@ class MainConfigurationTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"value1", "value2"})
+    @ValueSource(strings = {"./value1/more-value", "../../directory/value2"})
     void whenGetCacheDir_thenReturnValue(String value) {
         when(configAccessor.get("CACHE_DIRECTORY", "./cache")).thenReturn(value);
-        assertThat(sut.cacheDir()).isEqualTo(value);
+        assertThat(sut.cacheDir()).isEqualTo(new File(value));
         verify(configAccessor).get("CACHE_DIRECTORY", "./cache");
     }
 

@@ -30,6 +30,7 @@ import com.fasterxml.jackson.core.JsonToken;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
+import lombok.experimental.Accessors;
 import lombok.val;
 
 import java.io.IOException;
@@ -38,6 +39,7 @@ import java.util.BitSet;
 @ToString
 @Setter
 @Getter
+@Accessors(fluent = true)
 class ClipMetadata {
     private String contentType;
     private long size;
@@ -72,18 +74,18 @@ class ClipMetadata {
                 switch (name) {
                     case "contentType":
                         parser.nextToken();
-                        m.setContentType(parser.getText());
+                        m.contentType(parser.getText());
                         break;
                     case "size":
                         parser.nextToken();
-                        m.setSize(parser.getLongValue());
+                        m.size(parser.getLongValue());
                         break;
                     case "numberOfChunks":
                         parser.nextToken();
-                        m.setNumberOfChunks(parser.getIntValue());
+                        m.numberOfChunks(parser.getIntValue());
                         break;
                     case "bitSet":
-                        m.setBitSet(readBitsetFrom(parser));
+                        m.bitSet(readBitsetFrom(parser));
                         break;
                 }
             }

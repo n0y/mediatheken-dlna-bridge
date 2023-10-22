@@ -28,6 +28,7 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.github.benmanes.caffeine.cache.RemovalCause;
+import com.github.benmanes.caffeine.cache.Ticker;
 import de.corelogics.mediaview.config.MainConfiguration;
 import de.corelogics.mediaview.util.IdUtils;
 import lombok.extern.log4j.Log4j2;
@@ -40,6 +41,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -52,26 +54,32 @@ public class CacheDirectory {
     private final JsonFactory factory = new JsonFactory();
     private final File cacheDirFile;
     private final long cacheSizeBytes;
+    private final ScheduledExecutorService scheduledExecutorService = newSingleThreadScheduledExecutor(ofVirtual().factory());
+    private final LoadingCache<String, RandomAccessFile> openFiles;
 
-    private final LoadingCache<String, RandomAccessFile> openFiles = Caffeine.newBuilder()
-        .maximumSize(40)
-        .expireAfterAccess(120, TimeUnit.SECONDS)
-        .removalListener(this::closeFile)
-        .build(this::openFile);
+    CacheDirectory(int cacheSizeGb, File cacheDir, Ticker cacheTicker) {
+        this.openFiles = Caffeine.newBuilder()
+            .maximumSize(40)
+            .expireAfterAccess(120, TimeUnit.SECONDS)
+            .evictionListener(this::closeFile)
+            .ticker(cacheTicker)
+            .build(this::openFile);
 
-
-    public CacheDirectory(MainConfiguration mainConfiguration) {
-        if (mainConfiguration.cacheSizeGb() < 10) {
-            throw new IllegalStateException("Configuration: CACHE_SIZE_GB is " + mainConfiguration.cacheSizeGb() + ", but at least 10 GB are required");
+        if (cacheSizeGb < 10) {
+            throw new IllegalStateException("Configuration: CACHE_SIZE_GB is " + cacheSizeGb + ", but at least 10 GB are required");
         }
-        this.cacheSizeBytes = 1024L * 1024L * 1024L * mainConfiguration.cacheSizeGb();
-        this.cacheDirFile = new File(mainConfiguration.cacheDir());
+        this.cacheSizeBytes = 1024L * 1024L * 1024L * cacheSizeGb;
+        this.cacheDirFile = cacheDir;
         log.debug("Initializing cache download manager, with cache in directory [{}]", this.cacheDirFile::getAbsolutePath);
         if (!cacheDirFile.exists() && !cacheDirFile.mkdirs()) {
             throw new IllegalStateException("Could not create nonexistent cache directory at " + this.cacheDirFile.getAbsolutePath());
         }
-        newSingleThreadScheduledExecutor(ofVirtual().factory()).scheduleAtFixedRate(this.openFiles::cleanUp, 10, 10, TimeUnit.SECONDS);
+        scheduledExecutorService.scheduleAtFixedRate(this.openFiles::cleanUp, 10, 10, TimeUnit.SECONDS);
         log.info("Successfully started cache download manager, with cache in directory [{}]", this.cacheDirFile::getAbsolutePath);
+    }
+
+    public CacheDirectory(MainConfiguration mainConfiguration) {
+        this(mainConfiguration.cacheSizeGb(), mainConfiguration.cacheDir(), Ticker.systemTicker());
     }
 
     private RandomAccessFile openFile(String filename) throws FileNotFoundException {
@@ -99,7 +107,7 @@ public class CacheDirectory {
             .sum();
     }
 
-    public synchronized void writeContent(String clipId, long position, byte[] bytes) throws IOException {
+    public void writeContent(String clipId, long position, byte[] bytes) throws IOException {
         val contentFile = this.openFiles.get(contentFilename(clipId));
         synchronized (contentFile) {
             contentFile.seek(position);
@@ -107,73 +115,86 @@ public class CacheDirectory {
         }
     }
 
-    public synchronized int readContentByte(String clipId, long position) throws IOException {
-        val contentFilename = contentFilename(clipId);
-        val contentFile = new File(this.cacheDirFile, contentFilename);
-        if (!contentFile.exists()) {
-            throw new FileNotFoundException(contentFilename);
+    private RandomAccessFile openIfPresent(String filename) throws FileNotFoundException {
+        val existingContentAccess = this.openFiles.getIfPresent(filename);
+        if (null != existingContentAccess) {
+            return existingContentAccess;
         }
-
-        val contentAccess = this.openFiles.get(contentFilename);
-        if (position >= contentAccess.length()) {
-            throw new EOFException(contentFilename + ": " + position + " >" + contentFile.length());
+        // opening the nonexistent file would create it
+        val contentFile = new File(this.cacheDirFile, filename);
+        if (contentFile.exists()) {
+            return this.openFiles.get(filename);
         }
-        contentAccess.seek(position);
-        return contentAccess.read();
+        throw new FileNotFoundException(filename);
     }
 
-    public synchronized int readContentBytes(String clipId, long position, byte[] buffer, int off, int len) throws IOException {
+    public int readContentByte(String clipId, long position) throws IOException {
         val contentFilename = contentFilename(clipId);
-        val contentFile = new File(this.cacheDirFile, contentFilename);
-        if (!contentFile.exists()) {
-            throw new FileNotFoundException(contentFilename);
+        val contentAccess = this.openIfPresent(contentFilename);
+        synchronized (contentAccess) {
+            if (position >= contentAccess.length()) {
+                throw new EOFException(contentFilename + ": " + position + " >" + contentAccess.length());
+            }
+            contentAccess.seek(position);
+            return contentAccess.read();
         }
+    }
 
-        val contentAccess = this.openFiles.get(contentFilename);
-        if (position >= contentAccess.length()) {
-            return -1;
+    public int readContentBytes(String clipId, long position, byte[] buffer, int off, int len) throws IOException {
+        val contentFilename = contentFilename(clipId);
+        val contentAccess = this.openIfPresent(contentFilename);
+        synchronized (contentAccess) {
+            if (position >= contentAccess.length()) {
+                return -1;
+            }
+            contentAccess.seek(position);
+            val bytesLeftInFile = contentAccess.length() - position;
+            return contentAccess.read(buffer, off, (int) Math.min(bytesLeftInFile, len));
         }
-        contentAccess.seek(position);
-        val bytesLeftInFile = contentAccess.length() - position;
-        return contentAccess.read(buffer, off, (int) Math.min(bytesLeftInFile, len));
     }
 
     public synchronized void growContentFile(String clipId, long newSize) throws IOException, CacheSizeExhaustedException {
         val contentFilename = contentFilename(clipId);
-        val contentFile = this.openFiles.get(contentFilename);
-        val dirSize = directorySize();
-        val contentFileSizePrior = contentFile.length();
-        val dirSizeAfter = dirSize - contentFileSizePrior + newSize;
-        if (dirSizeAfter > this.cacheSizeBytes) {
-            throw new CacheSizeExhaustedException(
-                String.format(
-                    "growing [%s] to [%d] would exceed cache size limit of %d with new size of %d",
-                    contentFilename,
-                    newSize,
-                    this.cacheSizeBytes,
-                    dirSizeAfter));
+        val contentAccess = this.openFiles.get(contentFilename);
+        synchronized (contentAccess) {
+            val dirSize = directorySize();
+            val contentFileSizePrior = contentAccess.length();
+            val dirSizeAfter = dirSize - contentFileSizePrior + newSize;
+            if (dirSizeAfter > this.cacheSizeBytes) {
+                throw new CacheSizeExhaustedException(
+                    String.format(
+                        "growing [%s] to [%d] would exceed cache size limit of %d with new size of %d",
+                        contentFilename,
+                        newSize,
+                        this.cacheSizeBytes,
+                        dirSizeAfter));
+            }
+            contentAccess.setLength(newSize);
         }
-        contentFile.setLength(newSize);
     }
 
 
-    synchronized void writeMetadata(String clipId, @NotNull ClipMetadata metadata) throws IOException {
+    void writeMetadata(String clipId, @NotNull ClipMetadata metadata) throws IOException {
         val metaFile = this.openFiles.get(metaFilename(clipId));
-        metaFile.seek(0);
-        try (val generator = factory.createGenerator(metaFile)) {
-            metadata.writeTo(generator);
+        synchronized (metaFile) {
+            metaFile.seek(0);
+            try (val generator = factory.createGenerator(metaFile)) {
+                metadata.writeTo(generator);
+            }
+            metaFile.setLength(metaFile.getFilePointer());
         }
-        metaFile.setLength(metaFile.getFilePointer());
     }
 
-    synchronized Optional<ClipMetadata> loadMetadata(String clipId) throws IOException {
+    Optional<ClipMetadata> loadMetadata(String clipId) throws IOException {
         val metaFile = new File(this.cacheDirFile, metaFilename(clipId));
-        if (!metaFile.exists()) {
-            return Optional.empty();
+        synchronized (metaFile) {
+            if (!metaFile.exists()) {
+                return Optional.empty();
+            }
+            val metaFileAccess = this.openFiles.get(metaFilename(clipId));
+            metaFileAccess.seek(0);
+            return Optional.of(ClipMetadata.readFrom(factory.createParser(metaFileAccess)));
         }
-        val metaFileAccess = this.openFiles.get(metaFilename(clipId));
-        metaFileAccess.seek(0);
-        return Optional.of(ClipMetadata.readFrom(factory.createParser(metaFileAccess)));
     }
 
     public synchronized boolean tryCleanupCacheDir(Set<String> currentlyOpenClipIds) {
@@ -198,5 +219,11 @@ public class CacheDirectory {
             })
             .findFirst()
             .orElse(Boolean.FALSE);
+    }
+
+    public synchronized void close() {
+        this.openFiles.asMap().forEach((name, file) -> closeFile(name, file, RemovalCause.EXPLICIT));
+        this.openFiles.invalidateAll();
+        this.scheduledExecutorService.shutdownNow();
     }
 }

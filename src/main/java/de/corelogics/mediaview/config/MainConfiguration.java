@@ -26,6 +26,7 @@ package de.corelogics.mediaview.config;
 
 import lombok.val;
 
+import java.io.File;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -49,8 +50,8 @@ public class MainConfiguration {
         return configAccessor.get("MEDIATHEKVIEW_LIST_BASEURL", null);
     }
 
-    public String cacheDir() {
-        return configAccessor.get("CACHE_DIRECTORY", "./cache");
+    public File cacheDir() {
+        return new File(configAccessor.get("CACHE_DIRECTORY", "./cache"));
     }
 
     public int cacheSizeGb() {

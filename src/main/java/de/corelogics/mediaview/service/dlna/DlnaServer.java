@@ -63,7 +63,7 @@ public class DlnaServer {
             }
         });
 
-        final val localDevice = new LocalDevice(
+        val localDevice = new LocalDevice(
             new DeviceIdentity(new UDN(UUID.nameUUIDFromBytes(mainConfiguration.displayName().getBytes(StandardCharsets.UTF_8)))),
             type,
             details,
