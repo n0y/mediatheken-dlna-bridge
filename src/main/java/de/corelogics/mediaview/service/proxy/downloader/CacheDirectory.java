@@ -38,22 +38,23 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static java.lang.Thread.ofVirtual;
 import static java.util.Optional.ofNullable;
+import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 
 @Log4j2
 public class CacheDirectory {
-    private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+    private final ScheduledExecutorService scheduler = newSingleThreadScheduledExecutor(ofVirtual().factory());
     private final JsonFactory factory = new JsonFactory();
 
     private final File cacheDirFile;
     private final long cacheSizeBytes;
 
-    private LoadingCache<String, RandomAccessFile> openFiles = Caffeine.newBuilder()
+    private final LoadingCache<String, RandomAccessFile> openFiles = Caffeine.newBuilder()
             .maximumSize(40)
             .expireAfterAccess(120, TimeUnit.SECONDS)
             .removalListener(this::closeFile)

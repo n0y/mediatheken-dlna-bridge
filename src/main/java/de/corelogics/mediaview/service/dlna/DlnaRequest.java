@@ -27,7 +27,9 @@ package de.corelogics.mediaview.service.dlna;
 import org.jupnp.support.model.BrowseFlag;
 import org.jupnp.support.model.SortCriterion;
 
+import java.net.InetAddress;
 import java.util.List;
+import java.util.Optional;
 
 public record DlnaRequest(
         String objectId,
@@ -35,5 +37,6 @@ public record DlnaRequest(
         String filer,
         long firstResult,
         long maxResults,
-        List<SortCriterion> orderBy) {
+        List<SortCriterion> orderBy,
+        Optional<InetAddress> localAddress) {
 }

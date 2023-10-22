@@ -57,8 +57,4 @@ public class ByteRange {
         this.firstPosition = firstPosition;
         this.lastPosition = Optional.of(lastPosition);
     }
-
-    public long rangeSize(long completeSize) {
-        return 1 + lastPosition.orElse(completeSize) - firstPosition;
-    }
 }

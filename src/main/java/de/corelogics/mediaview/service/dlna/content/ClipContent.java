@@ -74,7 +74,7 @@ public class ClipContent extends BaseDnlaRequestHandler {
                         entry.getSize(),
                         entry.getDuration(),
                         2000L,
-                        clipContentUrlGenerator.createLinkTo(entry)));
+                        clipContentUrlGenerator.createLinkTo(entry, request.localAddress().orElse(null))));
     }
 
     private String idClip(ClipEntry entry) {

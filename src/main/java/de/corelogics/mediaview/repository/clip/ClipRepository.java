@@ -26,7 +26,6 @@ package de.corelogics.mediaview.repository.clip;
 
 import de.corelogics.mediaview.client.mediathekview.ClipEntry;
 import de.corelogics.mediaview.config.MainConfiguration;
-import lombok.AllArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.*;

@@ -26,10 +26,13 @@ package de.corelogics.mediaview.service.proxy;
 
 import de.corelogics.mediaview.client.mediathekview.ClipEntry;
 import de.corelogics.mediaview.service.ClipContentUrlGenerator;
+import org.jetbrains.annotations.Nullable;
+
+import java.net.InetAddress;
 
 public class DirectDownloadClipContentUrlGenerator implements ClipContentUrlGenerator {
     @Override
-    public String createLinkTo(ClipEntry e) {
+    public String createLinkTo(ClipEntry e, @Nullable InetAddress optionalLocalAddressQueried) {
         return e.getBestUrl();
     }
 }

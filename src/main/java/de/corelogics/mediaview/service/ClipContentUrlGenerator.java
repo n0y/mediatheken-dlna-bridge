@@ -25,7 +25,10 @@
 package de.corelogics.mediaview.service;
 
 import de.corelogics.mediaview.client.mediathekview.ClipEntry;
+import org.jetbrains.annotations.Nullable;
+
+import java.net.InetAddress;
 
 public interface ClipContentUrlGenerator {
-    String createLinkTo(ClipEntry e);
+    String createLinkTo(ClipEntry e, @Nullable InetAddress optionalLocalAddressQueried);
 }

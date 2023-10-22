@@ -24,6 +24,7 @@
 
 package de.corelogics.mediaview.service.dlna;
 
+import de.corelogics.mediaview.service.dlna.jupnp.LocalAddressHolder;
 import lombok.AllArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.jupnp.support.contentdirectory.AbstractContentDirectoryService;
@@ -44,16 +45,23 @@ class ContentDirectory extends AbstractContentDirectoryService {
     private final Collection<DlnaRequestHandler> handlers;
 
     @Override
-    public BrowseResult browse(String objectID, BrowseFlag browseFlag,
-                               String filter,
-                               long firstResult, long maxResults,
-                               SortCriterion[] orderby)
+    public BrowseResult browse(
+            String objectID,
+            BrowseFlag browseFlag,
+            String filter,
+            long firstResult, long maxResults,
+            SortCriterion[] orderby)
             throws ContentDirectoryException {
         log.debug("Received browse request for oid={}, first={}, max={}", objectID, firstResult, maxResults);
         try {
             var request = new DlnaRequest(
-                    objectID, browseFlag, filter, firstResult, maxResults,
-                    Arrays.asList(orderby));
+                    objectID,
+                    browseFlag,
+                    filter,
+                    firstResult,
+                    maxResults,
+                    Arrays.asList(orderby),
+                    LocalAddressHolder.getMemoizedLocalAddress());
             return handlers.stream()
                     .filter(h -> h.canHandle(request))
                     .findAny()

@@ -64,12 +64,12 @@ public class MainConfiguration {
         return configAccessor.get("UPDATEINTERVAL_FULL_HOURS", 24);
     }
 
-    public String publicBaseUrl() {
-        return configAccessor.get("PUBLIC_BASE_URL", null);
+    public Optional<String> publicBaseUrl() {
+        return ofNullable(configAccessor.get("PUBLIC_BASE_URL", null));
     }
 
     public int publicHttpPort() {
-        return configAccessor.get("PUBLIC_HTTP_PORT", 9300);
+        return configAccessor.get("PUBLIC_HTTP_PORT", 9301);
     }
 
     public int cacheMaxParallelDownloads() {

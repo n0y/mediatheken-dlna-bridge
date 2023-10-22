@@ -41,7 +41,7 @@ public class JettyServletContainerFixed implements ServletContainerAdapter {
         if (context.getDescendants(ContextHandler.class).stream()
                 .map(ContextHandler::getDisplayName)
                 .noneMatch(CONTEXT_DISPLAY_NAME::equals)) {
-            log.info("Registering DLNA servlet below {}", contextPath);
+            log.debug("Registering DLNA servlet below {}", contextPath);
             var servletHandler = new ServletContextHandler(ServletContextHandler.NO_SESSIONS);
             servletHandler.setDisplayName(CONTEXT_DISPLAY_NAME);
             if (contextPath != null && !contextPath.isEmpty()) {
