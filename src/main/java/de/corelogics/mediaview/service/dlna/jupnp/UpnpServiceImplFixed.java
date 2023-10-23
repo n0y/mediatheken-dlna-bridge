@@ -35,7 +35,7 @@ public class UpnpServiceImplFixed extends UpnpServiceImpl {
                         // This hack is here because JUpnp doesn't hand over the local address
                         // to the ContentDirectory, where we need it to propagate the
                         // correct clip URLs.
-                        try (val ignored = LocalAddressHolder.memoizeLocalAddress(getInputMessage().getConnection().getLocalAddress())) {
+                        try (val _ = LocalAddressHolder.memoizeLocalAddress(getInputMessage().getConnection().getLocalAddress())) {
                             return super.executeSync();
                         }
                     }

@@ -44,6 +44,7 @@ import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static java.lang.Thread.ofVirtual;
 import static java.util.Optional.ofNullable;
@@ -61,7 +62,8 @@ public class CacheDirectory {
         this.openFiles = Caffeine.newBuilder()
             .maximumSize(40)
             .expireAfterAccess(120, TimeUnit.SECONDS)
-            .evictionListener(this::closeFile)
+            .removalListener(this::closeFile)
+            .executor(Runnable::run)
             .ticker(cacheTicker)
             .build(this::openFile);
 
@@ -74,7 +76,7 @@ public class CacheDirectory {
         if (!cacheDirFile.exists() && !cacheDirFile.mkdirs()) {
             throw new IllegalStateException("Could not create nonexistent cache directory at " + this.cacheDirFile.getAbsolutePath());
         }
-        scheduledExecutorService.scheduleAtFixedRate(this.openFiles::cleanUp, 10, 10, TimeUnit.SECONDS);
+        scheduledExecutorService.scheduleAtFixedRate(this::cleanUp, 10, 10, TimeUnit.SECONDS);
         log.info("Successfully started cache download manager, with cache in directory [{}]", this.cacheDirFile::getAbsolutePath);
     }
 
@@ -83,10 +85,12 @@ public class CacheDirectory {
     }
 
     private RandomAccessFile openFile(String filename) throws FileNotFoundException {
+        log.debug("Opening file " + filename);
         return new RandomAccessFile(new File(cacheDirFile, filename), "rw");
     }
 
     private void closeFile(String name, RandomAccessFile file, RemovalCause cause) {
+        log.debug("Closing file " + name);
         IOUtils.closeQuietly(file, e -> log.debug("Could not (quietly) close file.", e));
     }
 
@@ -108,32 +112,41 @@ public class CacheDirectory {
     }
 
     public void writeContent(String clipId, long position, byte[] bytes) throws IOException {
-        val contentFile = this.openFiles.get(contentFilename(clipId));
+        val contentFilename = contentFilename(clipId);
+        val contentFile = this.openFiles.get(contentFilename);
         synchronized (contentFile) {
+            if (position + bytes.length > contentFile.length()) {
+                throw new EOFException(
+                    "%s: write %d-%d > %d".formatted(
+                        contentFilename, position, position + bytes.length, contentFile.length()));
+            }
             contentFile.seek(position);
             contentFile.write(bytes);
         }
     }
 
-    private RandomAccessFile openIfPresent(String filename) throws FileNotFoundException {
+    private Optional<RandomAccessFile> openIfPresent(String filename) {
         val existingContentAccess = this.openFiles.getIfPresent(filename);
         if (null != existingContentAccess) {
-            return existingContentAccess;
+            return Optional.of(existingContentAccess);
         }
         // opening the nonexistent file would create it
         val contentFile = new File(this.cacheDirFile, filename);
         if (contentFile.exists()) {
-            return this.openFiles.get(filename);
+            return Optional.of(this.openFiles.get(filename));
         }
-        throw new FileNotFoundException(filename);
+        return Optional.empty();
     }
 
     public int readContentByte(String clipId, long position) throws IOException {
         val contentFilename = contentFilename(clipId);
-        val contentAccess = this.openIfPresent(contentFilename);
+        val contentAccess = this.openIfPresent(contentFilename)
+            .orElseThrow(() -> new FileNotFoundException(contentFilename));
         synchronized (contentAccess) {
             if (position >= contentAccess.length()) {
-                throw new EOFException(contentFilename + ": " + position + " >" + contentAccess.length());
+                throw new EOFException(
+                    "%s: %d >%d".formatted(
+                        contentFilename, position, contentAccess.length()));
             }
             contentAccess.seek(position);
             return contentAccess.read();
@@ -142,10 +155,12 @@ public class CacheDirectory {
 
     public int readContentBytes(String clipId, long position, byte[] buffer, int off, int len) throws IOException {
         val contentFilename = contentFilename(clipId);
-        val contentAccess = this.openIfPresent(contentFilename);
+        val contentAccess = this.openIfPresent(contentFilename)
+            .orElseThrow(() -> new FileNotFoundException(contentFilename));
         synchronized (contentAccess) {
             if (position >= contentAccess.length()) {
-                return -1;
+                throw new EOFException(
+                    "%s: %d > %d".formatted(contentFilename, position, contentAccess.length()));
             }
             contentAccess.seek(position);
             val bytesLeftInFile = contentAccess.length() - position;
@@ -186,39 +201,50 @@ public class CacheDirectory {
     }
 
     Optional<ClipMetadata> loadMetadata(String clipId) throws IOException {
-        val metaFile = new File(this.cacheDirFile, metaFilename(clipId));
-        synchronized (metaFile) {
-            if (!metaFile.exists()) {
-                return Optional.empty();
-            }
-            val metaFileAccess = this.openFiles.get(metaFilename(clipId));
+        val metaFileAccessOpt = openIfPresent(metaFilename(clipId));
+        if (metaFileAccessOpt.isPresent()) {
+            val metaFileAccess = metaFileAccessOpt.get();
             metaFileAccess.seek(0);
             return Optional.of(ClipMetadata.readFrom(factory.createParser(metaFileAccess)));
+        } else {
+            return Optional.empty();
         }
     }
 
     public synchronized boolean tryCleanupCacheDir(Set<String> currentlyOpenClipIds) {
-        val currentlyOpenFilenames = currentlyOpenClipIds.stream().map(this::contentFilename).collect(Collectors.toSet());
-
+        val currentlyOpenFilenames = currentlyOpenClipIds.stream()
+            .flatMap(clipId ->Stream.of(this.contentFilename(clipId), this.metaFilename(clipId)))
+            .collect(Collectors.toSet());
         log.info("Cleaning up some space in cache directory");
         return ofNullable(this.cacheDirFile
-            .listFiles((dir, name) -> name.endsWith(".mp4"))).stream()
+            .listFiles((dir, name) -> name.endsWith(".mp4") || name.endsWith(".json"))).stream()
             .flatMap(Arrays::stream)
             .filter(f -> !currentlyOpenFilenames.contains(f.getName()))
             .sorted(Comparator.comparing(File::lastModified))
-            .map(contentFileToRemove -> {
+            .map(foundFilename -> {
+                val contentFileToRemove = new File(this.cacheDirFile, foundFilename.getName().replaceAll(".json", ".mp4"));
                 val metaFileToRemove = new File(this.cacheDirFile, contentFileToRemove.getName().replaceAll(".mp4", ".json"));
                 log.debug(
                     "Trying to delete {}, and {} with size of {}",
                     metaFileToRemove::getName,
                     contentFileToRemove::getName,
                     () -> metaFileToRemove.length() + contentFileToRemove.length());
-                this.openFiles.invalidate(metaFileToRemove.getName());
-                this.openFiles.invalidate(contentFileToRemove.getName());
-                return metaFileToRemove.delete() && contentFileToRemove.delete();
+                this.openFiles.asMap().remove(metaFileToRemove.getName());
+                this.openFiles.asMap().remove(contentFileToRemove.getName());
+//                this.openFiles.invalidate(metaFileToRemove.getName());
+//                this.openFiles.invalidate(contentFileToRemove.getName());
+                this.openFiles.cleanUp();
+                return
+                    (!metaFileToRemove.exists() || metaFileToRemove.delete()) &&
+                        (!contentFileToRemove.exists() || contentFileToRemove.delete());
             })
+            .filter(b -> b)
             .findFirst()
             .orElse(Boolean.FALSE);
+    }
+
+    void cleanUp() {
+        this.openFiles.cleanUp();
     }
 
     public synchronized void close() {
