@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2021 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2023 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,23 +24,17 @@
 
 package de.corelogics.mediaview.client.mediatheklist.model;
 
+import lombok.AllArgsConstructor;
+import lombok.ToString;
+
 import java.util.List;
 
+@ToString
+@AllArgsConstructor
 public class MediathekListeMetadata {
     private final List<MediathekListeServer> servers;
 
-    public MediathekListeMetadata(List<MediathekListeServer> servers) {
-        this.servers = servers;
-    }
-
     public List<MediathekListeServer> getServers() {
         return null == servers ? List.of() : servers;
-    }
-
-    @Override
-    public String toString() {
-        return "MediathekListeMetadata{" +
-                "servers=" + servers +
-                '}';
     }
 }

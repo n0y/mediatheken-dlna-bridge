@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2021 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2023 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,22 +24,14 @@
 
 package de.corelogics.mediaview.client.mediathekview;
 
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+
 import java.util.stream.Stream;
 
+@AllArgsConstructor
+@Getter()
 public class MediathekListe {
     private final Stream<ClipEntry> stream;
     private final FilmlisteMetaData metaData;
-
-    public MediathekListe(Stream<ClipEntry> stream, FilmlisteMetaData metaData) {
-        this.stream = stream;
-        this.metaData = metaData;
-    }
-
-    public FilmlisteMetaData getMetaData() {
-        return this.metaData;
-    }
-
-    public Stream<ClipEntry> stream() {
-        return stream;
-    }
 }

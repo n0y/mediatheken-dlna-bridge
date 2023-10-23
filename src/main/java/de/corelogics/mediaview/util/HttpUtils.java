@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2021 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2023 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -56,15 +56,15 @@ public class HttpUtils {
         // If this application overloads the CDN, maybe due to a defect, then make it easy for administrators to block traffic from it.
         if (mainConfiguration.isApplicationHeaderAdded()) {
             headerConsumer.accept(
-                    HEADER_APPLICATION,
-                    format("Mediathek-DLNA-Bridge %s", mainConfiguration.getBuildVersion()));
+                HEADER_APPLICATION,
+                format("Mediatheken-DLNA-Bridge %s", mainConfiguration.getBuildVersion()));
             headerConsumer.accept(
-                    HEADER_APPLICATION_HOME,
-                    "https://github.com/n0y/mediatheken-dlna-bridge");
+                HEADER_APPLICATION_HOME,
+                "https://github.com/n0y/mediatheken-dlna-bridge");
             headerConsumer.accept(
-                    HEADER_APPLICATION_NOTE,
-                    "When blocking requests from this application, then please leave us a defect ticket for us to fix problems. " +
-                            "We kindly ask you to block only the affected application version if possible.");
+                HEADER_APPLICATION_NOTE,
+                "If you block requests from this application, then please leave a defect ticket for us to fix problems. " +
+                    "We kindly ask you to block only the affected application version if possible.");
         }
         // this is added to improve compatibility with the Akam** CDN implementation
         headerConsumer.accept("User-Agent", "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:84.0) Gecko/20100101 Firefox/84.0");

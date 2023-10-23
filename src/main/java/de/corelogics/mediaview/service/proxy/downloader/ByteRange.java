@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2021 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2023 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,8 +24,16 @@
 
 package de.corelogics.mediaview.service.proxy.downloader;
 
+import lombok.Getter;
+import lombok.ToString;
+import lombok.val;
+
 import java.util.Optional;
 
+import static java.lang.Long.parseLong;
+
+@Getter
+@ToString
 public class ByteRange {
     private final boolean partial;
     private final long firstPosition;
@@ -34,10 +42,10 @@ public class ByteRange {
     public ByteRange(String optionalRangeHeader) {
         partial = null != optionalRangeHeader;
         if (partial) {
-            var split = optionalRangeHeader.split("[-,=]");
-            this.firstPosition = Long.parseLong(split[1]);
+            val split = optionalRangeHeader.split("[-,=]");
+            this.firstPosition = split[1].isEmpty() ? 0 : parseLong(split[1]);
             if (split.length > 2) {
-                this.lastPosition = Optional.of(Long.parseLong(split[2]));
+                this.lastPosition = Optional.of(parseLong(split[2]));
             } else {
                 this.lastPosition = Optional.empty();
             }
@@ -51,26 +59,5 @@ public class ByteRange {
         partial = true;
         this.firstPosition = firstPosition;
         this.lastPosition = Optional.of(lastPosition);
-    }
-
-    public boolean isPartial() {
-        return false;
-    }
-
-    public long rangeSize(long completeSize) {
-        return 1 + lastPosition.orElse(completeSize) - firstPosition;
-    }
-
-    public long getFirstPosition() {
-        return this.firstPosition;
-    }
-
-    public Optional<Long> getLastPosition() {
-        return this.lastPosition;
-    }
-
-    @Override
-    public String toString() {
-        return "[" + firstPosition + "-" + lastPosition.map(Object::toString).orElse("") + "]";
     }
 }

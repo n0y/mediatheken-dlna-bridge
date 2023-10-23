@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2021 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2023 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,6 +24,8 @@
 
 package de.corelogics.mediaview.client.mediathekview;
 
+import lombok.val;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Spliterator;
@@ -32,12 +34,12 @@ import java.util.stream.StreamSupport;
 
 public class MediathekViewImporter {
     public MediathekListe createList(InputStream input) throws IOException {
-        var iterator = new ClipIterator(input);
+        val iterator = new ClipIterator(input);
         return new MediathekListe(
-                StreamSupport.stream(
-                        Spliterators.spliteratorUnknownSize(iterator,
-                                Spliterator.ORDERED),
-                        false),
-                iterator.getMetaData());
+            StreamSupport.stream(
+                Spliterators.spliteratorUnknownSize(iterator,
+                    Spliterator.ORDERED),
+                false),
+            iterator.getMetaData());
     }
 }

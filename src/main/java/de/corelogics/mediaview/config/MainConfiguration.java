@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2021 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2023 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,7 +24,9 @@
 
 package de.corelogics.mediaview.config;
 
-import java.util.Comparator;
+import lombok.val;
+
+import java.io.File;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -48,8 +50,8 @@ public class MainConfiguration {
         return configAccessor.get("MEDIATHEKVIEW_LIST_BASEURL", null);
     }
 
-    public String cacheDir() {
-        return configAccessor.get("CACHE_DIRECTORY", "./cache");
+    public File cacheDir() {
+        return new File(configAccessor.get("CACHE_DIRECTORY", "./cache"));
     }
 
     public int cacheSizeGb() {
@@ -64,12 +66,12 @@ public class MainConfiguration {
         return configAccessor.get("UPDATEINTERVAL_FULL_HOURS", 24);
     }
 
-    public String publicBaseUrl() {
-        return configAccessor.get("PUBLIC_BASE_URL", null);
+    public Optional<String> publicBaseUrl() {
+        return ofNullable(configAccessor.get("PUBLIC_BASE_URL", null));
     }
 
     public int publicHttpPort() {
-        return configAccessor.get("PUBLIC_HTTP_PORT", 8080);
+        return configAccessor.get("PUBLIC_HTTP_PORT", 9301);
     }
 
     public int cacheMaxParallelDownloads() {
@@ -89,9 +91,9 @@ public class MainConfiguration {
     }
 
     public String getBuildVersion() {
-        var version = configAccessor.get("BUILD_VERSION", "E-SNAPSHOT");
+        val version = configAccessor.get("BUILD_VERSION", "E-SNAPSHOT");
         if (version.equalsIgnoreCase("${project.version}")) {
-            // no filtering is applied when using RUN in a IDE
+            // no filtering is applied when using RUN in an IDE
             return "E-SNAPSHOT";
         }
         return version;
@@ -99,19 +101,19 @@ public class MainConfiguration {
 
     public List<Favourite> getFavourites() {
         return configAccessor
-                .getStartingWith("FAVOURITE_")
-                .entrySet().stream()
-                .sorted(Comparator.comparing(Map.Entry::getKey))
-                .map(Map.Entry::getValue)
-                .map(this::toFavourite)
-                .filter(Optional::isPresent)
-                .map(Optional::get)
-                .collect(Collectors.toList());
+            .getStartingWith("FAVOURITE_")
+            .entrySet().stream()
+            .sorted(Map.Entry.comparingByKey())
+            .map(Map.Entry::getValue)
+            .map(this::toFavourite)
+            .filter(Optional::isPresent)
+            .map(Optional::get)
+            .collect(Collectors.toList());
     }
 
     private Optional<Favourite> toFavourite(String favConfig) {
-        var showPattern = Pattern.compile("^show:([^:]+):(.+)$");
-        var showMatcher = showPattern.matcher(favConfig);
+        val showPattern = Pattern.compile("^show:([^:]+):(.+)$");
+        val showMatcher = showPattern.matcher(favConfig);
         if (showMatcher.matches()) {
             return Optional.of(new FavouriteShow(showMatcher.group(1), showMatcher.group(2)));
         }

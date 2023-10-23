@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2021 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2023 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,58 +27,24 @@ package de.corelogics.mediaview.service.proxy.downloader;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.ToString;
+import lombok.experimental.Accessors;
+import lombok.val;
 
 import java.io.IOException;
 import java.util.BitSet;
-import java.util.StringJoiner;
 
+@ToString
+@Setter
+@Getter
+@Accessors(fluent = true)
 class ClipMetadata {
     private String contentType;
     private long size;
     private BitSet bitSet;
     private int numberOfChunks;
-
-    public String getContentType() {
-        return contentType;
-    }
-
-    public void setContentType(String contentType) {
-        this.contentType = contentType;
-    }
-
-    public long getSize() {
-        return size;
-    }
-
-    public void setSize(long size) {
-        this.size = size;
-    }
-
-    public void setBitSet(BitSet bitSet) {
-        this.bitSet = bitSet;
-    }
-
-    public BitSet getBitSet() {
-        return bitSet;
-    }
-
-    public void setNumberOfChunks(int numberOfChunks) {
-        this.numberOfChunks = numberOfChunks;
-    }
-
-    public int getNumberOfChunks() {
-        return numberOfChunks;
-    }
-
-    @Override
-    public String toString() {
-        return new StringJoiner(", ", ClipMetadata.class.getSimpleName() + "[", "]")
-                .add("contentType='" + contentType + "'")
-                .add("size=" + size)
-                .add("bitSet=" + bitSet)
-                .add("numberOfChunks=" + numberOfChunks)
-                .toString();
-    }
 
     void writeTo(JsonGenerator generator) throws IOException {
         generator.writeStartObject();
@@ -101,25 +67,25 @@ class ClipMetadata {
     }
 
     static ClipMetadata readFrom(JsonParser parser) throws IOException {
-        var m = new ClipMetadata();
+        val m = new ClipMetadata();
         while (parser.nextToken() != JsonToken.END_OBJECT) {
             String name = parser.getCurrentName();
             if (null != name) {
                 switch (name) {
                     case "contentType":
                         parser.nextToken();
-                        m.setContentType(parser.getText());
+                        m.contentType(parser.getText());
                         break;
                     case "size":
                         parser.nextToken();
-                        m.setSize(parser.getLongValue());
+                        m.size(parser.getLongValue());
                         break;
                     case "numberOfChunks":
                         parser.nextToken();
-                        m.setNumberOfChunks(parser.getIntValue());
+                        m.numberOfChunks(parser.getIntValue());
                         break;
                     case "bitSet":
-                        m.setBitSet(readBitsetFrom(parser));
+                        m.bitSet(readBitsetFrom(parser));
                         break;
                 }
             }
@@ -131,7 +97,7 @@ class ClipMetadata {
         var size = 0;
         byte[] bytes = null;
         while (parser.nextToken() != JsonToken.END_OBJECT) {
-            var name = parser.currentName();
+            val name = parser.currentName();
             if ("size".equals(name)) {
                 size = parser.nextIntValue(0);
             } else if ("bits".equals(name)) {
@@ -142,8 +108,8 @@ class ClipMetadata {
         if (size == 0 || null == bytes) {
             throw new IOException("Missing some fields in bitset");
         }
-        var b = new BitSet(size);
-        var n = BitSet.valueOf(bytes);
+        val b = new BitSet(size);
+        val n = BitSet.valueOf(bytes);
         b.or(n);
         return b;
     }

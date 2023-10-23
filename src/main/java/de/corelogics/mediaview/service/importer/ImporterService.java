@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2021 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2023 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -29,8 +29,9 @@ import de.corelogics.mediaview.client.mediathekview.ClipEntry;
 import de.corelogics.mediaview.client.mediathekview.MediathekViewImporter;
 import de.corelogics.mediaview.config.MainConfiguration;
 import de.corelogics.mediaview.repository.clip.ClipRepository;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.log4j.Log4j2;
+import lombok.val;
 
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
@@ -40,9 +41,9 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+@Log4j2
+@RequiredArgsConstructor
 public class ImporterService {
-    private final Logger logger = LogManager.getLogger(ImporterService.class);
-
     private final MainConfiguration mainConfiguration;
     private final MediathekListClient mediathekListeClient;
     private final MediathekViewImporter importer;
@@ -50,28 +51,21 @@ public class ImporterService {
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
     private boolean stopped = false;
 
-    public ImporterService(MainConfiguration mainConfiguration, MediathekListClient mediathekListeClient, MediathekViewImporter importer, ClipRepository clipRepository) {
-        this.mainConfiguration = mainConfiguration;
-        this.mediathekListeClient = mediathekListeClient;
-        this.importer = importer;
-        this.clipRepository = clipRepository;
-    }
-
 
     public void scheduleImport() {
-        logger.info("Starting import scheduler. Update interval: {} hours", mainConfiguration::updateIntervalFullHours);
+        log.info("Starting import scheduler. Update interval: {} hours", mainConfiguration::updateIntervalFullHours);
         scheduleNextFullImport();
     }
 
     private void scheduleNextFullImport() {
-        var now = ZonedDateTime.now();
-        var nextFullUpdateAt = clipRepository
-                .findLastFullImport()
-                .map(t -> t.plus(mainConfiguration.updateIntervalFullHours(), ChronoUnit.HOURS))
-                .filter(now::isBefore)
-                .orElseGet(() -> now.plus(10, ChronoUnit.SECONDS));
-        long inSeconds = ChronoUnit.SECONDS.between(now, nextFullUpdateAt);
-        logger.info("Scheduling next full import at {} (in {} seconds from now)", nextFullUpdateAt, inSeconds);
+        val now = ZonedDateTime.now();
+        val nextFullUpdateAt = clipRepository
+            .findLastFullImport()
+            .map(t -> t.plusHours(mainConfiguration.updateIntervalFullHours()))
+            .filter(now::isBefore)
+            .orElseGet(() -> now.plusSeconds(10));
+        final long inSeconds = ChronoUnit.SECONDS.between(now, nextFullUpdateAt);
+        log.info("Scheduling next full import at {} (in {} seconds from now)", nextFullUpdateAt, inSeconds);
         scheduler.schedule(this::fullImport, inSeconds, TimeUnit.SECONDS);
     }
 
@@ -80,27 +74,27 @@ public class ImporterService {
         try {
             this.scheduler.awaitTermination(10, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
-            logger.warn("Could not terminate.", e);
+            log.warn("Could not terminate.", e);
         }
     }
 
     private void fullImport() {
-        logger.info("Starting a full import");
-        var startedAt = ZonedDateTime.now();
+        log.info("Starting a full import");
+        val startedAt = ZonedDateTime.now();
         try {
-            var entryUpdateList = new ArrayList<ClipEntry>(1000);
-            var numImported = new AtomicInteger();
-            try (var input = mediathekListeClient.openMediathekListeFull()) {
-                var list = importer.createList(input);
-                var it = list.stream().iterator();
+            val entryUpdateList = new ArrayList<ClipEntry>(1000);
+            val numImported = new AtomicInteger();
+            try (val input = mediathekListeClient.openMediathekListeFull()) {
+                val list = importer.createList(input);
+                val it = list.getStream().iterator();
                 while (it.hasNext()) {
                     if (stopped) {
-                        logger.debug("Stopped: terminating import");
+                        log.debug("Stopped: terminating import");
                         return;
                     }
-                    var e = it.next();
+                    val e = it.next();
                     if (numImported.incrementAndGet() % 10000 == 0) {
-                        logger.info("Full import yielded {} clips until now", numImported::get);
+                        log.info("Full import yielded {} clips until now", numImported::get);
                     }
                     entryUpdateList.add(e);
                     if (entryUpdateList.size() > 999) {
@@ -110,17 +104,16 @@ public class ImporterService {
                 }
                 clipRepository.addClips(entryUpdateList, startedAt);
                 clipRepository.deleteClipsImportedBefore(startedAt);
-                clipRepository.compact();
-                logger.info("Successfully performed a full import, yielding {} clips", numImported::get);
+                log.info("Successfully performed a full import, yielding {} clips", numImported::get);
             }
         } catch (final Exception e) {
-            logger.warn("Exception during import.", e);
+            log.warn("Exception during import.", e);
         }
         try {
             clipRepository.updateLastFullImport(ZonedDateTime.now());
             scheduleNextFullImport();
         } catch (Exception e) {
-            logger.warn("Could not schedule next full import: ", e);
+            log.warn("Could not schedule next full import: ", e);
         }
     }
 }

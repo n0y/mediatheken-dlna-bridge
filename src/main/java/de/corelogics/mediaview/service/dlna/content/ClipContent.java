@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2021 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2023 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,14 +27,16 @@ package de.corelogics.mediaview.service.dlna.content;
 import de.corelogics.mediaview.client.mediathekview.ClipEntry;
 import de.corelogics.mediaview.service.ClipContentUrlGenerator;
 import de.corelogics.mediaview.service.dlna.DlnaRequest;
-import org.fourthline.cling.support.model.DIDLContent;
-import org.fourthline.cling.support.model.Res;
-import org.fourthline.cling.support.model.item.VideoItem;
+import lombok.AllArgsConstructor;
+import org.jupnp.support.model.DIDLContent;
+import org.jupnp.support.model.Res;
+import org.jupnp.support.model.item.VideoItem;
 
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 
-public class ClipContent extends BaseDnlaRequestHandler {
+@AllArgsConstructor
+public class ClipContent extends BaseDlnaRequestHandler {
     private static final String MIME_TYPE_VIDEO_MP4 = "video/mp4";
     private static final String URN_PREFIX_CLIP = "urn:corelogics.de:mediaview:clip:";
 
@@ -43,17 +45,13 @@ public class ClipContent extends BaseDnlaRequestHandler {
 
     private final ClipContentUrlGenerator clipContentUrlGenerator;
 
-    public ClipContent(ClipContentUrlGenerator clipContentUrlGenerator) {
-        this.clipContentUrlGenerator = clipContentUrlGenerator;
-    }
-
     @Override
     public boolean canHandle(DlnaRequest request) {
         return false;
     }
 
     @Override
-    protected DIDLContent respondWithException(DlnaRequest request) throws Exception {
+    protected DIDLContent respondWithException(DlnaRequest request) {
         return new DIDLContent();
     }
 
@@ -67,16 +65,16 @@ public class ClipContent extends BaseDnlaRequestHandler {
 
     private VideoItem createLink(DlnaRequest request, ClipEntry entry, DateTimeFormatter dateTimeFormat) {
         return new VideoItem(
-                idClip(entry),
-                request.getObjectId(),
-                dateTimeFormat.format(entry.getBroadcastedAt()) + " " + lengthLimit(entry.getTitle()),
-                "",
-                new Res(
-                        MIME_TYPE_VIDEO_MP4,
-                        entry.getSize(),
-                        entry.getDuration(),
-                        2000L,
-                        clipContentUrlGenerator.createLinkTo(entry)));
+            idClip(entry),
+            request.objectId(),
+            dateTimeFormat.format(entry.getBroadcastedAt()) + " " + lengthLimit(entry.getTitle()),
+            "",
+            new Res(
+                MIME_TYPE_VIDEO_MP4,
+                entry.getSize(),
+                entry.getDuration(),
+                2000L,
+                clipContentUrlGenerator.createLinkTo(entry, request.localAddress().orElse(null))));
     }
 
     private String idClip(ClipEntry entry) {

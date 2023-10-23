@@ -22,23 +22,31 @@
  * SOFTWARE.
  */
 
-package de.corelogics.mediaview.util;
+package de.corelogics.mediaview.service.dlna.jupnp;
 
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
+import java.net.InetAddress;
+import java.util.Optional;
 
-public class IdUtils {
-    private static final Base64.Encoder ENCODER = Base64.getEncoder().withoutPadding();
-    private static final Base64.Decoder DECODER = Base64.getDecoder();
+import static java.util.Optional.ofNullable;
 
-    private IdUtils() {
+public class LocalAddressHolder {
+    private static final ThreadLocal<InetAddress> LOCAL_ADDRESS = new ThreadLocal<>();
+
+    private LocalAddressHolder() {
+        super();
     }
 
-    public static String encodeId(String data) {
-        return ENCODER.encodeToString(data.getBytes(StandardCharsets.UTF_8));
+    public static NoExceptionAutoCloseable memoizeLocalAddress(InetAddress localAddress) {
+        LOCAL_ADDRESS.set(localAddress);
+        return LOCAL_ADDRESS::remove;
     }
 
-    public static String decodeId(String base64) {
-        return new String(DECODER.decode(base64), StandardCharsets.UTF_8);
+    @FunctionalInterface
+    public interface NoExceptionAutoCloseable extends AutoCloseable {
+        void close();
+    }
+
+    public static Optional<InetAddress> getMemoizedLocalAddress() {
+        return ofNullable(LOCAL_ADDRESS.get());
     }
 }

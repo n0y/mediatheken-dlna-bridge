@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2021 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2023 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -31,7 +31,9 @@ import de.corelogics.mediaview.repository.clip.ClipRepository;
 import de.corelogics.mediaview.service.dlna.DlnaServer;
 import de.corelogics.mediaview.service.dlna.DlnaServiceModule;
 import de.corelogics.mediaview.service.importer.ImporterService;
+import de.corelogics.mediaview.service.networking.NetworkingModule;
 import de.corelogics.mediaview.service.proxy.ForwardingProxyModule;
+import lombok.val;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -43,25 +45,27 @@ public class Main {
 
     private final ImporterService importerService;
     private final DlnaServer dlnaServer;
-    private final ClipRepository clipRepository;
 
     public Main() throws IOException {
-        var configModule = new ConfigurationModule();
-        var mainConfiguration = configModule.getMainConfiguration();
+        val configModule = new ConfigurationModule();
+        val mainConfiguration = configModule.getMainConfiguration();
+        val networkingModule = new NetworkingModule(mainConfiguration);
 
-        this.clipRepository = new ClipRepository(mainConfiguration);
+        val clipRepository = new ClipRepository(mainConfiguration);
         this.dlnaServer =
-                new DlnaServiceModule(
-                        mainConfiguration,
-                        new ForwardingProxyModule(mainConfiguration, clipRepository)
-                                .buildClipContentUrlGenerator(),
-                        clipRepository)
-                        .getDlnaServer();
-        this.importerService = new ImporterService(
+            new DlnaServiceModule(
                 mainConfiguration,
-                new MediathekListClient(mainConfiguration, HttpClient.newBuilder().build()),
-                new MediathekViewImporter(),
-                clipRepository);
+                networkingModule.getJettyServer(),
+                new ForwardingProxyModule(mainConfiguration, networkingModule.getJettyServer(), clipRepository)
+                    .buildClipContentUrlGenerator(),
+                clipRepository)
+                .getDlnaServer();
+        networkingModule.startup();
+        this.importerService = new ImporterService(
+            mainConfiguration,
+            new MediathekListClient(mainConfiguration, HttpClient.newBuilder().build()),
+            new MediathekViewImporter(),
+            clipRepository);
         this.importerService.scheduleImport();
     }
 
@@ -78,6 +82,5 @@ public class Main {
         logger.info("Shutting down");
         importerService.shutdown();
         dlnaServer.shutdown();
-        clipRepository.shutdown();
     }
 }

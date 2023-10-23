@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2021 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2023 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -29,15 +29,14 @@ import de.corelogics.mediaview.repository.clip.ClipRepository;
 import de.corelogics.mediaview.service.ClipContentUrlGenerator;
 import de.corelogics.mediaview.service.proxy.downloader.CacheDirectory;
 import de.corelogics.mediaview.service.proxy.downloader.DownloadManager;
+import lombok.RequiredArgsConstructor;
+import org.eclipse.jetty.server.Server;
 
+@RequiredArgsConstructor
 public class ForwardingProxyModule {
     private final MainConfiguration mainConfiguration;
+    private final Server jettyServer;
     private final ClipRepository clipRepository;
-
-    public ForwardingProxyModule(MainConfiguration mainConfiguration, ClipRepository clipRepository) {
-        this.mainConfiguration = mainConfiguration;
-        this.clipRepository = clipRepository;
-    }
 
     public ClipContentUrlGenerator buildClipContentUrlGenerator() {
         if (mainConfiguration.isPrefetchingEnabled()) {
@@ -49,9 +48,10 @@ public class ForwardingProxyModule {
 
     private ClipContentUrlGenerator buildForwardingProxyServer() {
         return new ForwardingProxyServer(
-                this.mainConfiguration,
-                this.clipRepository,
-                buildDownloadManager());
+            this.mainConfiguration,
+            this.jettyServer,
+            this.clipRepository,
+            buildDownloadManager());
     }
 
     private DownloadManager buildDownloadManager() {

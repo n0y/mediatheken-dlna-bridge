@@ -27,6 +27,8 @@ package de.corelogics.mediaview.client.mediathekview;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
+import lombok.Getter;
+import lombok.val;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -42,6 +44,7 @@ class ClipIterator implements Iterator<ClipEntry> {
     private static final JsonFactory JSON_FACTORY = new JsonFactory();
 
     private final InputStream in;
+    @Getter
     private FilmlisteMetaData metaData = null;
     private final JsonParser jParser;
     private final List<String> fields = new ArrayList<>();
@@ -72,10 +75,6 @@ class ClipIterator implements Iterator<ClipEntry> {
         }
     }
 
-    public FilmlisteMetaData getMetaData() {
-        return this.metaData;
-    }
-
     @Override
     public boolean hasNext() {
         return currentEntry.isPresent();
@@ -83,7 +82,7 @@ class ClipIterator implements Iterator<ClipEntry> {
 
     @Override
     public ClipEntry next() {
-        var current = currentEntry.orElseThrow(NoSuchElementException::new);
+        val current = currentEntry.orElseThrow(NoSuchElementException::new);
         readNextEntry();
         return current;
     }
@@ -92,7 +91,7 @@ class ClipIterator implements Iterator<ClipEntry> {
         try {
             for (var token = jParser.nextToken(); null != token; token = jParser.nextToken()) {
                 if ("X".equals(jParser.currentName())) {
-                    var nextEntry = parseEntry(fields);
+                    val nextEntry = parseEntry(fields);
                     if (nextEntry.isPresent()) {
                         this.currentEntry = nextEntry;
                         return;
@@ -107,17 +106,17 @@ class ClipIterator implements Iterator<ClipEntry> {
     }
 
     private FilmlisteMetaData parseMetaData() throws IOException {
-        var it = parseFieldList().iterator();
+        val it = parseFieldList().iterator();
         return new FilmlisteMetaData(
-                it.hasNext() ? it.next() : "",
-                it.hasNext() ? it.next() : "",
-                it.hasNext() ? it.next() : "",
-                it.hasNext() ? it.next() : "",
-                it.hasNext() ? it.next() : "");
+            it.hasNext() ? it.next() : "",
+            it.hasNext() ? it.next() : "",
+            it.hasNext() ? it.next() : "",
+            it.hasNext() ? it.next() : "",
+            it.hasNext() ? it.next() : "");
     }
 
     private List<String> parseFieldList() throws IOException {
-        var fields = new ArrayList<String>();
+        val fields = new ArrayList<String>();
         for (var token = jParser.nextToken(); null != token && token != JsonToken.END_ARRAY; token = jParser.nextToken()) {
             if (token == JsonToken.VALUE_STRING) {
                 fields.add(jParser.getValueAsString());
@@ -127,42 +126,42 @@ class ClipIterator implements Iterator<ClipEntry> {
     }
 
     private Optional<ClipEntry> parseEntry(List<String> fieldList) throws IOException {
-        var fields = new ArrayList<String>();
+        val fields = new ArrayList<String>();
         for (var token = jParser.nextToken(); null != token && token != JsonToken.END_ARRAY; token = jParser.nextToken()) {
             if (token == JsonToken.VALUE_STRING) {
-                var valueAsString = jParser.getValueAsString().trim();
+                val valueAsString = jParser.getValueAsString().trim();
                 fields.add(valueAsString);
             }
         }
         Map<String, String> res = new HashMap<>(fieldList.size());
         for (int i = 0; i < fieldList.size(); i++) {
-            var value = i < fields.size() ? fields.get(i) : "";
+            val value = i < fields.size() ? fields.get(i) : "";
             if (!value.isBlank()) {
                 res.put(fieldList.get(i), value);
             }
         }
-        var url = res.getOrDefault("Url", "");
+        val url = res.getOrDefault("Url", "");
         try {
-            var date = ofNullable(res.get("Datum"))
-                    .orElseGet(() ->
-                            dateFormat.format(currentEntry
-                                    .map(ClipEntry::getBroadcastedAt)
-                                    .orElseGet(() -> LocalDateTime.now().atZone(ZONE_BERLIN))));
-            var time = ofNullable(res.get("Zeit"))
-                    .orElseGet(() ->
-                            timeFormat.format(currentEntry
-                                    .map(ClipEntry::getBroadcastedAt)
-                                    .orElseGet(() -> LocalDateTime.now().atZone(ZONE_BERLIN))));
-            var broadcastTime = LocalDateTime.from(dateTimeFormat.parse(date + " " + time)).atZone(ZONE_BERLIN);
+            val date = ofNullable(res.get("Datum"))
+                .orElseGet(() ->
+                    dateFormat.format(currentEntry
+                        .map(ClipEntry::getBroadcastedAt)
+                        .orElseGet(() -> LocalDateTime.now().atZone(ZONE_BERLIN))));
+            val time = ofNullable(res.get("Zeit"))
+                .orElseGet(() ->
+                    timeFormat.format(currentEntry
+                        .map(ClipEntry::getBroadcastedAt)
+                        .orElseGet(() -> LocalDateTime.now().atZone(ZONE_BERLIN))));
+            val broadcastTime = LocalDateTime.from(dateTimeFormat.parse(date + " " + time)).atZone(ZONE_BERLIN);
             return Optional.of(new ClipEntry(
-                    ofNullable(res.get("Sender")).orElseGet(() -> currentEntry.map(ClipEntry::getChannelName).orElse("")),
-                    ofNullable(res.get("Thema")).map(this::cleanString).orElseGet(() -> currentEntry.map(ClipEntry::getContainedIn).orElse("")),
-                    broadcastTime,
-                    ofNullable(res.get("Titel")).map(this::cleanString).orElseGet(() -> currentEntry.map(ClipEntry::getTitle).orElse("")),
-                    res.getOrDefault("Dauer", ""),
-                    parseLong(res.getOrDefault("Größe [MB]", "0")) * 1024 * 1024,
-                    url,
-                    patchUrl(url, res.getOrDefault("Url HD", ""))
+                ofNullable(res.get("Sender")).orElseGet(() -> currentEntry.map(ClipEntry::getChannelName).orElse("")),
+                ofNullable(res.get("Thema")).map(this::cleanString).orElseGet(() -> currentEntry.map(ClipEntry::getContainedIn).orElse("")),
+                broadcastTime,
+                ofNullable(res.get("Titel")).map(this::cleanString).orElseGet(() -> currentEntry.map(ClipEntry::getTitle).orElse("")),
+                res.getOrDefault("Dauer", ""),
+                parseLong(res.getOrDefault("Größe [MB]", "0")) * 1024 * 1024,
+                url,
+                patchUrl(url, res.getOrDefault("Url HD", ""))
             ));
         } catch (final RuntimeException e) {
             System.out.println(e.getClass().getSimpleName() + ": " + e.getMessage() + "\n" + res);
@@ -171,8 +170,7 @@ class ClipIterator implements Iterator<ClipEntry> {
     }
 
     private String cleanString(String in) {
-        var cleaned = in.replaceAll("[\"”]", "").replaceAll("©.*", "").replaceFirst("^[^A-Za-z0-9]", "#").trim();
-        return cleaned;
+        return in.replaceAll("[\"”]", "").replaceAll("©.*", "").replaceFirst("^[^A-Za-z0-9]", "#").trim();
     }
 
     private long parseLong(String stringValue) {
@@ -187,12 +185,12 @@ class ClipIterator implements Iterator<ClipEntry> {
     }
 
     private String patchUrl(String url, String urlPatch) {
-        var pipeIndex = urlPatch.indexOf('|');
+        val pipeIndex = urlPatch.indexOf('|');
         if (pipeIndex < 1) {
             return urlPatch;
         }
-        var location = Integer.parseInt(urlPatch.substring(0, pipeIndex));
-        var patch = urlPatch.substring(pipeIndex + 1);
+        val location = Integer.parseInt(urlPatch.substring(0, pipeIndex));
+        val patch = urlPatch.substring(pipeIndex + 1);
 
         if (location >= url.length()) {
             return url;

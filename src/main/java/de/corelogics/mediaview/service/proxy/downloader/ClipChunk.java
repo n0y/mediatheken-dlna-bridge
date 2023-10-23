@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2021 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2023 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,29 +24,10 @@
 
 package de.corelogics.mediaview.service.proxy.downloader;
 
-class ClipChunk {
-    private final int chunkNumber;
-    private final long from;
-    private final long to;
-
-    public ClipChunk(int chunkNumber, long from, long to) {
-        this.chunkNumber = chunkNumber;
-        this.from = from;
-        this.to = to;
-    }
-
-    public long getFrom() {
-        return from;
-    }
-
-    public long getTo() {
-        return to;
-    }
-
-    public int getChunkNumber() {
-        return chunkNumber;
-    }
-
+record ClipChunk(
+    int chunkNumber,
+    long from,
+    long to) {
     @Override
     public String toString() {
         return String.format("{#%d: %d-%d}", chunkNumber, from, to);

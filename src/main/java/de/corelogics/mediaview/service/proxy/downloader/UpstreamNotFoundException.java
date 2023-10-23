@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2021 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2023 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,9 +27,5 @@ package de.corelogics.mediaview.service.proxy.downloader;
 public class UpstreamNotFoundException extends Exception {
     public UpstreamNotFoundException(String url, int statusCode) {
         super(String.format("Upstream not found, status %d at [%s]", statusCode, url));
-    }
-
-    public UpstreamNotFoundException(String url, int statusCode, Throwable cause) {
-        super(String.format("Upstream not found, status %d at [%s]", statusCode, url), cause);
     }
 }

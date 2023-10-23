@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2021 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2023 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,7 +25,10 @@
 package de.corelogics.mediaview.service;
 
 import de.corelogics.mediaview.client.mediathekview.ClipEntry;
+import org.jetbrains.annotations.Nullable;
+
+import java.net.InetAddress;
 
 public interface ClipContentUrlGenerator {
-    String createLinkTo(ClipEntry e);
+    String createLinkTo(ClipEntry e, @Nullable InetAddress optionalLocalAddressQueried);
 }

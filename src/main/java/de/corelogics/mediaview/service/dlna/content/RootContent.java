@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2021 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2023 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,38 +24,27 @@
 
 package de.corelogics.mediaview.service.dlna.content;
 
-import de.corelogics.mediaview.config.FavouriteShow;
-import de.corelogics.mediaview.config.FavouriteVisitor;
 import de.corelogics.mediaview.config.MainConfiguration;
 import de.corelogics.mediaview.service.dlna.DlnaRequest;
-import org.fourthline.cling.support.model.DIDLContent;
-import org.fourthline.cling.support.model.container.StorageFolder;
+import lombok.AllArgsConstructor;
+import lombok.val;
+import org.jupnp.support.model.DIDLContent;
 
-public class RootContent extends BaseDnlaRequestHandler {
+@AllArgsConstructor
+public class RootContent extends BaseDlnaRequestHandler {
     private final MainConfiguration mainConfiguration;
     private final SendungAzContent sendungAzContent;
     private final ShowContent showContent;
     private final MissedShowsContent missedShowsContent;
 
-    public RootContent(
-            MainConfiguration mainConfiguration,
-            SendungAzContent sendungAzContent,
-            ShowContent showContent,
-            MissedShowsContent missedShowsContent) {
-        this.mainConfiguration = mainConfiguration;
-        this.sendungAzContent = sendungAzContent;
-        this.showContent = showContent;
-        this.missedShowsContent = missedShowsContent;
-    }
-
     @Override
     public boolean canHandle(DlnaRequest request) {
-        return "0".equals(request.getObjectId());
+        return "0".equals(request.objectId());
     }
 
     @Override
     protected DIDLContent respondWithException(DlnaRequest request) {
-        var didl = new DIDLContent();
+        val didl = new DIDLContent();
         addFavorites(request, didl);
         didl.addContainer(sendungAzContent.createLink(request));
         didl.addContainer(missedShowsContent.createLink(request));
@@ -63,11 +52,10 @@ public class RootContent extends BaseDnlaRequestHandler {
     }
 
     private void addFavorites(DlnaRequest request, DIDLContent didl) {
-        mainConfiguration.getFavourites().stream().map(s -> s.accept(new FavouriteVisitor<StorageFolder>() {
-            @Override
-            public StorageFolder visitShow(FavouriteShow favouriteShow) {
-                return showContent.createAsLink(request, favouriteShow.getChannel(), favouriteShow.getTitle());
-            }
-        })).forEach(didl::addObject);
+        mainConfiguration.getFavourites().stream()
+            .map(s -> s.accept(
+                favouriteShow ->
+                    showContent.createAsLink(request, favouriteShow.channel(), favouriteShow.title())))
+            .forEach(didl::addObject);
     }
 }

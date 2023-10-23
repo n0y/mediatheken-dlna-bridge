@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2021 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2023 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -26,11 +26,11 @@ package de.corelogics.mediaview.service.proxy.downloader;
 
 import de.corelogics.mediaview.config.MainConfiguration;
 import de.corelogics.mediaview.util.HttpUtils;
+import lombok.extern.log4j.Log4j2;
+import lombok.val;
 import okhttp3.ConnectionPool;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -38,8 +38,8 @@ import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.concurrent.TimeUnit;
 
+@Log4j2
 class ClipDownloadConnection extends Thread implements Closeable {
-    private final Logger logger = LogManager.getLogger(ClipDownloadConnection.class);
     private final OkHttpClient httpClient;
     private final MainConfiguration mainConfiguration;
     private final String connectionId;
@@ -47,31 +47,31 @@ class ClipDownloadConnection extends Thread implements Closeable {
     private boolean stopped = false;
 
     public ClipDownloadConnection(
-            ClipDownloader downloader,
-            MainConfiguration mainConfiguration,
-            String connectionId,
-            long chunkSizeBytes,
-            double reqMbPerSeconds) {
+        ClipDownloader downloader,
+        MainConfiguration mainConfiguration,
+        String connectionId,
+        long chunkSizeBytes,
+        double reqMbPerSeconds) {
         super(connectionId);
         this.mainConfiguration = mainConfiguration;
         this.connectionId = connectionId;
         this.downloader = downloader;
-        var chunkSizeMb = chunkSizeBytes / (1024D * 1024D);
-        var timeoutSecs = chunkSizeMb / reqMbPerSeconds;
-        var callTimeout = Duration.of((long) (timeoutSecs * 1000), ChronoUnit.MILLIS);
-        logger.debug("Setting call timeout to {}", callTimeout);
+        val chunkSizeMb = chunkSizeBytes / (1024D * 1024D);
+        val timeoutSecs = chunkSizeMb / reqMbPerSeconds;
+        val callTimeout = Duration.of((long) (timeoutSecs * 1000), ChronoUnit.MILLIS);
+        log.debug("Setting call timeout to {}", callTimeout);
 
         this.httpClient = new OkHttpClient.Builder()
-                .connectionPool(new ConnectionPool(1, 10, TimeUnit.SECONDS))
-                .callTimeout(callTimeout)
-                .readTimeout(1, TimeUnit.SECONDS)
-                .connectTimeout(2, TimeUnit.SECONDS)
-                .build();
+            .connectionPool(new ConnectionPool(1, 10, TimeUnit.SECONDS))
+            .callTimeout(callTimeout)
+            .readTimeout(1, TimeUnit.SECONDS)
+            .connectTimeout(2, TimeUnit.SECONDS)
+            .build();
     }
 
     public void run() {
         while (!stopped) {
-            var chunk = downloader.nextChunk(connectionId);
+            val chunk = downloader.nextChunk(connectionId);
             if (chunk.isPresent()) {
                 try {
                     long start = System.currentTimeMillis();
@@ -90,14 +90,14 @@ class ClipDownloadConnection extends Thread implements Closeable {
     }
 
     private byte[] downloadChunk(ClipChunk chunk) throws IOException {
-        var request =
-                HttpUtils.enhanceRequest(
-                        this.mainConfiguration,
-                        new Request.Builder()
-                                .url(downloader.getUrl())
-                                .addHeader(HttpUtils.HEADER_RANGE, "bytes=" + chunk.getFrom() + "-" + chunk.getTo()))
-                        .build();
-        try (var response = httpClient.newCall(request).execute()) {
+        val request =
+            HttpUtils.enhanceRequest(
+                    this.mainConfiguration,
+                    new Request.Builder()
+                        .url(downloader.getUrl())
+                        .addHeader(HttpUtils.HEADER_RANGE, "bytes=" + chunk.from() + "-" + chunk.to()))
+                .build();
+        try (val response = httpClient.newCall(request).execute()) {
             if (response.isSuccessful()) {
                 return response.body().bytes();
             }
@@ -108,6 +108,6 @@ class ClipDownloadConnection extends Thread implements Closeable {
 
     @Override
     public void close() {
-
+        this.stopped = true;
     }
 }

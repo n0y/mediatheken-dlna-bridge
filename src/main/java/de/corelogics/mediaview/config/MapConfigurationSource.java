@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2021 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2023 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,7 +24,6 @@
 
 package de.corelogics.mediaview.config;
 
-import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -33,7 +32,7 @@ class MapConfigurationSource implements StringPropertySource {
     private final Map<String, String> properties;
 
     public MapConfigurationSource(Map<String, String> properties) {
-        this.properties = Collections.unmodifiableMap(Map.copyOf(properties));
+        this.properties = Map.copyOf(properties);
     }
 
     @Override

@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2021 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2023 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,6 +23,8 @@
  */
 
 package de.corelogics.mediaview.config;
+
+import lombok.val;
 
 import java.io.File;
 import java.io.IOException;
@@ -48,7 +50,7 @@ class PropertiesConfigurationSource implements StringPropertySource {
     }
 
     private void loadFromUrl(URL url) throws IOException {
-        try (var in = url.openStream()) {
+        try (val in = url.openStream()) {
             properties.load(in);
         }
     }
@@ -65,8 +67,8 @@ class PropertiesConfigurationSource implements StringPropertySource {
     @Override
     public Set<String> getConfigKeys() {
         return properties.keySet().stream()
-                .filter(String.class::isInstance)
-                .map(String.class::cast)
-                .collect(Collectors.toSet());
+            .filter(String.class::isInstance)
+            .map(String.class::cast)
+            .collect(Collectors.toSet());
     }
 }

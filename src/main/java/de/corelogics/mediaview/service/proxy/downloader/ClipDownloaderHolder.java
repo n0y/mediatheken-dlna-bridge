@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2021 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2023 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,20 +24,24 @@
 
 package de.corelogics.mediaview.service.proxy.downloader;
 
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import lombok.val;
+import org.jetbrains.annotations.NotNull;
+
 import java.io.EOFException;
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicInteger;
 
+@RequiredArgsConstructor
 class ClipDownloaderHolder {
     private final ClipDownloader clipDownloader;
     private final AtomicInteger numberOfOpenStreams = new AtomicInteger();
-    private long lastReadTs = System.currentTimeMillis();
 
-    public ClipDownloaderHolder(ClipDownloader clipDownloader) {
-        this.clipDownloader = clipDownloader;
-    }
+    @Getter
+    private long lastReadTs = System.currentTimeMillis();
 
     public int getNumberOfOpenStreams() {
         return numberOfOpenStreams.get();
@@ -45,43 +49,39 @@ class ClipDownloaderHolder {
 
     public OpenedStream openInputStreamStartingFrom(long position, Duration readTimeout) throws EOFException {
         numberOfOpenStreams.incrementAndGet();
-        var metadata = clipDownloader.getMetaData();
+        val metadata = clipDownloader.getMetaData();
         return new OpenedStream(
-                metadata.getContentType(),
-                metadata.getSize(),
+            metadata.contentType(),
+            metadata.size(),
 
-                new FilterInputStream(clipDownloader.openInputStreamStartingFrom(position, readTimeout)) {
-                    @Override
-                    public int read() throws IOException {
-                        try {
-                            return super.read();
-                        } finally {
-                            lastReadTs = System.currentTimeMillis();
-                        }
+            new FilterInputStream(clipDownloader.openInputStreamStartingFrom(position, readTimeout)) {
+                @Override
+                public int read() throws IOException {
+                    try {
+                        return super.read();
+                    } finally {
+                        lastReadTs = System.currentTimeMillis();
                     }
+                }
 
-                    @Override
-                    public int read(byte[] b, int off, int len) throws IOException {
-                        try {
-                            return super.read(b, off, len);
-                        } finally {
-                            lastReadTs = System.currentTimeMillis();
-                        }
+                @Override
+                public int read(@NotNull byte[] b, int off, int len) throws IOException {
+                    try {
+                        return super.read(b, off, len);
+                    } finally {
+                        lastReadTs = System.currentTimeMillis();
                     }
+                }
 
-                    @Override
-                    public void close() throws IOException {
-                        numberOfOpenStreams.updateAndGet(i -> Math.max(i - 1, 0));
-                        super.close();
-                    }
-                });
+                @Override
+                public void close() throws IOException {
+                    numberOfOpenStreams.updateAndGet(i -> Math.max(i - 1, 0));
+                    super.close();
+                }
+            });
     }
 
     public void close() {
         clipDownloader.close();
-    }
-
-    public long getLastReadTs() {
-        return this.lastReadTs;
     }
 }

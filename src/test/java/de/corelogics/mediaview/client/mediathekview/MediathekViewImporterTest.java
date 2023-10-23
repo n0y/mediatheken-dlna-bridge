@@ -31,7 +31,7 @@ import java.io.IOException;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
 class MediathekViewImporterTest {
-    private MediathekViewImporter sut = new MediathekViewImporter();
+    private final MediathekViewImporter sut = new MediathekViewImporter();
 
     @Test
     void whenCreatingList_thenIterateElementsAndReturnObject() throws IOException {
@@ -42,7 +42,7 @@ class MediathekViewImporterTest {
             a.assertThat(list.getMetaData().getVersion()).isPresent().get().isEqualTo("1");
             a.assertThat(list.getMetaData().getCreator()).isPresent().get().isEqualTo("creatorName");
             a.assertThat(list.getMetaData().getHash()).isPresent().get().isEqualTo("hashCode");
-            a.assertThat(list.stream()).hasSize(3);
+            a.assertThat(list.getStream()).hasSize(3);
         });
     }
 }

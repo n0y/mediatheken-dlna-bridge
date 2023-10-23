@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2021 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2023 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -26,25 +26,26 @@ package de.corelogics.mediaview.service.dlna.content;
 
 import de.corelogics.mediaview.service.dlna.DlnaRequest;
 import de.corelogics.mediaview.service.dlna.DlnaRequestHandler;
-import org.fourthline.cling.support.contentdirectory.DIDLParser;
-import org.fourthline.cling.support.model.BrowseResult;
-import org.fourthline.cling.support.model.DIDLContent;
+import lombok.val;
+import org.jupnp.support.contentdirectory.DIDLParser;
+import org.jupnp.support.model.BrowseResult;
+import org.jupnp.support.model.DIDLContent;
 
 import java.util.stream.Collectors;
 
-abstract class BaseDnlaRequestHandler implements DlnaRequestHandler {
+abstract class BaseDlnaRequestHandler implements DlnaRequestHandler {
     public BrowseResult respond(DlnaRequest request) {
         try {
-            var didl = respondWithException(request);
-            var totalNumResults = didl.getCount();
+            val didl = respondWithException(request);
+            val totalNumResults = didl.getCount();
             didl.setContainers(
-                    didl.getContainers().stream().skip(request.getFirstResult()).limit(request.getMaxResults()).collect(Collectors.toList()));
-            didl.setItems(didl.getItems().stream().skip(request.getFirstResult()).limit(request.getMaxResults()).collect(Collectors.toList()));
+                didl.getContainers().stream().skip(request.firstResult()).limit(request.maxResults()).collect(Collectors.toList()));
+            didl.setItems(didl.getItems().stream().skip(request.firstResult()).limit(request.maxResults()).collect(Collectors.toList()));
             return new BrowseResult(new DIDLParser().generate(didl), didl.getCount(), totalNumResults);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
-    protected abstract DIDLContent respondWithException(DlnaRequest request) throws Exception;
+    protected abstract DIDLContent respondWithException(DlnaRequest request);
 }

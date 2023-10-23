@@ -34,6 +34,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.io.File;
 import java.util.Map;
 
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
@@ -69,10 +70,10 @@ class MainConfigurationTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"value1", "value2"})
+    @ValueSource(strings = {"./value1/more-value", "../../directory/value2"})
     void whenGetCacheDir_thenReturnValue(String value) {
         when(configAccessor.get("CACHE_DIRECTORY", "./cache")).thenReturn(value);
-        assertThat(sut.cacheDir()).isEqualTo(value);
+        assertThat(sut.cacheDir()).isEqualTo(new File(value));
         verify(configAccessor).get("CACHE_DIRECTORY", "./cache");
     }
 
@@ -114,16 +115,16 @@ class MainConfigurationTest {
     @ValueSource(strings = {"value1", "value2"})
     void whenGetPublicBaseUrl_thenReturnValue(String value) {
         when(configAccessor.get("PUBLIC_BASE_URL", null)).thenReturn(value);
-        assertThat(sut.publicBaseUrl()).isEqualTo(value);
+        assertThat(sut.publicBaseUrl()).isPresent().get().isEqualTo(value);
         verify(configAccessor).get("PUBLIC_BASE_URL", null);
     }
 
     @ParameterizedTest
     @ValueSource(ints = {10, 100, 1000})
     void whenGetPublicHttpPort_thenReturnValue(int value) {
-        when(configAccessor.get("PUBLIC_HTTP_PORT", 8080)).thenReturn(value);
+        when(configAccessor.get("PUBLIC_HTTP_PORT", 9301)).thenReturn(value);
         assertThat(sut.publicHttpPort()).isEqualTo(value);
-        verify(configAccessor).get("PUBLIC_HTTP_PORT", 8080);
+        verify(configAccessor).get("PUBLIC_HTTP_PORT", 9301);
     }
 
     @ParameterizedTest
@@ -202,7 +203,7 @@ class MainConfigurationTest {
                             new FavouriteVisitor<String>() {
                                 @Override
                                 public String visitShow(FavouriteShow favouriteShow) {
-                                    return favouriteShow.getChannel() + ":" + favouriteShow.getTitle();
+                                    return favouriteShow.channel() + ":" + favouriteShow.title();
                                 }
                             })))
                     .containsExactly("channel-b:ShowB", "channel-c:ShowC");

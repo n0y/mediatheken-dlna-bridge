@@ -2,7 +2,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2021 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2023 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -26,33 +26,36 @@
 package de.corelogics.mediaview.service.dlna;
 
 import de.corelogics.mediaview.config.MainConfiguration;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.fourthline.cling.UpnpServiceImpl;
-import org.fourthline.cling.binding.annotations.AnnotationLocalServiceBinder;
-import org.fourthline.cling.model.DefaultServiceManager;
-import org.fourthline.cling.model.ValidationException;
-import org.fourthline.cling.model.meta.*;
-import org.fourthline.cling.model.types.UDADeviceType;
-import org.fourthline.cling.model.types.UDN;
+import de.corelogics.mediaview.service.dlna.jupnp.DlnaUpnpServiceConfiguration;
+import de.corelogics.mediaview.service.dlna.jupnp.UpnpServiceImplFixed;
+import lombok.extern.log4j.Log4j2;
+import lombok.val;
+import org.eclipse.jetty.server.Server;
+import org.jupnp.binding.annotations.AnnotationLocalServiceBinder;
+import org.jupnp.model.DefaultServiceManager;
+import org.jupnp.model.ValidationException;
+import org.jupnp.model.meta.*;
+import org.jupnp.model.types.UDADeviceType;
+import org.jupnp.model.types.UDN;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+@Log4j2
 public class DlnaServer {
-    private final Logger logger = LogManager.getLogger(DlnaServer.class);
+    private final UpnpServiceImplFixed upnpService;
 
-    private final UpnpServiceImpl upnpService;
+    public DlnaServer(MainConfiguration mainConfiguration, Server jettyServer, Set<DlnaRequestHandler> handlers) throws ValidationException {
+        log.debug("Starting DLNA server");
 
-    public DlnaServer(MainConfiguration mainConfiguration, Set<DlnaRequestHandler> handlers) throws ValidationException {
-        logger.debug("Starting DLNA server");
-        var type = new UDADeviceType("MediaServer", 1);
-        var details = new DeviceDetails(
-                mainConfiguration.displayName(),
-                new ManufacturerDetails("Mediatheken DLNA Gateway"),
-                new ModelDetails("Mediatheken", "v1", "v.1.0.0", "https://github.com/n0y/mediatheken-dlna-bridge"));
-        var service = (LocalService<ContentDirectory>) new AnnotationLocalServiceBinder().read(ContentDirectory.class);
+        val type = new UDADeviceType("MediaServer", 1);
+        val details = new DeviceDetails(
+            mainConfiguration.displayName(),
+            new ManufacturerDetails("Mediatheken DLNA Gateway"),
+            new ModelDetails("Mediatheken", "v1", "v.1.0.0", "https://github.com/n0y/mediatheken-dlna-bridge"));
+        val service = (LocalService<ContentDirectory>) new AnnotationLocalServiceBinder().read(ContentDirectory.class);
         service.setManager(new DefaultServiceManager<>(service, ContentDirectory.class) {
             @Override
             protected ContentDirectory createServiceInstance() {
@@ -60,16 +63,19 @@ public class DlnaServer {
             }
         });
 
-        var localDevice = new LocalDevice(
-                new DeviceIdentity(new UDN(UUID.nameUUIDFromBytes(mainConfiguration.displayName().getBytes(StandardCharsets.UTF_8)))),
-                type,
-                details,
-                service);
+        val localDevice = new LocalDevice(
+            new DeviceIdentity(new UDN(UUID.nameUUIDFromBytes(mainConfiguration.displayName().getBytes(StandardCharsets.UTF_8)))),
+            type,
+            details,
+            service);
 
-        this.upnpService = new UpnpServiceImpl();
-        upnpService.getRegistry().addDevice(localDevice);
-        logger.info(String.format("Successfully started DLNA server '%s'. It may take some time for it to become visible in the network.",
-                mainConfiguration.displayName()));
+        this.upnpService = new UpnpServiceImplFixed(new DlnaUpnpServiceConfiguration(jettyServer, mainConfiguration.publicHttpPort()));
+        this.upnpService.activate(Map.of("initialSearchEnabled", false));
+        this.upnpService.startup();
+        this.upnpService.getRegistry().addDevice(localDevice);
+        this.upnpService.getProtocolFactory().createSendingNotificationAlive(localDevice).run();
+        log.info("Successfully started DLNA server '{}'. It may take some time for it to become visible in the network.", mainConfiguration.displayName());
+
     }
 
     public void shutdown() {

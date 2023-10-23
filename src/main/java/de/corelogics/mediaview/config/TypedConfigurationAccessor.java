@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2021 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2023 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -72,9 +72,9 @@ class TypedConfigurationAccessor {
 
     public Map<String, String> getStartingWith(String startingWith) {
         return propertiesSource.getConfigKeys().stream()
-                .filter(s -> s.startsWith(startingWith))
-                .collect(Collectors.toMap(
-                        Function.identity(),
-                        key -> this.get(key, "")));
+            .filter(s -> s.startsWith(startingWith))
+            .collect(Collectors.toMap(
+                Function.identity(),
+                key -> this.get(key, "")));
     }
 }

@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2021 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2023 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -40,17 +40,17 @@ class LayeredPropertySource implements StringPropertySource {
     @Override
     public Optional<String> getConfigValue(String key) {
         return sources.stream()
-                .map(s -> s.getConfigValue(key))
-                .filter(Optional::isPresent)
-                .findFirst()
-                .orElse(Optional.empty());
+            .map(s -> s.getConfigValue(key))
+            .filter(Optional::isPresent)
+            .findFirst()
+            .orElse(Optional.empty());
     }
 
     @Override
     public Set<String> getConfigKeys() {
         return sources.stream()
-                .map(StringPropertySource::getConfigKeys)
-                .flatMap(Collection::stream)
-                .collect(Collectors.toSet());
+            .map(StringPropertySource::getConfigKeys)
+            .flatMap(Collection::stream)
+            .collect(Collectors.toSet());
     }
 }

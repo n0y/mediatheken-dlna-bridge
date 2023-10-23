@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2021 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2023 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,8 +27,10 @@ package de.corelogics.mediaview.service.dlna.content;
 import de.corelogics.mediaview.repository.clip.ClipRepository;
 import de.corelogics.mediaview.service.dlna.DlnaRequest;
 import de.corelogics.mediaview.util.IdUtils;
-import org.fourthline.cling.support.model.DIDLContent;
-import org.fourthline.cling.support.model.container.StorageFolder;
+import lombok.AllArgsConstructor;
+import lombok.val;
+import org.jupnp.support.model.DIDLContent;
+import org.jupnp.support.model.container.StorageFolder;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -40,7 +42,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.stream.LongStream;
 
-public class MissedShowsContent extends BaseDnlaRequestHandler {
+@AllArgsConstructor
+public class MissedShowsContent extends BaseDlnaRequestHandler {
     private static final DateTimeFormatter DATE_TIME_FORMAT = DateTimeFormatter.ofPattern("EEEE").localizedBy(Locale.GERMANY);
 
     private static final ZoneId ZONE_BERLIN = ZoneId.of("Europe/Berlin");
@@ -88,39 +91,34 @@ public class MissedShowsContent extends BaseDnlaRequestHandler {
         }
     }
 
-    public MissedShowsContent(ClipContent clipContent, ClipRepository clipRepository) {
-        this.clipContent = clipContent;
-        this.clipRepository = clipRepository;
-    }
-
     public StorageFolder createLink(DlnaRequest request) {
         return new StorageFolder(
-                URN_OVERVIEW,
-                request.getObjectId(), "Sendung Verpasst",
-                "",
-                clipRepository.findAllChannels().size(),
-                null);
+            URN_OVERVIEW,
+            request.objectId(), "Sendung Verpasst",
+            "",
+            clipRepository.findAllChannels().size(),
+            null);
     }
 
     @Override
     public boolean canHandle(DlnaRequest request) {
-        return request.getObjectId().startsWith(URN_PREFIX);
+        return request.objectId().startsWith(URN_PREFIX);
     }
 
     @Override
-    protected DIDLContent respondWithException(DlnaRequest request) throws Exception {
-        var didl = new DIDLContent();
-        if (request.getObjectId().equals(URN_OVERVIEW)) {
+    protected DIDLContent respondWithException(DlnaRequest request) {
+        val didl = new DIDLContent();
+        if (request.objectId().equals(URN_OVERVIEW)) {
             addOverview(request, didl);
-        } else if (request.getObjectId().startsWith(URN_PREFIX_CHANNEL)) {
-            var split = request.getObjectId().split(":");
-            var channelName = IdUtils.decodeId(split[split.length - 1]);
+        } else if (request.objectId().startsWith(URN_PREFIX_CHANNEL)) {
+            val split = request.objectId().split(":");
+            val channelName = IdUtils.decodeId(split[split.length - 1]);
             addChannelTimes(request, channelName, didl);
-        } else if (request.getObjectId().startsWith(URN_PREFIX_CHANNELTIME)) {
-            var split = request.getObjectId().split(":");
-            var channelName = IdUtils.decodeId(split[split.length - 3]);
-            var daysBefore = Integer.parseInt(split[split.length - 2]);
-            var time = ChannelTime.values()[Integer.parseInt(split[split.length - 1])];
+        } else if (request.objectId().startsWith(URN_PREFIX_CHANNELTIME)) {
+            val split = request.objectId().split(":");
+            val channelName = IdUtils.decodeId(split[split.length - 3]);
+            val daysBefore = Integer.parseInt(split[split.length - 2]);
+            val time = ChannelTime.values()[Integer.parseInt(split[split.length - 1])];
             addClips(request, channelName, time, daysBefore, didl);
         }
 
@@ -128,40 +126,40 @@ public class MissedShowsContent extends BaseDnlaRequestHandler {
     }
 
     private void addClips(DlnaRequest request, String channelName, ChannelTime time, int daysBefore, DIDLContent didl) {
-        var chosenDay = LocalDate.now().minusDays(daysBefore);
+        val chosenDay = LocalDate.now().minusDays(daysBefore);
         clipRepository
-                .findAllClipsForChannelBetween(
-                        channelName,
-                        time.getStartTime().atDate(chosenDay).atZone(ZONE_BERLIN),
-                        time.getEndTime().atDate(chosenDay).atZone(ZONE_BERLIN))
-                .stream()
-                .map(e -> clipContent.createLinkWithTimePrefix(request, e))
-                .forEach(didl::addItem);
+            .findAllClipsForChannelBetween(
+                channelName,
+                time.getStartTime().atDate(chosenDay).atZone(ZONE_BERLIN),
+                time.getEndTime().atDate(chosenDay).atZone(ZONE_BERLIN))
+            .stream()
+            .map(e -> clipContent.createLinkWithTimePrefix(request, e))
+            .forEach(didl::addItem);
     }
 
     private void addChannelTimes(DlnaRequest request, String channelName, DIDLContent didl) {
-        var today = ZonedDateTime.now();
+        val today = ZonedDateTime.now();
         LongStream.rangeClosed(0, 6).mapToObj(l -> Map.entry(l, today.minusDays(l))).flatMap(day ->
                 Arrays.stream(ChannelTime.values()).map(ct -> new StorageFolder(
-                        URN_PREFIX_CHANNELTIME + IdUtils.encodeId(channelName) + ":" + day.getKey() + ":" + ct.ordinal(),
-                        request.getObjectId(),
-                        DATE_TIME_FORMAT.format(day.getValue()) + " " + ct.getTitle(),
-                        "",
-                        10,
-                        null)))
-                .forEach(didl::addContainer);
+                    URN_PREFIX_CHANNELTIME + IdUtils.encodeId(channelName) + ":" + day.getKey() + ":" + ct.ordinal(),
+                    request.objectId(),
+                    DATE_TIME_FORMAT.format(day.getValue()) + " " + ct.getTitle(),
+                    "",
+                    10,
+                    null)))
+            .forEach(didl::addContainer);
     }
 
     private void addOverview(DlnaRequest request, DIDLContent didl) {
         clipRepository.findAllChannels().stream()
-                .map(channel -> new StorageFolder(
-                        idChannel(channel),
-                        request.getObjectId(),
-                        channel,
-                        "",
-                        100,
-                        null))
-                .forEach(didl::addContainer);
+            .map(channel -> new StorageFolder(
+                idChannel(channel),
+                request.objectId(),
+                channel,
+                "",
+                100,
+                null))
+            .forEach(didl::addContainer);
     }
 
     private String idChannel(String channel) {
