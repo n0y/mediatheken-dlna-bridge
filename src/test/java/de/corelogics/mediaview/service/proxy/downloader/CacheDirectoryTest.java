@@ -101,7 +101,7 @@ class CacheDirectoryTest {
                 val a = new SoftAssertions();
                 a.assertThat(
                         sut.readContentByte("1234", 1000))
-                    .isEqualTo((int) 'M');
+                    .isEqualTo('M');
                 a.assertThat(sut.readContentBytes("1234", 1000, data, 1, data.length - 2))
                     .isEqualTo(TEST_DATA_BYTES.length - 2);
                 a.assertThat(new String(data, US_ASCII)).isEqualTo("0My Test Da0");
