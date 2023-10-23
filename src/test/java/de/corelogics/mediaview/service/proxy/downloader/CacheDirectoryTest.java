@@ -207,8 +207,11 @@ class CacheDirectoryTest {
                             .map(clipId -> new File(tempDir, IdUtils.encodeId(clipId) + ".json"))
                             .toList();
 
+                        long lastModified = System.currentTimeMillis() - 10000;
                         for (val file : concat(contentFiles.stream(), metaFiles.stream()).toList()) {
                             Files.writeString(file.toPath(), "Content of " + file.getName());
+                            file.setLastModified(lastModified);
+                            lastModified += 1000;
                         }
                     }
 
