@@ -91,7 +91,7 @@
             <dependency>
                 <groupId>net.bytebuddy</groupId>
                 <artifactId>byte-buddy-agent</artifactId>
-                <version>1.14.8</version>
+                <version>1.14.9</version>
             </dependency>
 
             <!-- transient dependencies, should not be visible on compile cp -->
