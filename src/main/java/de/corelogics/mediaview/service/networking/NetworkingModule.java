@@ -28,7 +28,6 @@ import de.corelogics.mediaview.config.MainConfiguration;
 import lombok.Getter;
 import lombok.extern.log4j.Log4j2;
 import lombok.val;
-import org.eclipse.jetty.server.AbstractNetworkConnector;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.util.thread.QueuedThreadPool;
@@ -36,9 +35,13 @@ import org.jetbrains.annotations.NotNull;
 import org.jupnp.transport.impl.NetworkAddressFactoryImpl;
 import org.jupnp.transport.spi.NetworkAddressFactory;
 
+import java.net.InetAddress;
 import java.net.NetworkInterface;
+import java.net.UnknownHostException;
+import java.util.Arrays;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 @Log4j2
@@ -59,19 +62,21 @@ public class NetworkingModule {
         val server = new Server(threadPool);
         server.setStopAtShutdown(true);
 
-        val connectors = StreamSupport
+        StreamSupport
             .stream(
                 ((Iterable<NetworkInterface>) networkAddressFactory::getNetworkInterfaces).spliterator(),
                 false)
             .flatMap(NetworkInterface::inetAddresses)
             .map(nwi -> createConnector(nwi.getHostAddress(), server))
-            .toList();
-        connectors.forEach(server::addConnector);
-        server.addConnector(createConnector("127.0.0.1", server));
-        server.addConnector(createConnector("::1", server));
-        log.info("Started HTTP server on port {} for this IPs: 127.0.0.1, ::1, {}",
-            mainConfiguration::publicHttpPort,
-            () -> connectors.stream().map(AbstractNetworkConnector::getHost).collect(Collectors.joining(", ")));
+            .forEach(server::addConnector);
+        try {
+            Stream.of(InetAddress.getAllByName("localhost"))
+                .map(InetAddress::getHostAddress)
+                .map(a -> createConnector(a, server))
+                .forEach(server::addConnector);
+        } catch (UnknownHostException e) {
+            log.info("Could not add localhost addresses to Jetty server. It's unknown. Ignoring it.");
+        }
         return server;
     }
 
@@ -86,6 +91,12 @@ public class NetworkingModule {
     public void startup() {
         try {
             this.jettyServer.start();
+            log.info("Started HTTP server listening to: {}",
+                () -> Arrays.stream(this.jettyServer.getConnectors())
+                    .filter(c -> c instanceof ServerConnector)
+                    .map(c -> (ServerConnector) c)
+                    .map(sc -> sc.getHost() + ":" + sc.getPort())
+                    .collect(Collectors.joining(", ")));
         } catch (Exception e) {
             throw new RuntimeException("Could not start Jetty server", e);
         }

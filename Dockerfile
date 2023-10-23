@@ -1,4 +1,4 @@
-FROM amazoncorretto:21.0.0-alpine
+FROM amazoncorretto:21.0.1-alpine
 
 LABEL org.label-schema.schema-version="1.0"
 LABEL org.label-schema.name="Mediatheken-DLNA-Bridge"
@@ -11,7 +11,7 @@ LABEL org.label-schema.docker.cmd="docker run corelogicsde/mediatheken-dlna-brid
 USER root
 COPY --from=arpaulnet/s6-overlay-stage:2.2 / /
 
-RUN groupadd --gid 1000 medlna && useradd --gid 1000 --no-create-home --uid 1000 --shell /bin/false medlna
+RUN addgroup --g 1000 medlna && adduser -G medlna -H -D -u 1000 -s /bin/false medlna
 RUN echo '/app/data true medlna,1000:1000 0664 0775' >> /etc/fix-attrs.d/01-mediathek-dlna-bridge-datadir
 RUN echo '/app/cache true medlna,1000:1000 0664 0775' >> /etc/fix-attrs.d/01-mediathek-dlna-bridge-datadir
 
@@ -24,4 +24,10 @@ VOLUME /app/cache
 
 WORKDIR /app
 ENTRYPOINT ["/init"]
-CMD ["s6-setuidgid", "medlna", "java", "-XX:MaxRAMPercentage=70", "-XX:+UseParallelGC", "-XX:MinHeapFreeRatio=5", "-XX:MaxHeapFreeRatio=10", "-XX:GCTimeRatio=4", "-XX:+UseAdaptiveSizePolicy", "-jar", "mediatheken-dlna-bridge.jar"]
+CMD ["s6-setuidgid", "medlna", \
+    "java", \
+    "-XX:MaxRAMPercentage=70", \
+    "-XX:+UseShenandoahGC", \
+    "-XX:+UnlockExperimentalVMOptions", \
+    "-XX:ShenandoahUncommitDelay=5000", "-XX:ShenandoahGuaranteedGCInterval=20000", \
+    "-jar", "mediatheken-dlna-bridge.jar"]
