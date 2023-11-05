@@ -40,7 +40,7 @@
         <jupnp.version>2.7.1</jupnp.version>
         <lucene.version>9.8.0</lucene.version>
         <log4j.version>2.21.1</log4j.version>
-        <junit.version>5.10.0</junit.version>
+        <junit.version>5.10.1</junit.version>
         <mockito.version>5.7.0</mockito.version>
         <kotlin.version>1.9.10</kotlin.version>
     </properties>
