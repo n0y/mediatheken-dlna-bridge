@@ -38,7 +38,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <jupnp.version>2.7.1</jupnp.version>
-        <lucene.version>9.8.0</lucene.version>
+        <lucene.version>9.9.0</lucene.version>
         <log4j.version>2.22.0</log4j.version>
         <junit.version>5.10.1</junit.version>
         <mockito.version>5.8.0</mockito.version>
