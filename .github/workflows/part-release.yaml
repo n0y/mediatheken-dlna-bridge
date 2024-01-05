@@ -16,7 +16,7 @@ jobs:
 
       - name: changelog
         id: changelog
-        uses: TriPSs/conventional-changelog-action@v4
+        uses: TriPSs/conventional-changelog-action@v5
         with:
           output-file: "false"
           skip-version-file: "true"
