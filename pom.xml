@@ -41,7 +41,7 @@
         <lucene.version>9.9.1</lucene.version>
         <log4j.version>2.22.1</log4j.version>
         <junit.version>5.10.1</junit.version>
-        <mockito.version>5.8.0</mockito.version>
+        <mockito.version>5.9.0</mockito.version>
         <kotlin.version>1.9.10</kotlin.version>
     </properties>
 
