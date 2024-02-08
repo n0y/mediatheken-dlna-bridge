@@ -26,9 +26,11 @@ package de.corelogics.mediaview.repository.clip;
 
 import de.corelogics.mediaview.client.mediathekview.ClipEntry;
 import de.corelogics.mediaview.config.MainConfiguration;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -45,7 +47,6 @@ import static org.assertj.core.api.SoftAssertions.assertSoftly;
 class ClipRepositoryTest {
     private final ZonedDateTime REF_TIME = ZonedDateTime.of(2020, 10, 4, 8, 30, 20, 0, ZoneId.of("Europe/Berlin"));
 
-    @InjectMocks
     private ClipRepository sut;
 
     @Mock
@@ -53,7 +54,7 @@ class ClipRepositoryTest {
 
     @BeforeEach
     void createDatabase() {
-        sut.initialize();
+        sut = new ClipRepository(new LuceneDirectory(this.config));
     }
 
     @Nested
@@ -63,24 +64,24 @@ class ClipRepositoryTest {
         void insertClips() {
             var importedAt = ZonedDateTime.now();
             sut.addClips(
-                    List.of(
-                            createClip("A", "1", "A1-1", 10),
-                            createClip("A", "1", "A1-2", 8),
-                            createClip("A", "2", "A2-1", 4),
-                            createClip("B", "1", "B1-1", 10),
-                            createClip("B", "1", "B1-2", 8),
-                            createClip("B", "2", "B2-1", 4),
-                            createClip("B", "B3", "B3-1", 2),
-                            createClip("B", "B3", "B3-2", 1)),
-                    importedAt);
+                List.of(
+                    createClip("A", "1", "A1-1", 10),
+                    createClip("A", "1", "A1-2", 8),
+                    createClip("A", "2", "A2-1", 4),
+                    createClip("B", "1", "B1-1", 10),
+                    createClip("B", "1", "B1-2", 8),
+                    createClip("B", "2", "B2-1", 4),
+                    createClip("B", "B3", "B3-1", 2),
+                    createClip("B", "B3", "B3-2", 1)),
+                importedAt);
         }
 
         @Test
         void whenFindingClipById_thenReturnMatchingClip() {
             var id = createClip("A", "1", "A1-1", 10).getId();
             assertThat(sut.findClipById(id)).isPresent().get()
-                    .extracting(ClipEntry::getTitle)
-                    .isEqualTo("title:A1-1");
+                .extracting(ClipEntry::getTitle)
+                .isEqualTo("title:A1-1");
         }
 
         @Test
@@ -92,32 +93,32 @@ class ClipRepositoryTest {
         void whenFindingAllContainedIns_thenReturnShowsAndClipCounts() {
             assertSoftly(a -> {
                 a.assertThat(sut.findAllContainedIns("channel:A"))
-                        .containsExactlyInAnyOrderEntriesOf(Map.of(
-                                "show:1", 2,
-                                "show:2", 1));
+                    .containsExactlyInAnyOrderEntriesOf(Map.of(
+                        "show:1", 2,
+                        "show:2", 1));
                 a.assertThat(sut.findAllContainedIns("channel:B"))
-                        .containsExactlyInAnyOrderEntriesOf(Map.of(
-                                "show:1", 2,
-                                "show:2", 1,
-                                "show:B3", 2));
+                    .containsExactlyInAnyOrderEntriesOf(Map.of(
+                        "show:1", 2,
+                        "show:2", 1,
+                        "show:B3", 2));
             });
         }
 
         @Test
         void whenFindingAllContainsInsStartingWith_thenReturnOnlyThoseShowsAndCounts() {
             assertThat(sut.findAllContainedIns("channel:B", "show:B"))
-                    .containsExactly(entry("show:B3", 2));
+                .containsExactly(entry("show:B3", 2));
         }
 
         @Test
         void whenFindingAllClipsFromShow_thenReturnClipsOrderedByBroadcastDateDesc() {
             assertSoftly(a -> {
                 a.assertThat(sut.findAllClips("channel:A", "show:1"))
-                        .extracting(ClipEntry::getTitle)
-                        .containsExactly("title:A1-2", "title:A1-1");
+                    .extracting(ClipEntry::getTitle)
+                    .containsExactly("title:A1-2", "title:A1-1");
                 a.assertThat(sut.findAllClips("channel:B", "show:1"))
-                        .extracting(ClipEntry::getTitle)
-                        .containsExactly("title:B1-2", "title:B1-1");
+                    .extracting(ClipEntry::getTitle)
+                    .containsExactly("title:B1-2", "title:B1-1");
             });
         }
 
@@ -125,7 +126,7 @@ class ClipRepositoryTest {
         void whenFindingClip_thenAllFieldsAreReturned() {
             var expectedClip = createClip("A", "2", "A2-1", 4);
             assertThat(sut.findAllClips(expectedClip.getChannelName(), expectedClip.getContainedIn()))
-                    .containsExactly(expectedClip);
+                .containsExactly(expectedClip);
         }
     }
 
@@ -141,8 +142,8 @@ class ClipRepositoryTest {
         void givenImportRunInserted_thenReturnThisRun() {
             sut.updateLastFullImport(REF_TIME);
             assertThat(sut.findLastFullImport()).isPresent().get()
-                    .extracting(ZonedDateTime::toEpochSecond)
-                    .isEqualTo(REF_TIME.toEpochSecond());
+                .extracting(ZonedDateTime::toEpochSecond)
+                .isEqualTo(REF_TIME.toEpochSecond());
         }
 
         @Test
@@ -150,8 +151,8 @@ class ClipRepositoryTest {
             sut.updateLastFullImport(REF_TIME.minusDays(10));
             sut.updateLastFullImport(REF_TIME.minusDays(2));
             assertThat(sut.findLastFullImport()).isPresent().get()
-                    .extracting(ZonedDateTime::toEpochSecond)
-                    .isEqualTo(REF_TIME.minusDays(2).toEpochSecond());
+                .extracting(ZonedDateTime::toEpochSecond)
+                .isEqualTo(REF_TIME.minusDays(2).toEpochSecond());
         }
     }
 
@@ -163,62 +164,36 @@ class ClipRepositoryTest {
             var oldImportTime = REF_TIME.minusDays(5);
             var newImportTime = REF_TIME.minusDays(1);
             sut.addClips(
-                    List.of(
-                            createClip("A", "1", "o1", 10),
-                            createClip("A", "1", "o2", 10)),
-                    oldImportTime);
+                List.of(
+                    createClip("A", "1", "o1", 10),
+                    createClip("A", "1", "o2", 10)),
+                oldImportTime);
             sut.addClips(
-                    List.of(
-                            createClip("A", "1", "n1", 10),
-                            createClip("A", "1", "n2", 10)),
-                    newImportTime);
+                List.of(
+                    createClip("A", "1", "n1", 10),
+                    createClip("A", "1", "n2", 10)),
+                newImportTime);
             assertSoftly(a -> {
                 a.assertThat(sut.findAllClips("channel:A", "show:1")).extracting(ClipEntry::getTitle)
-                        .containsExactlyInAnyOrder("title:o1", "title:o2", "title:n1", "title:n2");
+                    .containsExactlyInAnyOrder("title:o1", "title:o2", "title:n1", "title:n2");
 
                 sut.deleteClipsImportedBefore(newImportTime);
 
                 a.assertThat(sut.findAllClips("channel:A", "show:1")).extracting(ClipEntry::getTitle)
-                        .containsExactlyInAnyOrder("title:n1", "title:n2");
+                    .containsExactlyInAnyOrder("title:n1", "title:n2");
             });
-        }
-    }
-
-    @Nested
-    @DisplayName("when connecting")
-    class WhenConnectingTests {
-        @Nested
-        @DisplayName("when calculating cache sizes")
-        class WhenCalculatingCacheSizes {
-            @Test
-            void givenInOkRange_thenCalcSizeCorrectly() {
-                sut.maxMemorySupplier = () -> 40_000_000L + 150_000_000L;
-                assertThat(sut.calcCacheSize()).isEqualTo(40_000_000L);
-            }
-
-            @Test
-            void givenBelowLimit_thenReturnLowerLimit() {
-                sut.maxMemorySupplier = () -> 100_000_000L;
-                assertThat(sut.calcCacheSize()).isEqualTo(16_000_000L);
-            }
-
-            @Test
-            void givenAboveLimit_thenReturnUpperLimit() {
-                sut.maxMemorySupplier = () -> 3_000_000_000L;
-                assertThat(sut.calcCacheSize()).isEqualTo(100_000_000L);
-            }
         }
     }
 
     private ClipEntry createClip(String channel, String show, String title, int daysBefore) {
         return new ClipEntry(
-                "channel:" + channel,
-                "show:" + show,
-                REF_TIME.minusDays(daysBefore),
-                "title:" + title,
-                "04:12:00",
-                100L,
-                "https://" + show + "." + channel + ".test/" + title + ".mp4",
-                "https://hd." + show + "." + channel + ".test/" + title + ".mp4");
+            "channel:" + channel,
+            "show:" + show,
+            REF_TIME.minusDays(daysBefore),
+            "title:" + title,
+            "04:12:00",
+            100L,
+            "https://" + show + "." + channel + ".test/" + title + ".mp4",
+            "https://hd." + show + "." + channel + ".test/" + title + ".mp4");
     }
 }

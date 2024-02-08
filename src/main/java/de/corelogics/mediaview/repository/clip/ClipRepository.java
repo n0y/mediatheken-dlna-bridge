@@ -25,7 +25,7 @@
 package de.corelogics.mediaview.repository.clip;
 
 import de.corelogics.mediaview.client.mediathekview.ClipEntry;
-import de.corelogics.mediaview.config.MainConfiguration;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import lombok.val;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
@@ -36,29 +36,20 @@ import org.apache.lucene.facet.sortedset.DefaultSortedSetDocValuesReaderState;
 import org.apache.lucene.facet.sortedset.SortedSetDocValuesFacetCounts;
 import org.apache.lucene.facet.sortedset.SortedSetDocValuesFacetField;
 import org.apache.lucene.index.IndexOptions;
-import org.apache.lucene.index.IndexWriter;
-import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.search.*;
-import org.apache.lucene.store.ByteBuffersDirectory;
-import org.apache.lucene.store.Directory;
-import org.apache.lucene.store.NIOFSDirectory;
 import org.apache.lucene.util.BytesRef;
 
-import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.ZonedDateTime;
 import java.util.*;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.toMap;
 
 @Log4j2
+@RequiredArgsConstructor
 public class ClipRepository {
     private enum ClipField {
         ID(true, false),
@@ -129,11 +120,6 @@ public class ClipRepository {
         }
     }
 
-    @FunctionalInterface
-    interface SearchFunction<T> {
-        T search(IndexSearcher searcher) throws IOException;
-    }
-
     private static final String DOCID_LAST_UPDATED = "last-update-stat";
     private static final FieldType TYPE_NO_TOKENIZE = new FieldType();
 
@@ -144,91 +130,11 @@ public class ClipRepository {
         TYPE_NO_TOKENIZE.freeze();
     }
 
-    private final MainConfiguration mainConfiguration;
-    private Directory index;
-    private SearcherManager searcherManager;
-    Supplier<Long> maxMemorySupplier = Runtime.getRuntime()::maxMemory;
-
-    public ClipRepository(MainConfiguration mainConfiguration) {
-        this.mainConfiguration = mainConfiguration;
-        openConnection(calcIndexPath(), calcCacheSize());
-        initialize();
-        log.info("Successfully opened database at {} with {} Bytes cache",
-            this::calcIndexPath,
-            this::calcCacheSize);
-    }
-
-    long calcCacheSize() {
-        return Math.min(Math.max(16_000_000L, maxMemorySupplier.get() - 150_000_000), 100_000_000L);
-    }
-
-    String calcIndexPath() {
-        return mainConfiguration.dbLocation().map(File::new).map(File::getAbsolutePath).orElse("<in-mem>");
-    }
-
-    void initialize() {
-        val indexPath = calcIndexPath();
-        if (!"<in-mem>".equals(indexPath)) {
-            log.debug("Looking for old clipdb entries in '{}'", indexPath);
-            ofNullable(new File(indexPath).getParentFile().listFiles((dir, name) -> name.startsWith("clipdb.")))
-                .stream()
-                .flatMap(Stream::of)
-                .peek(file -> log.info("Removing old clip database file '{}'", file))
-                .filter(f -> !f.delete())
-                .forEach(file -> log.warn("Could not remove old clip database file '{}'", file.getAbsolutePath()));
-        }
-
-    }
-
-    void openConnection(String indexPath, long cacheSize) {
-        try {
-            if ("<in-mem>".equals(indexPath)) {
-                this.index = new ByteBuffersDirectory();
-            } else {
-                this.index = new NIOFSDirectory(new File(indexPath).toPath());
-            }
-
-            try {
-                // need at least one entry for a reader to work on...
-                val writer = new IndexWriter(this.index, new IndexWriterConfig(new StandardAnalyzer()));
-                val document = new Document();
-                document.add(new Field(ClipField.ID.term(), ClipField.ID.term("placeholder"), TYPE_NO_TOKENIZE));
-                writer.updateDocument(new Term(ClipField.ID.term(), ClipField.ID.term("placeholder")), document);
-                writer.close();
-            } catch (IOException | IllegalArgumentException e) {
-                // index got corrupted (or it's an old version). Delete index and re-index later.
-                this.index.close();
-                Files.walk(new File(indexPath).toPath())
-                    .sorted(Comparator.reverseOrder())
-                    .map(Path::toFile)
-                    .forEach(File::delete);
-                openConnection(indexPath, cacheSize);
-                return;
-            }
-
-            IndexSearcher.setDefaultQueryCache(new LRUQueryCache(1000, cacheSize));
-            this.searcherManager = new SearcherManager(this.index, null);
-        } catch (final IOException e) {
-            throw new IllegalStateException("Could not initialize FS directory on '" + indexPath + "'.", e);
-        }
-    }
-
-    private <T> T withSearcher(SearchFunction<T> function) {
-        try {
-            val searcher = searcherManager.acquire();
-            try {
-                return function.search(searcher);
-            } finally {
-                searcherManager.release(searcher);
-            }
-        } catch (final IOException e) {
-            throw new RuntimeException("Could not perform search.", e);
-        }
-    }
+    private final LuceneDirectory luceneDirectory;
 
     public Optional<ZonedDateTime> findLastFullImport() {
         log.debug("finding last full import");
-        return withSearcher(searcher -> {
+        return luceneDirectory.performSearch(searcher -> {
             val result = searcher.search(new TermQuery(new Term(ClipField.ID.term(), ClipField.ID.term(DOCID_LAST_UPDATED))), 1);
             if (result.scoreDocs.length > 0) {
                 val doc = searcher.getIndexReader().storedFields().document(result.scoreDocs[0].doc);
@@ -241,17 +147,14 @@ public class ClipRepository {
     public synchronized void updateLastFullImport(ZonedDateTime dateTime) {
         log.debug("Updating last full import time to {}", dateTime);
         try {
-            val analyzer = new StandardAnalyzer();
-            val indexWriterConfig = new IndexWriterConfig(analyzer);
-            try (val writer = new IndexWriter(this.index, indexWriterConfig)) {
+            luceneDirectory.performUpdate(new StandardAnalyzer(), writer -> {
                 val d = new Document();
                 addToDocument(d, ClipField.ID, DOCID_LAST_UPDATED);
                 addDateToDocument(d, ClipField.IMPORTEDAT, dateTime);
                 writer.updateDocument(
                     new Term(ClipField.ID.term(), ClipField.ID.term(DOCID_LAST_UPDATED)),
                     applyFacets(d));
-            }
-            searcherManager.maybeRefreshBlocking();
+            });
         } catch (final IOException e) {
             throw new RuntimeException("Could not create index writer", e);
         }
@@ -259,7 +162,7 @@ public class ClipRepository {
 
     public List<String> findAllChannels() {
         log.debug("Finding all channels");
-        return withSearcher(searcher -> {
+        return luceneDirectory.performSearch(searcher -> {
             val query = new MatchAllDocsQuery();
             val state = new DefaultSortedSetDocValuesReaderState(searcher.getIndexReader(), ClipField.CHANNELNAME.facet(), null);
             val fc = new FacetsCollector();
@@ -276,7 +179,7 @@ public class ClipRepository {
      */
     public Map<String, Integer> findAllContainedIns(String channelName) {
         log.debug("Finding all containedIns for channel '{}'", channelName);
-        return withSearcher(searcher -> {
+        return luceneDirectory.performSearch(searcher -> {
             val query = new TermQuery(new Term(ClipField.CHANNELNAME.termLower(), ClipField.CHANNELNAME.termLower(channelName)));
             val state = new DefaultSortedSetDocValuesReaderState(searcher.getIndexReader(), ClipField.CONTAINEDIN.facet(), null);
             val fc = new FacetsCollector();
@@ -294,7 +197,7 @@ public class ClipRepository {
      */
     public Map<String, Integer> findAllContainedIns(String channelName, String startingWith) {
         log.debug("Finding all containedIns for channel '{}' starting with '{}'", channelName, startingWith);
-        return withSearcher(searcher -> {
+        return luceneDirectory.performSearch(searcher -> {
             val query = new BooleanQuery.Builder()
                 .add(new TermQuery(new Term(ClipField.CHANNELNAME.termLower(), ClipField.CHANNELNAME.termLower(channelName))), BooleanClause.Occur.MUST)
                 .add(new PrefixQuery(new Term(ClipField.CONTAINEDIN.termLower(), ClipField.CONTAINEDIN.termLower(startingWith))), BooleanClause.Occur.MUST)
@@ -323,7 +226,7 @@ public class ClipRepository {
 
     public List<ClipEntry> findAllClips(String channelId, String containedIn) {
         log.debug("Finding all clips for channel '{}' and containedIn '{}'", channelId, containedIn);
-        return withSearcher(searcher -> {
+        return luceneDirectory.performSearch(searcher -> {
             val result = searcher.search(
                 new BooleanQuery.Builder()
                     .add(new TermQuery(new Term(ClipField.CONTAINEDIN.termLower(), ClipField.CONTAINEDIN.termLower(containedIn))), BooleanClause.Occur.MUST)
@@ -343,7 +246,7 @@ public class ClipRepository {
 
     public Optional<ClipEntry> findClipById(String id) {
         log.debug("Finding clip for id '{}'", id);
-        return withSearcher(searcher -> {
+        return luceneDirectory.performSearch(searcher -> {
             val result = searcher.search(new TermQuery(new Term(ClipField.ID.term(), ClipField.ID.term(id))), 1);
             if (result.scoreDocs.length > 0) {
                 return Optional.of(clipEntryFromDocument(searcher.storedFields().document(result.scoreDocs[0].doc)));
@@ -354,7 +257,7 @@ public class ClipRepository {
 
     public List<ClipEntry> findAllClipsForChannelBetween(String channelName, ZonedDateTime startDate, ZonedDateTime endDate) {
         log.debug("Finding clips of channel '{}' between '{}' and '{}'", channelName, startDate, endDate);
-        return withSearcher(searcher -> {
+        return luceneDirectory.performSearch(searcher -> {
             val result = searcher.search(
                 new BooleanQuery.Builder()
                     .add(new TermQuery(new Term(ClipField.CHANNELNAME.termLower(), ClipField.CHANNELNAME.termLower(channelName))), BooleanClause.Occur.MUST)
@@ -375,14 +278,11 @@ public class ClipRepository {
     public synchronized void deleteClipsImportedBefore(ZonedDateTime startedAt) {
         log.debug("Deleting all clips not imported at {}", startedAt);
         try {
-            val analyzer = new StandardAnalyzer();
-            val indexWriterConfig = new IndexWriterConfig(analyzer);
-            try (val writer = new IndexWriter(this.index, indexWriterConfig)) {
+            luceneDirectory.performUpdate(new StandardAnalyzer(), writer -> {
                 writer.deleteDocuments(
                     NumericDocValuesField.newSlowRangeQuery(
                         ClipField.IMPORTEDAT.sorted(), Long.MIN_VALUE, startedAt.toEpochSecond() - 1));
-            }
-            searcherManager.maybeRefreshBlocking();
+            });
         } catch (final IOException e) {
             throw new RuntimeException("Could not create index writer", e);
         }
@@ -391,9 +291,7 @@ public class ClipRepository {
     public synchronized void addClips(Iterable<ClipEntry> clipEntries, ZonedDateTime importedAt) {
         log.debug("Adding ClipEntries");
         try {
-            val analyzer = new StandardAnalyzer();
-            val indexWriterConfig = new IndexWriterConfig(analyzer);
-            try (val writer = new IndexWriter(this.index, indexWriterConfig)) {
+            luceneDirectory.performUpdate(new StandardAnalyzer(), writer -> {
                 for (val e : clipEntries) {
                     log.debug("Updating document with id '{}': '{}'", e.getId(), e.getTitle());
                     val d = new Document();
@@ -411,8 +309,7 @@ public class ClipRepository {
                         new Term(ClipField.ID.term(), ClipField.ID.term(e.getId())),
                         applyFacets(d));
                 }
-            }
-            searcherManager.maybeRefreshBlocking();
+            });
         } catch (final IOException e) {
             throw new RuntimeException("Could not create index writer", e);
         }

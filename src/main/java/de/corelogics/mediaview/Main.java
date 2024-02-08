@@ -28,6 +28,7 @@ import de.corelogics.mediaview.client.mediatheklist.MediathekListClient;
 import de.corelogics.mediaview.client.mediathekview.MediathekViewImporter;
 import de.corelogics.mediaview.config.ConfigurationModule;
 import de.corelogics.mediaview.repository.clip.ClipRepository;
+import de.corelogics.mediaview.repository.clip.LuceneDirectory;
 import de.corelogics.mediaview.service.dlna.DlnaServer;
 import de.corelogics.mediaview.service.dlna.DlnaServiceModule;
 import de.corelogics.mediaview.service.importer.ImporterService;
@@ -51,7 +52,8 @@ public class Main {
         val mainConfiguration = configModule.getMainConfiguration();
         val networkingModule = new NetworkingModule(mainConfiguration);
 
-        val clipRepository = new ClipRepository(mainConfiguration);
+        val luceneDirectory = new LuceneDirectory(mainConfiguration);
+        val clipRepository = new ClipRepository(luceneDirectory);
         this.dlnaServer =
             new DlnaServiceModule(
                 mainConfiguration,
