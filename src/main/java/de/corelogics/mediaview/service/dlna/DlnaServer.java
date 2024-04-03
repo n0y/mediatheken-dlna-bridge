@@ -2,7 +2,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2023 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2024 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -31,6 +31,7 @@ import de.corelogics.mediaview.service.dlna.jupnp.UpnpServiceImplFixed;
 import lombok.extern.log4j.Log4j2;
 import lombok.val;
 import org.eclipse.jetty.server.Server;
+import org.jupnp.UpnpServiceImpl;
 import org.jupnp.binding.annotations.AnnotationLocalServiceBinder;
 import org.jupnp.model.DefaultServiceManager;
 import org.jupnp.model.ValidationException;
@@ -39,7 +40,6 @@ import org.jupnp.model.types.UDADeviceType;
 import org.jupnp.model.types.UDN;
 
 import java.nio.charset.StandardCharsets;
-import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -70,7 +70,17 @@ public class DlnaServer {
             service);
 
         this.upnpService = new UpnpServiceImplFixed(new DlnaUpnpServiceConfiguration(jettyServer, mainConfiguration.publicHttpPort()));
-        this.upnpService.activate(Map.of("initialSearchEnabled", false));
+        this.upnpService.activate(new UpnpServiceImpl.Config() {
+            @Override
+            public Class<UpnpServiceImpl.Config> annotationType() {
+                return UpnpServiceImpl.Config.class;
+            }
+
+            @Override
+            public boolean initialSearchEnabled() {
+                return false;
+            }
+        });
         this.upnpService.startup();
         this.upnpService.getRegistry().addDevice(localDevice);
         this.upnpService.getProtocolFactory().createSendingNotificationAlive(localDevice).run();

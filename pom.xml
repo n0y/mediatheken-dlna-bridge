@@ -37,7 +37,7 @@
         <maven.compiler.source>21</maven.compiler.source>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <jupnp.version>2.7.1</jupnp.version>
+        <jupnp.version>3.0.1</jupnp.version>
         <lucene.version>9.10.0</lucene.version>
         <log4j.version>2.23.1</log4j.version>
         <junit.version>5.10.2</junit.version>
