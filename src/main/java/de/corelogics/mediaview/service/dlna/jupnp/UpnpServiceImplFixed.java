@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2023 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2024 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -34,16 +34,14 @@ import org.jupnp.protocol.ProtocolFactoryImpl;
 import org.jupnp.protocol.sync.ReceivingAction;
 import org.jupnp.transport.RouterException;
 
-import java.util.Map;
-
 public class UpnpServiceImplFixed extends UpnpServiceImpl {
     public UpnpServiceImplFixed(UpnpServiceConfiguration configuration) {
         super(configuration);
     }
 
     @Override
-    public void activate(Map<String, Object> configProperties) {
-        super.activate(configProperties);
+    public void activate(Config config) {
+        super.activate(config);
         // Didn't understand why upstream initializes an ExecutorService here
         scheduledExecutorService.shutdown();
     }
