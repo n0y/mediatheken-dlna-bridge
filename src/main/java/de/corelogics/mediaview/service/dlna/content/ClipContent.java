@@ -67,7 +67,7 @@ public class ClipContent extends BaseDlnaRequestHandler {
         return new VideoItem(
             idClip(entry),
             request.objectId(),
-            dateTimeFormat.format(entry.getBroadcastedAt()) + " " + lengthLimit(entry.getTitle()),
+                STR."\{dateTimeFormat.format(entry.getBroadcastedAt())} \{lengthLimit(entry.getTitle())}",
             "",
             new Res(
                 MIME_TYPE_VIDEO_MP4,

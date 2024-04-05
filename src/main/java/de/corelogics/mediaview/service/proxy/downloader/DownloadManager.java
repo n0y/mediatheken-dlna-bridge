@@ -97,7 +97,7 @@ public class DownloadManager {
             }
         }
         if (null == clipDownloaderHolder) {
-            throw new TooManyConcurrentConnectionsException("More then " + mainConfiguration.cacheMaxParallelDownloads() + " connections active. Can't proxy more.");
+            throw new TooManyConcurrentConnectionsException(STR."More then \{mainConfiguration.cacheMaxParallelDownloads()} connections active. Can't proxy more.");
         } else {
             val openedStream = clipDownloaderHolder.openInputStreamStartingFrom(byteRange.getFirstPosition(), Duration.ofSeconds(20));
             if (byteRange.getLastPosition().isPresent()) {

@@ -95,13 +95,13 @@ class ClipDownloadConnection extends Thread implements Closeable {
                     this.mainConfiguration,
                     new Request.Builder()
                         .url(downloader.getUrl())
-                        .addHeader(HttpUtils.HEADER_RANGE, "bytes=" + chunk.from() + "-" + chunk.to()))
+                        .addHeader(HttpUtils.HEADER_RANGE, STR."bytes=\{chunk.from()}-\{chunk.to()}"))
                 .build();
         try (val response = httpClient.newCall(request).execute()) {
             if (response.isSuccessful()) {
                 return response.body().bytes();
             }
-            throw new IOException("No body, status code was " + response.code());
+            throw new IOException(STR."No body, status code was \{response.code()}");
         }
     }
 

@@ -135,6 +135,6 @@ public class SendungAzContent extends BaseDlnaRequestHandler {
     }
 
     private String idShowGroup(String channelId, Map.Entry<Character, Integer> letterEntry) {
-        return URN_PREFIX_SHOWGROUP + IdUtils.encodeId(channelId) + ":" + IdUtils.encodeId(letterEntry.getKey().toString());
+        return STR."\{URN_PREFIX_SHOWGROUP}\{IdUtils.encodeId(channelId)}:\{IdUtils.encodeId(letterEntry.getKey().toString())}";
     }
 }

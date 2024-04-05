@@ -51,6 +51,10 @@ import static java.util.stream.Collectors.toMap;
 @Log4j2
 @RequiredArgsConstructor
 public class ClipRepository {
+    private static final String DOCTYPE_CLIP = "clip";
+    private static final String DOCTYPE_IMPORTINFO = "importinfo";
+    private static final long SCHEMA_VERSION = 2;
+
     private enum ClipField {
         ID(true, false),
         CHANNELNAME(true, true),
@@ -61,7 +65,9 @@ public class ClipRepository {
         URL_HD(false, false),
         SIZE(true, false),
         BROADCASTEDAT(true, true),
-        IMPORTEDAT(true, true);
+        IMPORTEDAT(true, true),
+
+        TYPE(true, false);
 
         private final boolean term;
         private final boolean sort;
@@ -80,7 +86,7 @@ public class ClipRepository {
         }
 
         public String sorted() {
-            return this.value() + "$$sorted";
+            return STR."\{this.value()}$$sorted";
         }
 
         public String sorted(String val) {
@@ -88,7 +94,7 @@ public class ClipRepository {
         }
 
         public String term() {
-            return this.value() + "$$term";
+            return STR."\{this.value()}$$term";
         }
 
         public String term(String val) {
@@ -96,7 +102,7 @@ public class ClipRepository {
         }
 
         public String termLower() {
-            return this.value() + "$$lowerterm";
+            return STR."\{this.value()}$$lowerterm";
         }
 
         public String termLower(String val) {
@@ -104,7 +110,7 @@ public class ClipRepository {
         }
 
         public String facet() {
-            return this.value() + "$$facet";
+            return STR."\{this.value()}$$facet";
         }
 
         public String facet(String val) {
@@ -120,7 +126,6 @@ public class ClipRepository {
         }
     }
 
-    private static final String DOCID_LAST_UPDATED = "last-update-stat";
     private static final FieldType TYPE_NO_TOKENIZE = new FieldType();
 
     static {
@@ -132,10 +137,16 @@ public class ClipRepository {
 
     private final LuceneDirectory luceneDirectory;
 
+
     public Optional<ZonedDateTime> findLastFullImport() {
         log.debug("finding last full import");
         return luceneDirectory.performSearch(searcher -> {
-            val result = searcher.search(new TermQuery(new Term(ClipField.ID.term(), ClipField.ID.term(DOCID_LAST_UPDATED))), 1);
+            val result = searcher.search(
+                new BooleanQuery.Builder()
+                    .add(luceneDirectory.createDoctypeQuery(DOCTYPE_IMPORTINFO), BooleanClause.Occur.MUST)
+                    .add(new TermQuery(new Term(ClipField.ID.term(), ClipField.ID.term(DOCTYPE_IMPORTINFO))), BooleanClause.Occur.MUST)
+                    .build(),
+                1);
             if (result.scoreDocs.length > 0) {
                 val doc = searcher.getIndexReader().storedFields().document(result.scoreDocs[0].doc);
                 return Optional.of(ZonedDateTime.parse(doc.get(ClipField.IMPORTEDAT.value())));
@@ -148,11 +159,11 @@ public class ClipRepository {
         log.debug("Updating last full import time to {}", dateTime);
         try {
             luceneDirectory.performUpdate(new StandardAnalyzer(), writer -> {
-                val d = new Document();
-                addToDocument(d, ClipField.ID, DOCID_LAST_UPDATED);
+                val d = luceneDirectory.createDocument(DOCTYPE_IMPORTINFO, SCHEMA_VERSION);
+                addToDocument(d, ClipField.ID, DOCTYPE_IMPORTINFO);
                 addDateToDocument(d, ClipField.IMPORTEDAT, dateTime);
                 writer.updateDocument(
-                    new Term(ClipField.ID.term(), ClipField.ID.term(DOCID_LAST_UPDATED)),
+                    new Term(ClipField.ID.term(), ClipField.ID.term(DOCTYPE_IMPORTINFO)),
                     applyFacets(d));
             });
         } catch (final IOException e) {
@@ -163,7 +174,7 @@ public class ClipRepository {
     public List<String> findAllChannels() {
         log.debug("Finding all channels");
         return luceneDirectory.performSearch(searcher -> {
-            val query = new MatchAllDocsQuery();
+            val query = luceneDirectory.createDoctypeQuery(DOCTYPE_CLIP);
             val state = new DefaultSortedSetDocValuesReaderState(searcher.getIndexReader(), ClipField.CHANNELNAME.facet(), null);
             val fc = new FacetsCollector();
             FacetsCollector.search(searcher, query, 10000, fc);
@@ -180,7 +191,10 @@ public class ClipRepository {
     public Map<String, Integer> findAllContainedIns(String channelName) {
         log.debug("Finding all containedIns for channel '{}'", channelName);
         return luceneDirectory.performSearch(searcher -> {
-            val query = new TermQuery(new Term(ClipField.CHANNELNAME.termLower(), ClipField.CHANNELNAME.termLower(channelName)));
+            val query = new BooleanQuery.Builder()
+                .add(luceneDirectory.createDoctypeQuery(DOCTYPE_CLIP), BooleanClause.Occur.MUST)
+                .add(new TermQuery(new Term(ClipField.CHANNELNAME.termLower(), ClipField.CHANNELNAME.termLower(channelName))), BooleanClause.Occur.MUST)
+                .build();
             val state = new DefaultSortedSetDocValuesReaderState(searcher.getIndexReader(), ClipField.CONTAINEDIN.facet(), null);
             val fc = new FacetsCollector();
             FacetsCollector.search(searcher, query, 10000, fc);
@@ -199,6 +213,7 @@ public class ClipRepository {
         log.debug("Finding all containedIns for channel '{}' starting with '{}'", channelName, startingWith);
         return luceneDirectory.performSearch(searcher -> {
             val query = new BooleanQuery.Builder()
+                .add(luceneDirectory.createDoctypeQuery(DOCTYPE_CLIP), BooleanClause.Occur.MUST)
                 .add(new TermQuery(new Term(ClipField.CHANNELNAME.termLower(), ClipField.CHANNELNAME.termLower(channelName))), BooleanClause.Occur.MUST)
                 .add(new PrefixQuery(new Term(ClipField.CONTAINEDIN.termLower(), ClipField.CONTAINEDIN.termLower(startingWith))), BooleanClause.Occur.MUST)
                 .build();
@@ -229,6 +244,7 @@ public class ClipRepository {
         return luceneDirectory.performSearch(searcher -> {
             val result = searcher.search(
                 new BooleanQuery.Builder()
+                    .add(luceneDirectory.createDoctypeQuery(DOCTYPE_CLIP), BooleanClause.Occur.MUST)
                     .add(new TermQuery(new Term(ClipField.CONTAINEDIN.termLower(), ClipField.CONTAINEDIN.termLower(containedIn))), BooleanClause.Occur.MUST)
                     .add(new TermQuery(new Term(ClipField.CHANNELNAME.termLower(), ClipField.CHANNELNAME.termLower(channelId))), BooleanClause.Occur.MUST)
                     .build(),
@@ -247,7 +263,12 @@ public class ClipRepository {
     public Optional<ClipEntry> findClipById(String id) {
         log.debug("Finding clip for id '{}'", id);
         return luceneDirectory.performSearch(searcher -> {
-            val result = searcher.search(new TermQuery(new Term(ClipField.ID.term(), ClipField.ID.term(id))), 1);
+            val result = searcher.search(
+                new BooleanQuery.Builder()
+                    .add(luceneDirectory.createDoctypeQuery(DOCTYPE_CLIP), BooleanClause.Occur.MUST)
+                    .add(new TermQuery(new Term(ClipField.ID.term(), ClipField.ID.term(id))), BooleanClause.Occur.MUST)
+                    .build(),
+                1);
             if (result.scoreDocs.length > 0) {
                 return Optional.of(clipEntryFromDocument(searcher.storedFields().document(result.scoreDocs[0].doc)));
             }
@@ -260,6 +281,7 @@ public class ClipRepository {
         return luceneDirectory.performSearch(searcher -> {
             val result = searcher.search(
                 new BooleanQuery.Builder()
+                    .add(luceneDirectory.createDoctypeQuery(DOCTYPE_CLIP), BooleanClause.Occur.MUST)
                     .add(new TermQuery(new Term(ClipField.CHANNELNAME.termLower(), ClipField.CHANNELNAME.termLower(channelName))), BooleanClause.Occur.MUST)
                     .add(NumericDocValuesField.newSlowRangeQuery(ClipField.BROADCASTEDAT.sorted(), startDate.toEpochSecond(), endDate.toEpochSecond()), BooleanClause.Occur.MUST)
                     .build(),
@@ -278,11 +300,10 @@ public class ClipRepository {
     public synchronized void deleteClipsImportedBefore(ZonedDateTime startedAt) {
         log.debug("Deleting all clips not imported at {}", startedAt);
         try {
-            luceneDirectory.performUpdate(new StandardAnalyzer(), writer -> {
+            luceneDirectory.performUpdate(new StandardAnalyzer(), writer ->
                 writer.deleteDocuments(
                     NumericDocValuesField.newSlowRangeQuery(
-                        ClipField.IMPORTEDAT.sorted(), Long.MIN_VALUE, startedAt.toEpochSecond() - 1));
-            });
+                        ClipField.IMPORTEDAT.sorted(), Long.MIN_VALUE, startedAt.toEpochSecond() - 1)));
         } catch (final IOException e) {
             throw new RuntimeException("Could not create index writer", e);
         }
@@ -294,7 +315,7 @@ public class ClipRepository {
             luceneDirectory.performUpdate(new StandardAnalyzer(), writer -> {
                 for (val e : clipEntries) {
                     log.debug("Updating document with id '{}': '{}'", e.getId(), e.getTitle());
-                    val d = new Document();
+                    val d = luceneDirectory.createDocument(DOCTYPE_CLIP, SCHEMA_VERSION);
                     addToDocument(d, ClipField.ID, e.getId());
                     addToDocument(d, ClipField.CHANNELNAME, e.getChannelName());
                     addToDocument(d, ClipField.CONTAINEDIN, e.getContainedIn());
@@ -315,17 +336,21 @@ public class ClipRepository {
         }
     }
 
-    private Document applyFacets(Document d) throws IOException {
-        val facetsConfig = new FacetsConfig();
-        for (val ixf : d) {
-            if (ixf.fieldType() == SortedSetDocValuesFacetField.TYPE) {
-                SortedSetDocValuesFacetField facetField = (SortedSetDocValuesFacetField) ixf;
-                facetsConfig.setIndexFieldName(facetField.dim, facetField.dim);
-                facetsConfig.setMultiValued(facetField.dim, true); // TODO: revisit this but for now all fields assumed to have multivalue
+    private Document applyFacets(Document d) {
+        try {
+            val facetsConfig = new FacetsConfig();
+            for (val ixf : d) {
+                if (ixf.fieldType() == SortedSetDocValuesFacetField.TYPE) {
+                    val facetField = (SortedSetDocValuesFacetField) ixf;
+                    facetsConfig.setIndexFieldName(facetField.dim, facetField.dim);
+                    facetsConfig.setMultiValued(facetField.dim, true); // TODO: revisit this but for now all fields assumed to have multivalue
+                }
             }
+            d = facetsConfig.build(d);
+            return d;
+        } catch (final IOException e) {
+            throw new RuntimeException(e);
         }
-        d = facetsConfig.build(d);
-        return d;
     }
 
     private void addToDocument(Document doc, ClipField field, String source) {

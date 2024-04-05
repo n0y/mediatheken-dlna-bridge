@@ -68,13 +68,13 @@ public class CacheDirectory {
             .build(this::openFile);
 
         if (cacheSizeGb < 10) {
-            throw new IllegalStateException("Configuration: CACHE_SIZE_GB is " + cacheSizeGb + ", but at least 10 GB are required");
+            throw new IllegalStateException(STR."Configuration: CACHE_SIZE_GB is \{cacheSizeGb}, but at least 10 GB are required");
         }
         this.cacheSizeBytes = 1024L * 1024L * 1024L * cacheSizeGb;
         this.cacheDirFile = cacheDir;
         log.debug("Initializing cache download manager, with cache in directory [{}]", this.cacheDirFile::getAbsolutePath);
         if (!cacheDirFile.exists() && !cacheDirFile.mkdirs()) {
-            throw new IllegalStateException("Could not create nonexistent cache directory at " + this.cacheDirFile.getAbsolutePath());
+            throw new IllegalStateException(STR."Could not create nonexistent cache directory at \{this.cacheDirFile.getAbsolutePath()}");
         }
         scheduledExecutorService.scheduleAtFixedRate(this::cleanUp, 10, 10, TimeUnit.SECONDS);
         log.info("Successfully started cache download manager, with cache in directory [{}]", this.cacheDirFile::getAbsolutePath);
@@ -85,21 +85,21 @@ public class CacheDirectory {
     }
 
     private RandomAccessFile openFile(String filename) throws FileNotFoundException {
-        log.debug("Opening file " + filename);
+        log.debug("Opening file {}", filename);
         return new RandomAccessFile(new File(cacheDirFile, filename), "rw");
     }
 
     private void closeFile(String name, RandomAccessFile file, RemovalCause cause) {
-        log.debug("Closing file " + name);
+        log.debug("Closing file {}", name);
         IOUtils.closeQuietly(file, e -> log.debug("Could not (quietly) close file.", e));
     }
 
     private String contentFilename(String clipId) {
-        return IdUtils.encodeId(clipId) + ".mp4";
+        return IdUtils.encodeId(clipId).concat(".mp4");
     }
 
     private String metaFilename(String clipId) {
-        return IdUtils.encodeId(clipId) + ".json";
+        return IdUtils.encodeId(clipId).concat(".json");
     }
 
 

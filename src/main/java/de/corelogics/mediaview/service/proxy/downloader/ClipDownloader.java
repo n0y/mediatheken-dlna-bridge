@@ -144,7 +144,7 @@ class ClipDownloader implements Closeable {
 
     private synchronized void ensureDownloadersPresent() {
         while (this.connections.size() < numParallelConnections && this.chunksAvailableForDownload.nextSetBit(0) < this.metadata.numberOfChunks()) {
-            val connectionId = "dl-thrd-" + currentConnectionId.incrementAndGet();
+            val connectionId = STR."dl-thrd-\{currentConnectionId.incrementAndGet()}";
             logger.debug("Starting new connection {}", connectionId);
             this.connections.put(connectionId, new ClipDownloadConnection(
                 this, mainConfiguration,
@@ -213,7 +213,7 @@ class ClipDownloader implements Closeable {
                     logger.debug("successful HEAD request with headers: {} for HEAD {}", response.headers(), url);
                     val meta = new ClipMetadata();
                     meta.contentType(response.header("Content-Type"));
-                    meta.size(Long.parseLong(response.header("Content-Length")));
+                    meta.size(Optional.ofNullable(response.header("Content-Length")).map(Long::parseLong).orElse(0L));
                     return meta;
                 }
                 if (response.code() == HttpServletResponse.SC_NOT_FOUND) {
@@ -221,7 +221,7 @@ class ClipDownloader implements Closeable {
                 }
                 throw new UpstreamReadFailedException(String.format("Metadata Read failed with response code %d on url %s", response.code(), this.url));
             }
-        } catch (final IOException e) {
+        } catch (final IOException | RuntimeException e) {
             throw new UpstreamReadFailedException(String.format("Could not load meta data from url %s", this.url));
         } finally {
             httpClient.connectionPool().evictAll();

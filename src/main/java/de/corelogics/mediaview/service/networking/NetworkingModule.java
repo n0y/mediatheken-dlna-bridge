@@ -95,7 +95,7 @@ public class NetworkingModule {
                 () -> Arrays.stream(this.jettyServer.getConnectors())
                     .filter(c -> c instanceof ServerConnector)
                     .map(c -> (ServerConnector) c)
-                    .map(sc -> sc.getHost() + ":" + sc.getPort())
+                    .map(sc -> STR."\{sc.getHost()}:\{sc.getPort()}")
                     .collect(Collectors.joining(", ")));
         } catch (Exception e) {
             throw new RuntimeException("Could not start Jetty server", e);

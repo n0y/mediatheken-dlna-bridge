@@ -141,9 +141,9 @@ public class MissedShowsContent extends BaseDlnaRequestHandler {
         val today = ZonedDateTime.now();
         LongStream.rangeClosed(0, 6).mapToObj(l -> Map.entry(l, today.minusDays(l))).flatMap(day ->
                 Arrays.stream(ChannelTime.values()).map(ct -> new StorageFolder(
-                    URN_PREFIX_CHANNELTIME + IdUtils.encodeId(channelName) + ":" + day.getKey() + ":" + ct.ordinal(),
+                        STR."\{URN_PREFIX_CHANNELTIME}\{IdUtils.encodeId(channelName)}:\{day.getKey()}:\{ct.ordinal()}",
                     request.objectId(),
-                    DATE_TIME_FORMAT.format(day.getValue()) + " " + ct.getTitle(),
+                        STR."\{DATE_TIME_FORMAT.format(day.getValue())} \{ct.getTitle()}",
                     "",
                     10,
                     null)))

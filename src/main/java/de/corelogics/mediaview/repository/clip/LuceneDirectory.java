@@ -29,16 +29,12 @@ import lombok.extern.log4j.Log4j2;
 import lombok.val;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
-import org.apache.lucene.document.Document;
-import org.apache.lucene.document.Field;
-import org.apache.lucene.document.FieldType;
+import org.apache.lucene.document.*;
 import org.apache.lucene.index.IndexOptions;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.Term;
-import org.apache.lucene.search.IndexSearcher;
-import org.apache.lucene.search.LRUQueryCache;
-import org.apache.lucene.search.SearcherManager;
+import org.apache.lucene.search.*;
 import org.apache.lucene.store.ByteBuffersDirectory;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.NIOFSDirectory;
@@ -52,6 +48,10 @@ import java.util.function.Supplier;
 
 @Log4j2
 public class LuceneDirectory {
+    public static final String DOCUMENT_FIELD_TYPE = "__type__";
+    public static final String DOCUMENT_FIELD_VERSION = "__schema_version__";
+    public static final String DOCUMENT_FIELD_VERSION_SORTED = "__schema_version$$sorted";
+
     @FunctionalInterface
     public interface SearchFunction<T> {
         T search(IndexSearcher searcher) throws IOException;
@@ -81,6 +81,21 @@ public class LuceneDirectory {
         log.info("Successfully opened database at {} with {} Bytes cache",
             calcIndexPath(mainConfiguration),
             calcCacheSize());
+        migrationDeleteUnversioned();
+    }
+
+    private void migrationDeleteUnversioned() {
+        log.debug("For schema migration, deleting all documents not containing any version or doctype");
+        try {
+            performUpdate(new StandardAnalyzer(), writer ->
+                writer.deleteDocuments(new BooleanQuery.Builder()
+                    .add(new FieldExistsQuery(DOCUMENT_FIELD_TYPE), BooleanClause.Occur.MUST_NOT)
+                    .add(new FieldExistsQuery(DOCUMENT_FIELD_VERSION), BooleanClause.Occur.MUST_NOT)
+                    .setMinimumNumberShouldMatch(1)
+                    .build()));
+        } catch (final IOException e) {
+            throw new IllegalStateException("Could not perform DB schema migration.", e);
+        }
     }
 
     private String calcIndexPath(MainConfiguration mainConfiguration) {
@@ -120,7 +135,7 @@ public class LuceneDirectory {
             IndexSearcher.setDefaultQueryCache(new LRUQueryCache(1000, cacheSize));
             this.searcherManager = new SearcherManager(this.index, null);
         } catch (final IOException e) {
-            throw new IllegalStateException("Could not initialize FS directory on '" + indexPath + "'.", e);
+            throw new IllegalStateException(STR."Could not initialize FS directory on '\{indexPath}'.", e);
         }
     }
 
@@ -142,5 +157,17 @@ public class LuceneDirectory {
             function.update(writer);
         }
         searcherManager.maybeRefreshBlocking();
+    }
+
+    public Document createDocument(String docType, long schemaVersion) {
+        val doc = new Document();
+        doc.add(new Field(DOCUMENT_FIELD_TYPE, docType, TYPE_NO_TOKENIZE));
+        doc.add(new StoredField(DOCUMENT_FIELD_VERSION, schemaVersion));
+        doc.add(new NumericDocValuesField(DOCUMENT_FIELD_VERSION_SORTED, schemaVersion));
+        return doc;
+    }
+
+    public Query createDoctypeQuery(String docType) {
+        return new TermQuery(new Term(DOCUMENT_FIELD_TYPE, docType));
     }
 }

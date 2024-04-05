@@ -75,6 +75,6 @@ public class ShowContent extends BaseDlnaRequestHandler {
     }
 
     private String idShow(String channelId, String containedIn) {
-        return URN_PREFIX_SHOW + IdUtils.encodeId(channelId) + ":" + IdUtils.encodeId(containedIn);
+        return STR."\{URN_PREFIX_SHOW}\{IdUtils.encodeId(channelId)}:\{IdUtils.encodeId(containedIn)}";
     }
 }

@@ -161,13 +161,13 @@ public class ForwardingProxyServer implements ClipContentUrlGenerator {
                     } else {
                         if (byteRange.isPartial()) {
                             response.setStatus(SC_PARTIAL_CONTENT);
-                            response.addHeader(HttpUtils.HEADER_CONTENT_RANGE, "bytes " + byteRange.getFirstPosition() + "-" + byteRange.getLastPosition().orElse(stream.getMaxSize() - 1) + "/" + stream.getMaxSize());
+                            response.addHeader(HttpUtils.HEADER_CONTENT_RANGE, STR."bytes \{byteRange.getFirstPosition()}-\{byteRange.getLastPosition().orElse(stream.getMaxSize() - 1)}/\{stream.getMaxSize()}");
                             response.addHeader(HttpUtils.HEADER_CONTENT_LENGTH, Long.toString(byteRange.getLastPosition().orElse(stream.getMaxSize()) - byteRange.getFirstPosition()));
                         } else {
                             response.setStatus(SC_OK);
                             response.addHeader(HttpUtils.HEADER_CONTENT_LENGTH, Long.toString(stream.getMaxSize()));
                         }
-                        log.debug("Answering with: " + headerStrings(response));
+                        log.debug("Answering with: {}", headerStrings(response));
                         copyBytes(stream.getStream(), response);
                     }
                 } finally {
@@ -202,7 +202,7 @@ public class ForwardingProxyServer implements ClipContentUrlGenerator {
         val pathInContextString = request.getPathInfo();
         val pathInContext = pathInContextString.split("/");
         if (pathInContext.length == 0) {
-            throw new RuntimeException("cant extract clip from URL " + pathInContextString);
+            throw new RuntimeException(STR."cant extract clip from URL \{pathInContextString}");
         }
         val clipIdString = pathInContext[pathInContext.length - 1];
         val clipId = new String(Base64.getDecoder().decode(clipIdString), StandardCharsets.UTF_8);
@@ -212,21 +212,21 @@ public class ForwardingProxyServer implements ClipContentUrlGenerator {
             clipId::toString,
             () -> String.join(
                 "\n",
-                "   H:" + request.getServerName(),
-                "   P:" + pathInContextString,
+                    STR."   H:\{request.getServerName()}",
+                    STR."   P:\{pathInContextString}",
                 headerStrings(request)));
         return clipId;
     }
 
     private String headerStrings(HttpServletRequest request) {
         return StreamSupport.stream(((Iterable<String>) () -> request.getHeaderNames().asIterator()).spliterator(), false)
-            .map(h -> "   " + h + ": " + request.getHeader(h))
+            .map(h -> STR."   \{h}: \{request.getHeader(h)}")
             .collect(Collectors.joining("\n"));
     }
 
     private String headerStrings(HttpServletResponse response) {
         return response.getHeaderNames().stream()
-            .map(h -> "   " + h + ": " + response.getHeader(h))
+            .map(h -> STR."   \{h}: \{response.getHeader(h)}")
             .collect(Collectors.joining("\n"));
     }
 
