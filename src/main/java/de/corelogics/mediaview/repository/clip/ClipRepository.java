@@ -25,24 +25,28 @@
 package de.corelogics.mediaview.repository.clip;
 
 import de.corelogics.mediaview.client.mediathekview.ClipEntry;
+import de.corelogics.mediaview.repository.LuceneDirectory;
+import de.corelogics.mediaview.repository.RepoTypeFields;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
 import lombok.extern.log4j.Log4j2;
 import lombok.val;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
-import org.apache.lucene.document.*;
+import org.apache.lucene.document.Document;
+import org.apache.lucene.document.NumericDocValuesField;
 import org.apache.lucene.facet.FacetsCollector;
-import org.apache.lucene.facet.FacetsConfig;
 import org.apache.lucene.facet.sortedset.DefaultSortedSetDocValuesReaderState;
 import org.apache.lucene.facet.sortedset.SortedSetDocValuesFacetCounts;
-import org.apache.lucene.facet.sortedset.SortedSetDocValuesFacetField;
-import org.apache.lucene.index.IndexOptions;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.search.*;
-import org.apache.lucene.util.BytesRef;
 
 import java.io.IOException;
 import java.time.ZonedDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -55,7 +59,9 @@ public class ClipRepository {
     private static final String DOCTYPE_IMPORTINFO = "importinfo";
     private static final long SCHEMA_VERSION = 2;
 
-    private enum ClipField {
+    @RequiredArgsConstructor
+    @Getter
+    private enum ClipField implements RepoTypeFields {
         ID(true, false),
         CHANNELNAME(true, true),
         CONTAINEDIN(true, true),
@@ -71,68 +77,6 @@ public class ClipRepository {
 
         private final boolean term;
         private final boolean sort;
-
-        ClipField(boolean term, boolean sort) {
-            this.term = term;
-            this.sort = sort;
-        }
-
-        public String value() {
-            return this.name().toLowerCase(Locale.US);
-        }
-
-        public String value(String val) {
-            return val;
-        }
-
-        public String sorted() {
-            return STR."\{this.value()}$$sorted";
-        }
-
-        public String sorted(String val) {
-            return val.toLowerCase(Locale.GERMANY);
-        }
-
-        public String term() {
-            return STR."\{this.value()}$$term";
-        }
-
-        public String term(String val) {
-            return val;
-        }
-
-        public String termLower() {
-            return STR."\{this.value()}$$lowerterm";
-        }
-
-        public String termLower(String val) {
-            return val.toLowerCase(Locale.GERMANY);
-        }
-
-        public String facet() {
-            return STR."\{this.value()}$$facet";
-        }
-
-        public String facet(String val) {
-            return val;
-        }
-
-        public boolean isTerm() {
-            return term;
-        }
-
-        public boolean isSort() {
-            return sort;
-        }
-    }
-
-    private static final FieldType TYPE_NO_TOKENIZE = new FieldType();
-
-    static {
-        TYPE_NO_TOKENIZE.setTokenized(false);
-        TYPE_NO_TOKENIZE.setIndexOptions(IndexOptions.DOCS);
-        TYPE_NO_TOKENIZE.setStored(false);
-        TYPE_NO_TOKENIZE.freeze();
     }
 
     private final LuceneDirectory luceneDirectory;
@@ -158,14 +102,14 @@ public class ClipRepository {
     public synchronized void updateLastFullImport(ZonedDateTime dateTime) {
         log.debug("Updating last full import time to {}", dateTime);
         try {
-            luceneDirectory.performUpdate(new StandardAnalyzer(), writer -> {
-                val d = luceneDirectory.createDocument(DOCTYPE_IMPORTINFO, SCHEMA_VERSION);
-                addToDocument(d, ClipField.ID, DOCTYPE_IMPORTINFO);
-                addDateToDocument(d, ClipField.IMPORTEDAT, dateTime);
+            val document = luceneDirectory.buildDocument(DOCTYPE_IMPORTINFO, SCHEMA_VERSION)
+                .addField(ClipField.ID, DOCTYPE_IMPORTINFO)
+                .addField(ClipField.IMPORTEDAT, dateTime)
+                .build();
+            luceneDirectory.performUpdate(new StandardAnalyzer(), writer ->
                 writer.updateDocument(
                     new Term(ClipField.ID.term(), ClipField.ID.term(DOCTYPE_IMPORTINFO)),
-                    applyFacets(d));
-            });
+                    document));
         } catch (final IOException e) {
             throw new RuntimeException("Could not create index writer", e);
         }
@@ -309,79 +253,29 @@ public class ClipRepository {
         }
     }
 
+    @SneakyThrows(IOException.class)
     public synchronized void addClips(Iterable<ClipEntry> clipEntries, ZonedDateTime importedAt) {
         log.debug("Adding ClipEntries");
-        try {
-            luceneDirectory.performUpdate(new StandardAnalyzer(), writer -> {
-                for (val e : clipEntries) {
-                    log.debug("Updating document with id '{}': '{}'", e.getId(), e.getTitle());
-                    val d = luceneDirectory.createDocument(DOCTYPE_CLIP, SCHEMA_VERSION);
-                    addToDocument(d, ClipField.ID, e.getId());
-                    addToDocument(d, ClipField.CHANNELNAME, e.getChannelName());
-                    addToDocument(d, ClipField.CONTAINEDIN, e.getContainedIn());
-                    addToDocument(d, ClipField.DURATION, e.getDuration());
-                    addToDocument(d, ClipField.TITLE, e.getTitle());
-                    addToDocument(d, ClipField.URL, e.getUrl());
-                    addToDocument(d, ClipField.URL_HD, e.getUrlHd());
-                    addLongToDocument(d, ClipField.SIZE, e.getSize());
-                    addDateToDocument(d, ClipField.BROADCASTEDAT, e.getBroadcastedAt());
-                    addDateToDocument(d, ClipField.IMPORTEDAT, importedAt);
-                    writer.updateDocument(
-                        new Term(ClipField.ID.term(), ClipField.ID.term(e.getId())),
-                        applyFacets(d));
-                }
-            });
-        } catch (final IOException e) {
-            throw new RuntimeException("Could not create index writer", e);
-        }
-    }
-
-    private Document applyFacets(Document d) {
-        try {
-            val facetsConfig = new FacetsConfig();
-            for (val ixf : d) {
-                if (ixf.fieldType() == SortedSetDocValuesFacetField.TYPE) {
-                    val facetField = (SortedSetDocValuesFacetField) ixf;
-                    facetsConfig.setIndexFieldName(facetField.dim, facetField.dim);
-                    facetsConfig.setMultiValued(facetField.dim, true); // TODO: revisit this but for now all fields assumed to have multivalue
-                }
+        luceneDirectory.performUpdate(new StandardAnalyzer(), writer -> {
+            for (val e : clipEntries) {
+                log.debug("Updating document with id '{}': '{}'", e.getId(), e.getTitle());
+                val documentId = e.getId();
+                val document = luceneDirectory.buildDocument(DOCTYPE_CLIP, SCHEMA_VERSION)
+                    .addField(ClipField.ID, documentId)
+                    .addField(ClipField.CHANNELNAME, e.getChannelName())
+                    .addField(ClipField.CONTAINEDIN, e.getContainedIn())
+                    .addField(ClipField.DURATION, e.getDuration())
+                    .addField(ClipField.TITLE, e.getTitle())
+                    .addField(ClipField.URL, e.getUrl())
+                    .addField(ClipField.URL_HD, e.getUrlHd())
+                    .addField(ClipField.SIZE, e.getSize())
+                    .addField(ClipField.BROADCASTEDAT, e.getBroadcastedAt())
+                    .addField(ClipField.IMPORTEDAT, importedAt)
+                    .build();
+                writer.updateDocument(
+                    new Term(ClipField.ID.term(), ClipField.ID.term(documentId)),
+                    document);
             }
-            d = facetsConfig.build(d);
-            return d;
-        } catch (final IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private void addToDocument(Document doc, ClipField field, String source) {
-        doc.add(new TextField(field.value(), field.value(source), Field.Store.YES));
-
-        if (field.isSort()) {
-            doc.add(new SortedDocValuesField(field.sorted(), new BytesRef(field.sorted(source))));
-        }
-
-        if (field.isTerm()) {
-            doc.add(new Field(field.term(), field.term(source), TYPE_NO_TOKENIZE));
-            doc.add(new Field(field.termLower(), field.termLower(source), TYPE_NO_TOKENIZE));
-            if (!source.isBlank()) {
-                doc.add(new SortedSetDocValuesFacetField(field.facet(), field.facet(source)));
-            }
-        }
-    }
-
-    private void addLongToDocument(Document doc, ClipField field, long source) {
-        doc.add(new StoredField(field.value(), source));
-
-        if (field.isSort()) {
-            doc.add(new NumericDocValuesField(field.sorted(), source));
-        }
-    }
-
-    private void addDateToDocument(Document doc, ClipField field, ZonedDateTime source) {
-        doc.add(new StoredField(field.value(), source.toString()));
-
-        if (field.isSort()) {
-            doc.add(new NumericDocValuesField(field.sorted(), source.toEpochSecond()));
-        }
+        });
     }
 }

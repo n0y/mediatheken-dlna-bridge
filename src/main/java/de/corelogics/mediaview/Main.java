@@ -28,7 +28,7 @@ import de.corelogics.mediaview.client.mediatheklist.MediathekListClient;
 import de.corelogics.mediaview.client.mediathekview.MediathekViewImporter;
 import de.corelogics.mediaview.config.ConfigurationModule;
 import de.corelogics.mediaview.repository.clip.ClipRepository;
-import de.corelogics.mediaview.repository.clip.LuceneDirectory;
+import de.corelogics.mediaview.repository.LuceneDirectory;
 import de.corelogics.mediaview.service.dlna.DlnaServer;
 import de.corelogics.mediaview.service.dlna.DlnaServiceModule;
 import de.corelogics.mediaview.service.importer.ImporterService;

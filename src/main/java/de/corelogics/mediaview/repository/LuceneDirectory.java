@@ -22,14 +22,19 @@
  * SOFTWARE.
  */
 
-package de.corelogics.mediaview.repository.clip;
+package de.corelogics.mediaview.repository;
 
 import de.corelogics.mediaview.config.MainConfiguration;
+import lombok.AccessLevel;
+import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
 import lombok.extern.log4j.Log4j2;
 import lombok.val;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.*;
+import org.apache.lucene.facet.FacetsConfig;
+import org.apache.lucene.facet.sortedset.SortedSetDocValuesFacetField;
 import org.apache.lucene.index.IndexOptions;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
@@ -38,11 +43,13 @@ import org.apache.lucene.search.*;
 import org.apache.lucene.store.ByteBuffersDirectory;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.NIOFSDirectory;
+import org.apache.lucene.util.BytesRef;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.ZonedDateTime;
 import java.util.Comparator;
 import java.util.function.Supplier;
 
@@ -159,15 +166,77 @@ public class LuceneDirectory {
         searcherManager.maybeRefreshBlocking();
     }
 
-    public Document createDocument(String docType, long schemaVersion) {
+    public Query createDoctypeQuery(String docType) {
+        return new TermQuery(new Term(DOCUMENT_FIELD_TYPE, docType));
+    }
+
+    public DocumentBuilder buildDocument(String docType, long schemaVersion) {
         val doc = new Document();
         doc.add(new Field(DOCUMENT_FIELD_TYPE, docType, TYPE_NO_TOKENIZE));
         doc.add(new StoredField(DOCUMENT_FIELD_VERSION, schemaVersion));
         doc.add(new NumericDocValuesField(DOCUMENT_FIELD_VERSION_SORTED, schemaVersion));
-        return doc;
+        return new DocumentBuilder(doc);
     }
 
-    public Query createDoctypeQuery(String docType) {
-        return new TermQuery(new Term(DOCUMENT_FIELD_TYPE, docType));
+    @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
+    public class DocumentBuilder {
+        private final Document document;
+
+        public DocumentBuilder addField(RepoTypeFields field, String source) {
+            document.add(new TextField(field.value(), field.value(source), Field.Store.YES));
+
+            if (field.isSort()) {
+                document.add(new SortedDocValuesField(field.sorted(), new BytesRef(field.sorted(source))));
+            }
+
+            if (field.isTerm()) {
+                document.add(new Field(field.term(), field.term(source), TYPE_NO_TOKENIZE));
+                document.add(new Field(field.termLower(), field.termLower(source), TYPE_NO_TOKENIZE));
+                if (!source.isBlank()) {
+                    document.add(new SortedSetDocValuesFacetField(field.facet(), field.facet(source)));
+                }
+            }
+            return this;
+        }
+
+        public DocumentBuilder addField(RepoTypeFields field, long source) {
+            document.add(new StoredField(field.value(), source));
+
+            if (field.isSort()) {
+                document.add(new NumericDocValuesField(field.sorted(), source));
+            }
+            return this;
+        }
+
+        public DocumentBuilder addField(RepoTypeFields field, ZonedDateTime source) {
+            document.add(new StoredField(field.value(), source.toString()));
+
+            if (field.isSort()) {
+                document.add(new NumericDocValuesField(field.sorted(), source.toEpochSecond()));
+            }
+            return this;
+        }
+
+        @SneakyThrows
+        private Document applyFacets(Document d) {
+            val facetsConfig = new FacetsConfig();
+            for (val ixf : d) {
+                if (ixf.fieldType() == SortedSetDocValuesFacetField.TYPE) {
+                    val facetField = (SortedSetDocValuesFacetField) ixf;
+                    facetsConfig.setIndexFieldName(facetField.dim, facetField.dim);
+                    facetsConfig.setMultiValued(facetField.dim, true); // TODO: revisit this but for now all fields assumed to have multivalue
+                }
+            }
+            return facetsConfig.build(d);
+        }
+
+        public Document build() {
+            return applyFacets(document);
+        }
+    }
+
+    @SneakyThrows
+    public Document loadDocument(IndexSearcher searcher, int docId) {
+        return searcher.storedFields().document(docId);
     }
 }

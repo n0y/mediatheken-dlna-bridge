@@ -22,9 +22,10 @@
  * SOFTWARE.
  */
 
-package de.corelogics.mediaview.repository.clip;
+package de.corelogics.mediaview.repository;
 
 import de.corelogics.mediaview.config.MainConfiguration;
+import de.corelogics.mediaview.repository.LuceneDirectory;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -34,7 +35,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.*;
 
 @ExtendWith(MockitoExtension.class)
 class LuceneDirectoryTest {
