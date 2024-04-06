@@ -78,9 +78,9 @@ public class ForwardingProxyServer implements ClipContentUrlGenerator {
         }
 
         val servletHandler = new ServletContextHandler(ServletContextHandler.NO_SESSIONS);
-        servletHandler.setDisplayName("asd");
-        servletHandler.setContextPath("/api/v1/clips");
-        final ServletHolder holder = new ServletHolder("jUpnpServlet", new HttpServlet() {
+        servletHandler.setDisplayName("Buffered Playback");
+        servletHandler.setContextPath("/api/v1/clip-contents");
+        val holder = new ServletHolder("jUpnpServlet", new HttpServlet() {
             @Override
             protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
                 handleGetClip(req, resp);
@@ -91,23 +91,22 @@ public class ForwardingProxyServer implements ClipContentUrlGenerator {
                 handleHead(req, resp);
             }
         });
-        servletHandler.addServlet(holder, "/*");
+        servletHandler.addServlet(holder, "/api/v1/clip-contents/*");
         context.addHandler(servletHandler);
         log.debug("Successfully registering prefetching HTTP servlet.");
     }
 
     @Override
     public String createLinkTo(ClipEntry e, @Nullable InetAddress optionalLocalAddressQueried) {
-        val baseUrl = mainConfiguration.publicBaseUrl()
+        var baseUrl = mainConfiguration.publicBaseUrl()
             .orElseGet(() -> null == optionalLocalAddressQueried ?
                 "" :
                 "http://%s:%d".formatted(optionalLocalAddressQueried.getHostName(), mainConfiguration.publicHttpPort()));
-        return "%s%sapi/v1/clips/%s".formatted(
+        return "%s%sapi/v1/clip-contents/%s".formatted(
             baseUrl,
             baseUrl.endsWith("/") ? "" : "/",
             IdUtils.encodeId(e.getId()));
     }
-
 
     private void handleHead(HttpServletRequest request, HttpServletResponse response) throws IOException {
         val clipId = extractClipId(request);
