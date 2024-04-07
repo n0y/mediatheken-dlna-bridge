@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2023 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2024 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -246,8 +246,11 @@ public class ClipRepository {
         try {
             luceneDirectory.performUpdate(new StandardAnalyzer(), writer ->
                 writer.deleteDocuments(
-                    NumericDocValuesField.newSlowRangeQuery(
-                        ClipField.IMPORTEDAT.sorted(), Long.MIN_VALUE, startedAt.toEpochSecond() - 1)));
+                    new BooleanQuery.Builder()
+                        .add(luceneDirectory.createDoctypeQuery(DOCTYPE_CLIP), BooleanClause.Occur.MUST)
+                        .add(NumericDocValuesField.newSlowRangeQuery(
+                            ClipField.IMPORTEDAT.sorted(), Long.MIN_VALUE, startedAt.toEpochSecond() - 1), BooleanClause.Occur.MUST)
+                        .build()));
         } catch (final IOException e) {
             throw new RuntimeException("Could not create index writer", e);
         }

@@ -29,6 +29,7 @@ import de.corelogics.mediaview.repository.tracked.TrackedContainedIn;
 import de.corelogics.mediaview.repository.tracked.TrackedViewRepository;
 import de.corelogics.mediaview.service.dlna.DlnaRequest;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.log4j.Log4j2;
 import lombok.val;
 import org.jupnp.support.model.DIDLContent;
 import org.jupnp.support.model.container.StorageFolder;
@@ -39,6 +40,7 @@ import java.util.Comparator;
 import java.util.List;
 
 @RequiredArgsConstructor
+@Log4j2
 public class MostViewedContent extends BaseDlnaRequestHandler {
     private final TrackedViewRepository trackedViewRepository;
     private final ClipRepository clipRepository;
@@ -64,6 +66,7 @@ public class MostViewedContent extends BaseDlnaRequestHandler {
 
     @Override
     protected DIDLContent respondWithException(DlnaRequest request) {
+        log.debug("Creating Most Viewed content");
         val didl = new DIDLContent();
         queryRecentlySeen()
             .stream()

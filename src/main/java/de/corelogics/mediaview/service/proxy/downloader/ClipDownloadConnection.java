@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2023 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2024 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -39,7 +39,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.concurrent.TimeUnit;
 
 @Log4j2
-class ClipDownloadConnection extends Thread implements Closeable {
+class ClipDownloadConnection implements Runnable, Closeable {
     private final OkHttpClient httpClient;
     private final MainConfiguration mainConfiguration;
     private final String connectionId;
@@ -52,7 +52,6 @@ class ClipDownloadConnection extends Thread implements Closeable {
         String connectionId,
         long chunkSizeBytes,
         double reqMbPerSeconds) {
-        super(connectionId);
         this.mainConfiguration = mainConfiguration;
         this.connectionId = connectionId;
         this.downloader = downloader;

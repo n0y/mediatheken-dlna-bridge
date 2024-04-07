@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2023 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2024 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -42,11 +42,12 @@ import java.util.Comparator;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static java.lang.Thread.ofVirtual;
 import static java.util.Optional.ofNullable;
 import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 
@@ -55,7 +56,11 @@ public class CacheDirectory {
     private final JsonFactory factory = new JsonFactory();
     private final File cacheDirFile;
     private final long cacheSizeBytes;
-    private final ScheduledExecutorService scheduledExecutorService = newSingleThreadScheduledExecutor(ofVirtual().factory());
+    private final ScheduledExecutorService scheduledExecutorService = newSingleThreadScheduledExecutor(
+        Thread.ofVirtual().name("cache-cleanup-", 0L).factory());
+    private final AtomicInteger downloaderNumber = new AtomicInteger();
+    private final ThreadFactory downloaderThreadFactory = Thread.ofVirtual().factory();
+
     private final LoadingCache<String, RandomAccessFile> openFiles;
 
     CacheDirectory(int cacheSizeGb, File cacheDir, Ticker cacheTicker) {
@@ -213,7 +218,7 @@ public class CacheDirectory {
 
     public synchronized boolean tryCleanupCacheDir(Set<String> currentlyOpenClipIds) {
         val currentlyOpenFilenames = currentlyOpenClipIds.stream()
-            .flatMap(clipId ->Stream.of(this.contentFilename(clipId), this.metaFilename(clipId)))
+            .flatMap(clipId -> Stream.of(this.contentFilename(clipId), this.metaFilename(clipId)))
             .collect(Collectors.toSet());
         log.info("Cleaning up some space in cache directory");
         return ofNullable(this.cacheDirFile
@@ -251,5 +256,11 @@ public class CacheDirectory {
         this.openFiles.asMap().forEach((name, file) -> closeFile(name, file, RemovalCause.EXPLICIT));
         this.openFiles.invalidateAll();
         this.scheduledExecutorService.shutdownNow();
+    }
+
+    public void startNewDownloaderThread(String threadName, Runnable runnable) {
+        val thread = this.downloaderThreadFactory.newThread(runnable);
+        thread.setName(STR."dl-\{downloaderNumber.getAndIncrement()}-\{threadName}");
+        thread.start();
     }
 }

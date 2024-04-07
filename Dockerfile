@@ -26,8 +26,11 @@ WORKDIR /app
 ENTRYPOINT ["/init"]
 CMD ["s6-setuidgid", "medlna", \
     "java", \
+    "--enable-preview", \
     "-XX:MaxRAMPercentage=70", \
     "-XX:+UseShenandoahGC", \
     "-XX:+UnlockExperimentalVMOptions", \
-    "-XX:ShenandoahUncommitDelay=5000", "-XX:ShenandoahGuaranteedGCInterval=20000", \
-    "-jar", "mediatheken-dlna-bridge.jar"]
+    "-XX:ShenandoahUncommitDelay=5000", \
+    "-XX:ShenandoahGuaranteedGCInterval=20000", \
+    "-jar", \
+    "mediatheken-dlna-bridge.jar"]

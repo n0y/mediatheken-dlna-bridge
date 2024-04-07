@@ -72,5 +72,4 @@ public interface RepoTypeFields {
     default String facet(String val) {
         return val;
     }
-
 }

@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2023 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2024 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -144,14 +144,14 @@ class ClipDownloader implements Closeable {
 
     private synchronized void ensureDownloadersPresent() {
         while (this.connections.size() < numParallelConnections && this.chunksAvailableForDownload.nextSetBit(0) < this.metadata.numberOfChunks()) {
-            val connectionId = STR."dl-thrd-\{currentConnectionId.incrementAndGet()}";
+            val connectionId = STR."\{clipId}-\{currentConnectionId.getAndIncrement()}";
             logger.debug("Starting new connection {}", connectionId);
             this.connections.put(connectionId, new ClipDownloadConnection(
                 this, mainConfiguration,
                 connectionId,
                 CHUNK_SIZE_BYTES,
                 REQUIRED_MB_PER_SECONDS / numParallelConnections));
-            this.connections.get(connectionId).start();
+            cacheDir.startNewDownloaderThread(connectionId, this.connections.get(connectionId));
         }
     }
 

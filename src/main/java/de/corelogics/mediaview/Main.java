@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2023 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2024 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -56,10 +56,11 @@ public class Main {
 
         val luceneDirectory = new LuceneDirectory(mainConfiguration);
         val clipRepository = new ClipRepository(luceneDirectory);
-        val trackedViewRepository = new TrackedViewRepository(luceneDirectory);
         var clipUrlGenerator = new ForwardingProxyModule(mainConfiguration, networkingModule.getJettyServer(), clipRepository)
             .buildClipContentUrlGenerator();
+        val trackedViewRepository = new TrackedViewRepository(luceneDirectory);
         if (mainConfiguration.isViewTrackingEnabled()) {
+            trackedViewRepository.scheduleCleanup();
             val trackingProxyService = new TrackingProxyServer(
                 networkingModule.getJettyServer(),
                 mainConfiguration,

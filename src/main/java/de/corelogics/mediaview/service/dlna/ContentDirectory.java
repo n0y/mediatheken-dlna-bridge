@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2023 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2024 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -28,6 +28,7 @@ import de.corelogics.mediaview.service.dlna.jupnp.LocalAddressHolder;
 import lombok.AllArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import lombok.val;
+import org.apache.logging.log4j.CloseableThreadContext;
 import org.jupnp.support.contentdirectory.AbstractContentDirectoryService;
 import org.jupnp.support.contentdirectory.ContentDirectoryErrorCode;
 import org.jupnp.support.contentdirectory.ContentDirectoryException;
@@ -63,11 +64,13 @@ class ContentDirectory extends AbstractContentDirectoryService {
                 maxResults,
                 Arrays.asList(orderBy),
                 LocalAddressHolder.getMemoizedLocalAddress());
-            return handlers.stream()
-                .filter(h -> h.canHandle(request))
-                .findAny()
-                .map(h -> h.respond(request))
-                .orElseGet(this::emptyResult);
+            try (val ignored = CloseableThreadContext.put("REQUEST", request.toString())) {
+                return handlers.stream()
+                    .filter(h -> h.canHandle(request))
+                    .findAny()
+                    .map(h -> h.respond(request))
+                    .orElseGet(this::emptyResult);
+            }
         } catch (RuntimeException e) {
             log.warn("Error creating a browse response", e);
             throw new ContentDirectoryException(
@@ -82,14 +85,5 @@ class ContentDirectory extends AbstractContentDirectoryService {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-    }
-
-    @Override
-    public BrowseResult search(String containerId,
-                               String searchCriteria, String filter,
-                               long firstResult, long maxResults,
-                               SortCriterion[] orderBy) throws ContentDirectoryException {
-        // You can override this method to implement searching!
-        return super.search(containerId, searchCriteria, filter, firstResult, maxResults, orderBy);
     }
 }

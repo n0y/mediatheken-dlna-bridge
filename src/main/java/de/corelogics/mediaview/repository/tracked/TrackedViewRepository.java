@@ -45,8 +45,12 @@ import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+
+import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 
 
 @Log4j2
@@ -69,7 +73,39 @@ public class TrackedViewRepository {
     private static final String DOCTYPE_TRACKEDVIEW = "tracked-view";
     private static final long SCHEMA_VERSION = 1;
 
+    private final ScheduledExecutorService scheduledExecutorService = newSingleThreadScheduledExecutor(
+        Thread.ofVirtual().name("trackedview-", 0L).factory());
+
     private final LuceneDirectory luceneDirectory;
+
+    public void scheduleCleanup() {
+        log.debug("Scheduling cleanup of Tracked Views every day, starting at {} (10 minutes from now)", ZonedDateTime.now().plusMinutes(10));
+        scheduledExecutorService.scheduleAtFixedRate(
+            this::cleanupOldTrackedViews,
+            TimeUnit.MINUTES.toMinutes(10),
+            TimeUnit.DAYS.toMinutes(1),
+            TimeUnit.MINUTES);
+
+    }
+
+    private void cleanupOldTrackedViews() {
+        try {
+            val oldestDateToKeep = ZonedDateTime.now().minusDays(30).truncatedTo(ChronoUnit.DAYS);
+            log.info("Cleaning tracked views older than {} (30 days)", oldestDateToKeep);
+            luceneDirectory.performUpdate(new StandardAnalyzer(), writer ->
+                writer.deleteDocuments(new BooleanQuery.Builder()
+                    .add(luceneDirectory.createDoctypeQuery(DOCTYPE_TRACKEDVIEW), BooleanClause.Occur.MUST)
+                    .add(
+                        NumericDocValuesField.newSlowRangeQuery(
+                            TrackedViewField.LAST_VIEWED_AT.sorted(),
+                            Long.MIN_VALUE,
+                            oldestDateToKeep.toEpochSecond()),
+                        BooleanClause.Occur.MUST)
+                    .build()));
+        } catch (IOException e) {
+            log.warn("Clould not clean up old Tracked Views", e);
+        }
+    }
 
     @SneakyThrows(IOException.class)
     public void addTrackedView(ClipEntry forClip, ZonedDateTime atTime) {
@@ -90,6 +126,7 @@ public class TrackedViewRepository {
     }
 
     public List<TrackedContainedIn> getRecentlySeenContainedIns(ZonedDateTime earliest, ZonedDateTime latest) {
+        log.info("Getting all Tracked Views between {} and {}", earliest, latest);
         return luceneDirectory.performSearch(searcher -> {
             val result = searcher.search(
                 new BooleanQuery.Builder()

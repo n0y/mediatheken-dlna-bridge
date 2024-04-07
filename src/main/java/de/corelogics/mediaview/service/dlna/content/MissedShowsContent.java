@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2023 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2024 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -28,6 +28,7 @@ import de.corelogics.mediaview.repository.clip.ClipRepository;
 import de.corelogics.mediaview.service.dlna.DlnaRequest;
 import de.corelogics.mediaview.util.IdUtils;
 import lombok.AllArgsConstructor;
+import lombok.extern.log4j.Log4j2;
 import lombok.val;
 import org.jupnp.support.model.DIDLContent;
 import org.jupnp.support.model.container.StorageFolder;
@@ -43,6 +44,7 @@ import java.util.Map;
 import java.util.stream.LongStream;
 
 @AllArgsConstructor
+@Log4j2
 public class MissedShowsContent extends BaseDlnaRequestHandler {
     private static final DateTimeFormatter DATE_TIME_FORMAT = DateTimeFormatter.ofPattern("EEEE").localizedBy(Locale.GERMANY);
 
@@ -92,6 +94,7 @@ public class MissedShowsContent extends BaseDlnaRequestHandler {
     }
 
     public StorageFolder createLink(DlnaRequest request) {
+        log.debug("Creating link to Missed Shows");
         return new StorageFolder(
             URN_OVERVIEW,
             request.objectId(), "Sendung Verpasst",
@@ -109,16 +112,19 @@ public class MissedShowsContent extends BaseDlnaRequestHandler {
     protected DIDLContent respondWithException(DlnaRequest request) {
         val didl = new DIDLContent();
         if (request.objectId().equals(URN_OVERVIEW)) {
+            log.debug("Creating missed shows overview");
             addOverview(request, didl);
         } else if (request.objectId().startsWith(URN_PREFIX_CHANNEL)) {
             val split = request.objectId().split(":");
             val channelName = IdUtils.decodeId(split[split.length - 1]);
+            log.debug("Creating missed show for channel {}", channelName);
             addChannelTimes(request, channelName, didl);
         } else if (request.objectId().startsWith(URN_PREFIX_CHANNELTIME)) {
             val split = request.objectId().split(":");
             val channelName = IdUtils.decodeId(split[split.length - 3]);
             val daysBefore = Integer.parseInt(split[split.length - 2]);
             val time = ChannelTime.values()[Integer.parseInt(split[split.length - 1])];
+            log.debug("Creating missed shows for Channel {} and time {}/{}", channelName, daysBefore, time);
             addClips(request, channelName, time, daysBefore, didl);
         }
 
