@@ -73,7 +73,8 @@ public class Main {
                 mainConfiguration,
                 networkingModule.getJettyServer(),
                 clipUrlGenerator,
-                clipRepository)
+                clipRepository,
+                trackedViewRepository)
                 .getDlnaServer();
         networkingModule.startup();
         this.importerService = new ImporterService(

@@ -51,10 +51,14 @@ public class ShowContent extends BaseDlnaRequestHandler {
     }
 
     public StorageFolder createAsLink(DlnaRequest request, String channelId, String containedIn, int numberOfElements) {
+        return this.createAsLinkWithName(containedIn, request, channelId, containedIn, numberOfElements);
+    }
+
+    public StorageFolder createAsLinkWithName(String alternativeName, DlnaRequest request, String channelId, String containedIn, int numberOfElements) {
         return new StorageFolder(
             idShow(channelId, containedIn),
             request.objectId(),
-            containedIn,
+            alternativeName,
             "",
             numberOfElements,
             null);

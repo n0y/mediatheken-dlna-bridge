@@ -36,6 +36,7 @@ public class RootContent extends BaseDlnaRequestHandler {
     private final SendungAzContent sendungAzContent;
     private final ShowContent showContent;
     private final MissedShowsContent missedShowsContent;
+    private final MostViewedContent mostViewedContent;
 
     @Override
     public boolean canHandle(DlnaRequest request) {
@@ -46,6 +47,9 @@ public class RootContent extends BaseDlnaRequestHandler {
     protected DIDLContent respondWithException(DlnaRequest request) {
         val didl = new DIDLContent();
         addFavorites(request, didl);
+        if (mainConfiguration.isViewTrackingEnabled()) {
+            didl.addContainer(mostViewedContent.createLink(request));
+        }
         didl.addContainer(sendungAzContent.createLink(request));
         didl.addContainer(missedShowsContent.createLink(request));
         return didl;

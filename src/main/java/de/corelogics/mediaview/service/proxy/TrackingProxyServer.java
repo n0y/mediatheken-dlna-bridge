@@ -98,7 +98,7 @@ public class TrackingProxyServer implements ClipContentUrlGenerator{
                 handleGetClip(req, resp);
             }
         });
-        servletHandler.addServlet(holder, "/api/v1/clip-trackings/*");
+        servletHandler.addServlet(holder, "/*");
         context.addHandler(servletHandler);
     }
 

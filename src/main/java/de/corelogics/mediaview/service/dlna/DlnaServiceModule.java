@@ -26,6 +26,7 @@ package de.corelogics.mediaview.service.dlna;
 
 import de.corelogics.mediaview.config.MainConfiguration;
 import de.corelogics.mediaview.repository.clip.ClipRepository;
+import de.corelogics.mediaview.repository.tracked.TrackedViewRepository;
 import de.corelogics.mediaview.service.ClipContentUrlGenerator;
 import de.corelogics.mediaview.service.dlna.content.*;
 import lombok.Getter;
@@ -39,6 +40,7 @@ public class DlnaServiceModule {
     private final MainConfiguration mainConfiguration;
     private final ClipContentUrlGenerator clipContentUrlGenerator;
     private final ClipRepository clipRepository;
+    private final TrackedViewRepository trackedViewRepository;
 
     @Getter
     private final DlnaServer dlnaServer;
@@ -47,7 +49,9 @@ public class DlnaServiceModule {
         MainConfiguration mainConfiguration,
         Server jettyServer,
         ClipContentUrlGenerator clipContentUrlGenerator,
-        ClipRepository clipRepository) {
+        ClipRepository clipRepository,
+        TrackedViewRepository trackedViewRepository) {
+        this.trackedViewRepository = trackedViewRepository;
         try {
             this.mainConfiguration = mainConfiguration;
             this.clipContentUrlGenerator = clipContentUrlGenerator;
@@ -63,7 +67,8 @@ public class DlnaServiceModule {
         val showContent = new ShowContent(clipContent, this.clipRepository);
         val sendungAzContent = new SendungAzContent(this.clipRepository, showContent);
         val missedShowsContent = new MissedShowsContent(clipContent, this.clipRepository);
-        val rootContent = new RootContent(mainConfiguration, sendungAzContent, showContent, missedShowsContent);
-        return Set.of(clipContent, missedShowsContent, sendungAzContent, rootContent, showContent);
+        val mostViewedContent = new MostViewedContent(trackedViewRepository, clipRepository, showContent);
+        val rootContent = new RootContent(mainConfiguration, sendungAzContent, showContent, missedShowsContent, mostViewedContent);
+        return Set.of(clipContent, missedShowsContent, sendungAzContent, rootContent, showContent, mostViewedContent);
     }
 }

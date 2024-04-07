@@ -91,7 +91,7 @@ public class ForwardingProxyServer implements ClipContentUrlGenerator {
                 handleHead(req, resp);
             }
         });
-        servletHandler.addServlet(holder, "/api/v1/clip-contents/*");
+        servletHandler.addServlet(holder, "/*");
         context.addHandler(servletHandler);
         log.debug("Successfully registering prefetching HTTP servlet.");
     }

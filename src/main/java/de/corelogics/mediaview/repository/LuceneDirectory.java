@@ -35,10 +35,7 @@ import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.*;
 import org.apache.lucene.facet.FacetsConfig;
 import org.apache.lucene.facet.sortedset.SortedSetDocValuesFacetField;
-import org.apache.lucene.index.IndexOptions;
-import org.apache.lucene.index.IndexWriter;
-import org.apache.lucene.index.IndexWriterConfig;
-import org.apache.lucene.index.Term;
+import org.apache.lucene.index.*;
 import org.apache.lucene.search.*;
 import org.apache.lucene.store.ByteBuffersDirectory;
 import org.apache.lucene.store.Directory;
@@ -70,12 +67,20 @@ public class LuceneDirectory {
     }
 
     public static final FieldType TYPE_NO_TOKENIZE = new FieldType();
-
     static {
         TYPE_NO_TOKENIZE.setTokenized(false);
         TYPE_NO_TOKENIZE.setIndexOptions(IndexOptions.DOCS);
         TYPE_NO_TOKENIZE.setStored(false);
         TYPE_NO_TOKENIZE.freeze();
+    }
+
+    public static final FieldType TYPE_DOCVALUES_TEXT = new FieldType();
+    static {
+        TYPE_DOCVALUES_TEXT.setTokenized(false);
+        TYPE_DOCVALUES_TEXT.setIndexOptions(IndexOptions.DOCS);
+        TYPE_DOCVALUES_TEXT.setStored(false);
+        TYPE_DOCVALUES_TEXT.setDocValuesType(DocValuesType.SORTED);
+        TYPE_DOCVALUES_TEXT.freeze();
     }
 
     private Directory index;
@@ -97,8 +102,6 @@ public class LuceneDirectory {
             performUpdate(new StandardAnalyzer(), writer ->
                 writer.deleteDocuments(new BooleanQuery.Builder()
                     .add(new FieldExistsQuery(DOCUMENT_FIELD_TYPE), BooleanClause.Occur.MUST_NOT)
-                    .add(new FieldExistsQuery(DOCUMENT_FIELD_VERSION), BooleanClause.Occur.MUST_NOT)
-                    .setMinimumNumberShouldMatch(1)
                     .build()));
         } catch (final IOException e) {
             throw new IllegalStateException("Could not perform DB schema migration.", e);
@@ -172,9 +175,9 @@ public class LuceneDirectory {
 
     public DocumentBuilder buildDocument(String docType, long schemaVersion) {
         val doc = new Document();
-        doc.add(new Field(DOCUMENT_FIELD_TYPE, docType, TYPE_NO_TOKENIZE));
+        doc.add(new Field(DOCUMENT_FIELD_TYPE, new BytesRef(docType), TYPE_DOCVALUES_TEXT));
         doc.add(new StoredField(DOCUMENT_FIELD_VERSION, schemaVersion));
-        doc.add(new NumericDocValuesField(DOCUMENT_FIELD_VERSION_SORTED, schemaVersion));
+        doc.add(new LongField(DOCUMENT_FIELD_VERSION_SORTED, schemaVersion, Field.Store.NO));
         return new DocumentBuilder(doc);
     }
 
