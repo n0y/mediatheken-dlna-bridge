@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2021 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2024 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,28 +22,23 @@
  * SOFTWARE.
  */
 
-package de.corelogics.mediaview.client.mediatheklist;
+package de.corelogics.mediaview.service.base.lifecycle;
 
-import de.corelogics.mediaview.client.mediatheklist.model.MediathekListeServer;
-import de.corelogics.mediaview.config.ConfigurationModule;
-import de.corelogics.mediaview.service.base.lifecycle.ShutdownRegistry;
-import org.junit.jupiter.api.Test;
+import lombok.extern.log4j.Log4j2;
 
-import java.io.IOException;
-import java.net.http.HttpClient;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
-import static org.assertj.core.api.Assertions.assertThat;
+@Log4j2
+public class ShutdownRegistry {
+    private List<Runnable> shutdownHooks = new CopyOnWriteArrayList<>();
 
-class MediathekListClientIntegrationTest {
+    public void registerShutdown(Runnable hook) {
+        this.shutdownHooks.add(hook);
+    }
 
-    @Test
-    void whenRequestingServerList_thenRetrieveAtLeastOneElement() throws IOException {
-        var client = new MediathekListClient(
-            new ConfigurationModule().getMainConfiguration(),
-            new ShutdownRegistry(),
-            HttpClient.newBuilder().build());
-        assertThat(client.getMediathekListeMetadata().getServers()).hasAtLeastOneElementOfType(MediathekListeServer.class);
-        System.out.println(client.getMediathekListeMetadata());
-
+    public void shutdown() {
+        log.info("Shutting down");
+        this.shutdownHooks.forEach(Runnable::run);
     }
 }

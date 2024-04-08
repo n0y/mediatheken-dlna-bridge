@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2021 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2024 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,28 +22,17 @@
  * SOFTWARE.
  */
 
-package de.corelogics.mediaview.client.mediatheklist;
+package de.corelogics.mediaview.service.playback.directfromsource;
 
-import de.corelogics.mediaview.client.mediatheklist.model.MediathekListeServer;
-import de.corelogics.mediaview.config.ConfigurationModule;
-import de.corelogics.mediaview.service.base.lifecycle.ShutdownRegistry;
-import org.junit.jupiter.api.Test;
+import de.corelogics.mediaview.client.mediathekview.ClipEntry;
+import de.corelogics.mediaview.service.ClipContentUrlGenerator;
+import org.jetbrains.annotations.Nullable;
 
-import java.io.IOException;
-import java.net.http.HttpClient;
+import java.net.InetAddress;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
-class MediathekListClientIntegrationTest {
-
-    @Test
-    void whenRequestingServerList_thenRetrieveAtLeastOneElement() throws IOException {
-        var client = new MediathekListClient(
-            new ConfigurationModule().getMainConfiguration(),
-            new ShutdownRegistry(),
-            HttpClient.newBuilder().build());
-        assertThat(client.getMediathekListeMetadata().getServers()).hasAtLeastOneElementOfType(MediathekListeServer.class);
-        System.out.println(client.getMediathekListeMetadata());
-
+public class DirectDownloadClipContentUrlGenerator implements ClipContentUrlGenerator {
+    @Override
+    public String createLinkTo(ClipEntry e, @Nullable InetAddress optionalLocalAddressQueried) {
+        return e.getBestUrl();
     }
 }

@@ -28,7 +28,8 @@ import de.corelogics.mediaview.client.mediatheklist.MediathekListClient;
 import de.corelogics.mediaview.client.mediathekview.ClipEntry;
 import de.corelogics.mediaview.client.mediathekview.MediathekViewImporter;
 import de.corelogics.mediaview.config.MainConfiguration;
-import de.corelogics.mediaview.repository.clip.ClipRepository;
+import de.corelogics.mediaview.service.base.lifecycle.ShutdownRegistry;
+import de.corelogics.mediaview.service.repository.clip.ClipRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import lombok.val;
@@ -45,6 +46,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 @RequiredArgsConstructor
 public class ImporterService {
     private final MainConfiguration mainConfiguration;
+    private final ShutdownRegistry shutdownRegistry;
     private final MediathekListClient mediathekListeClient;
     private final MediathekViewImporter importer;
     private final ClipRepository clipRepository;
@@ -53,10 +55,10 @@ public class ImporterService {
 
     private boolean stopped = false;
 
-
     public void scheduleImport() {
         log.info("Starting import scheduler. Update interval: {} hours", mainConfiguration::updateIntervalFullHours);
         scheduleNextFullImport();
+        this.shutdownRegistry.registerShutdown(this::shutdown);
     }
 
     private void scheduleNextFullImport() {
@@ -71,13 +73,10 @@ public class ImporterService {
         scheduler.schedule(this::fullImport, inSeconds, TimeUnit.SECONDS);
     }
 
-    public void shutdown() {
+    void shutdown() {
+        log.debug("Shutting down");
         this.stopped = true;
-        try {
-            this.scheduler.awaitTermination(10, TimeUnit.SECONDS);
-        } catch (InterruptedException e) {
-            log.warn("Could not terminate.", e);
-        }
+        this.scheduler.shutdownNow();
     }
 
     private void fullImport() {

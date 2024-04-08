@@ -26,11 +26,12 @@
 package de.corelogics.mediaview.service.dlna;
 
 import de.corelogics.mediaview.config.MainConfiguration;
+import de.corelogics.mediaview.service.base.lifecycle.ShutdownRegistry;
+import de.corelogics.mediaview.service.base.networking.WebServer;
 import de.corelogics.mediaview.service.dlna.jupnp.DlnaUpnpServiceConfiguration;
 import de.corelogics.mediaview.service.dlna.jupnp.UpnpServiceImplFixed;
 import lombok.extern.log4j.Log4j2;
 import lombok.val;
-import org.eclipse.jetty.server.Server;
 import org.jupnp.UpnpServiceImpl;
 import org.jupnp.binding.annotations.AnnotationLocalServiceBinder;
 import org.jupnp.model.DefaultServiceManager;
@@ -42,13 +43,19 @@ import org.jupnp.model.types.UDN;
 import java.nio.charset.StandardCharsets;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Log4j2
 public class DlnaServer {
+    private final ShutdownRegistry shutdownRegistry;
+    private final MainConfiguration mainConfiguration;
+    private final AtomicBoolean started = new AtomicBoolean(false);
     private final UpnpServiceImplFixed upnpService;
+    private final LocalDevice localDevice;
 
-    public DlnaServer(MainConfiguration mainConfiguration, Server jettyServer, Set<DlnaRequestHandler> handlers) throws ValidationException {
-        log.debug("Starting DLNA server");
+    public DlnaServer(MainConfiguration mainConfiguration, WebServer webServer, ShutdownRegistry shutdownRegistry, Set<DlnaRequestHandler> handlers) throws ValidationException {
+        this.shutdownRegistry = shutdownRegistry;
+        this.mainConfiguration = mainConfiguration;
 
         val type = new UDADeviceType("MediaServer", 1);
         val details = new DeviceDetails(
@@ -63,13 +70,13 @@ public class DlnaServer {
             }
         });
 
-        val localDevice = new LocalDevice(
+        this.localDevice = new LocalDevice(
             new DeviceIdentity(new UDN(UUID.nameUUIDFromBytes(mainConfiguration.displayName().getBytes(StandardCharsets.UTF_8)))),
             type,
             details,
             service);
 
-        this.upnpService = new UpnpServiceImplFixed(new DlnaUpnpServiceConfiguration(jettyServer, mainConfiguration.publicHttpPort()));
+        this.upnpService = new UpnpServiceImplFixed(new DlnaUpnpServiceConfiguration(webServer.getServer(), mainConfiguration.publicHttpPort()));
         this.upnpService.activate(new UpnpServiceImpl.Config() {
             @Override
             public Class<UpnpServiceImpl.Config> annotationType() {
@@ -81,14 +88,23 @@ public class DlnaServer {
                 return false;
             }
         });
-        this.upnpService.startup();
-        this.upnpService.getRegistry().addDevice(localDevice);
-        this.upnpService.getProtocolFactory().createSendingNotificationAlive(localDevice).run();
-        log.info("Successfully started DLNA server '{}'. It may take some time for it to become visible in the network.", mainConfiguration.displayName());
-
     }
 
-    public void shutdown() {
+    public void startup() {
+        if (started.compareAndSet(false, true)) {
+            log.debug("Initializing DLNA server");
+            this.upnpService.startup();
+            this.upnpService.getRegistry().addDevice(this.localDevice);
+            this.upnpService.getProtocolFactory().createSendingNotificationAlive(localDevice).run();
+            this.shutdownRegistry.registerShutdown(this::shutdown);
+            log.info("Successfully started DLNA server '{}'. It may take some time for it to become visible in the network.", mainConfiguration.displayName());
+        } else {
+            log.debug("DLNA server is already started");
+        }
+    }
+
+    private void shutdown() {
+        log.debug("Shutting down");
         upnpService.shutdown();
     }
 }

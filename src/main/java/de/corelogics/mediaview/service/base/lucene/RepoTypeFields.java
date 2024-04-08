@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2021 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2024 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,28 +22,54 @@
  * SOFTWARE.
  */
 
-package de.corelogics.mediaview.client.mediatheklist;
+package de.corelogics.mediaview.service.base.lucene;
 
-import de.corelogics.mediaview.client.mediatheklist.model.MediathekListeServer;
-import de.corelogics.mediaview.config.ConfigurationModule;
-import de.corelogics.mediaview.service.base.lifecycle.ShutdownRegistry;
-import org.junit.jupiter.api.Test;
+import java.util.Locale;
 
-import java.io.IOException;
-import java.net.http.HttpClient;
+public interface RepoTypeFields {
+    String name();
 
-import static org.assertj.core.api.Assertions.assertThat;
+    boolean isTerm();
 
-class MediathekListClientIntegrationTest {
+    boolean isSort();
 
-    @Test
-    void whenRequestingServerList_thenRetrieveAtLeastOneElement() throws IOException {
-        var client = new MediathekListClient(
-            new ConfigurationModule().getMainConfiguration(),
-            new ShutdownRegistry(),
-            HttpClient.newBuilder().build());
-        assertThat(client.getMediathekListeMetadata().getServers()).hasAtLeastOneElementOfType(MediathekListeServer.class);
-        System.out.println(client.getMediathekListeMetadata());
+    default String value() {
+        return this.name().toLowerCase(Locale.US);
+    }
 
+    default String value(String val) {
+        return val;
+    }
+
+    default String sorted() {
+        return STR."\{this.value()}$$sorted";
+    }
+
+    default String sorted(String val) {
+        return val.toLowerCase(Locale.GERMANY);
+    }
+
+    default String term() {
+        return STR."\{this.value()}$$term";
+    }
+
+    default String term(String val) {
+        return val;
+    }
+
+    default String termLower() {
+        return STR."\{this.value()}$$lowerterm";
+    }
+
+    default String termLower(String val) {
+        return val.toLowerCase(Locale.GERMANY);
+    }
+
+    default String facet() {
+        return STR."\{this.value()}$$facet";
+    }
+
+    default String facet(String val) {
+        return val;
     }
 }

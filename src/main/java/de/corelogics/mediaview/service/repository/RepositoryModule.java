@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2021 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2024 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,28 +22,29 @@
  * SOFTWARE.
  */
 
-package de.corelogics.mediaview.client.mediatheklist;
+package de.corelogics.mediaview.service.repository;
 
-import de.corelogics.mediaview.client.mediatheklist.model.MediathekListeServer;
-import de.corelogics.mediaview.config.ConfigurationModule;
-import de.corelogics.mediaview.service.base.lifecycle.ShutdownRegistry;
-import org.junit.jupiter.api.Test;
+import de.corelogics.mediaview.service.base.BaseServicesModule;
+import de.corelogics.mediaview.service.repository.clip.ClipRepository;
+import de.corelogics.mediaview.service.repository.tracked.TrackedViewRepository;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 
-import java.io.IOException;
-import java.net.http.HttpClient;
+@RequiredArgsConstructor
+public class RepositoryModule {
+    private final BaseServicesModule baseServicesModule;
 
-import static org.assertj.core.api.Assertions.assertThat;
+    @Getter(lazy = true)
+    private final ClipRepository clipRepository = createClipRepository();
 
-class MediathekListClientIntegrationTest {
+    @Getter(lazy = true)
+    private final TrackedViewRepository trackedViewRepository = createTrackedViewRepository();
 
-    @Test
-    void whenRequestingServerList_thenRetrieveAtLeastOneElement() throws IOException {
-        var client = new MediathekListClient(
-            new ConfigurationModule().getMainConfiguration(),
-            new ShutdownRegistry(),
-            HttpClient.newBuilder().build());
-        assertThat(client.getMediathekListeMetadata().getServers()).hasAtLeastOneElementOfType(MediathekListeServer.class);
-        System.out.println(client.getMediathekListeMetadata());
+    private ClipRepository createClipRepository() {
+        return new ClipRepository(baseServicesModule.getLuceneDirectory());
+    }
 
+    private TrackedViewRepository createTrackedViewRepository() {
+        return new TrackedViewRepository(baseServicesModule.getLuceneDirectory());
     }
 }

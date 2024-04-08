@@ -25,6 +25,7 @@
 package de.corelogics.mediaview.client.mediatheklist;
 
 import de.corelogics.mediaview.config.MainConfiguration;
+import de.corelogics.mediaview.service.base.lifecycle.ShutdownRegistry;
 import org.apache.commons.io.IOUtils;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -62,6 +63,9 @@ class MediathekListClientTest {
 
     @InjectMocks
     private MediathekListClient sut;
+
+    @Mock
+    private ShutdownRegistry shutdownRegistry;
 
     @Mock
     private MainConfiguration mainConfiguration;

@@ -22,46 +22,36 @@
  * SOFTWARE.
  */
 
-package de.corelogics.mediaview.service.dlna;
+package de.corelogics.mediaview.service.importer;
 
+import de.corelogics.mediaview.client.mediatheklist.MediathekListClient;
+import de.corelogics.mediaview.client.mediathekview.MediathekViewImporter;
 import de.corelogics.mediaview.config.MainConfiguration;
 import de.corelogics.mediaview.service.base.BaseServicesModule;
-import de.corelogics.mediaview.service.dlna.content.*;
-import de.corelogics.mediaview.service.playback.PlaybackModule;
 import de.corelogics.mediaview.service.repository.RepositoryModule;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import lombok.SneakyThrows;
-import lombok.val;
 
-import java.util.Set;
+import java.net.http.HttpClient;
 
 @RequiredArgsConstructor
-public class DlnaServiceModule {
+public class ImporterModule {
     private final MainConfiguration mainConfiguration;
     private final BaseServicesModule baseServicesModule;
-    private final PlaybackModule playbackModule;
     private final RepositoryModule repositoryModule;
 
     @Getter(lazy = true)
-    private final DlnaServer dlnaServer = createDlnaServer();
+    private final ImporterService importerService = createImporterService();
 
-    @SneakyThrows
-    private DlnaServer createDlnaServer() {
-        return new DlnaServer(
+    private ImporterService createImporterService() {
+        return new ImporterService(
             mainConfiguration,
-            baseServicesModule.getNetworkingModule().getWebserver(),
             baseServicesModule.getShutdownRegistry(),
-            buildRequestHandlers());
-    }
-
-    private Set<DlnaRequestHandler> buildRequestHandlers() {
-        val clipContent = new ClipContent(playbackModule.getClipContentUrlGenerator());
-        val showContent = new ShowContent(clipContent, repositoryModule.getClipRepository());
-        val sendungAzContent = new SendungAzContent(repositoryModule.getClipRepository(), showContent);
-        val missedShowsContent = new MissedShowsContent(clipContent, repositoryModule.getClipRepository());
-        val mostViewedContent = new MostViewedContent(repositoryModule.getTrackedViewRepository(), repositoryModule.getClipRepository(), showContent);
-        val rootContent = new RootContent(mainConfiguration, sendungAzContent, showContent, missedShowsContent, mostViewedContent);
-        return Set.of(clipContent, missedShowsContent, sendungAzContent, rootContent, showContent, mostViewedContent);
+            new MediathekListClient(
+                mainConfiguration,
+                baseServicesModule.getShutdownRegistry(),
+                HttpClient.newBuilder().build()),
+            new MediathekViewImporter(),
+            repositoryModule.getClipRepository());
     }
 }
