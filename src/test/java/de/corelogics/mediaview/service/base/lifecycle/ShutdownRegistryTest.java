@@ -24,27 +24,34 @@
 
 package de.corelogics.mediaview.service.base.lifecycle;
 
-import lombok.extern.log4j.Log4j2;
+import lombok.val;
+import org.junit.jupiter.api.Test;
 
-import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.HashSet;
 
-@Log4j2
-public class ShutdownRegistry {
-    private List<Runnable> shutdownHooks = new CopyOnWriteArrayList<>();
+import static org.assertj.core.api.Assertions.assertThat;
 
-    public void registerShutdown(Runnable hook) {
-        this.shutdownHooks.add(hook);
+class ShutdownRegistryTest {
+    private ShutdownRegistry sut = new ShutdownRegistry();
+
+    @Test
+    void whenRegisteringTwoHooks_thenHooksAreExecuted() {
+        val values = new HashSet<String>();
+        sut.registerShutdown(() -> values.add("hook-1"));
+        sut.registerShutdown(() -> values.add("hook-2"));
+        sut.shutdown();
+        assertThat(values).contains("hook-1", "hook-2");
     }
 
-    public void shutdown() {
-        log.info("Shutting down");
-        this.shutdownHooks.forEach(r -> {
-            try {
-                r.run();
-            } catch(RuntimeException e) {
-                log.warn("Could not execute a shutdown hook", e);
-            }
+    @Test
+    void givenFirstHookThrowsException_whenRegisteringTwoHooks_thenBothHooksAreExecuted() {
+        val values = new HashSet<String>();
+        sut.registerShutdown(() -> {
+            values.add("failure-hook");
+            throw new RuntimeException("Test-Exception");
         });
+        sut.registerShutdown(() -> values.add("hook-justfine"));
+        sut.shutdown();
+        assertThat(values).contains("hook-justfine");
     }
 }

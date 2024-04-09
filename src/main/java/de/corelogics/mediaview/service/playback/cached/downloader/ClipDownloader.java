@@ -143,7 +143,9 @@ class ClipDownloader implements Closeable {
     }
 
     private synchronized void ensureDownloadersPresent() {
-        while (this.connections.size() < numParallelConnections && this.chunksAvailableForDownload.nextSetBit(0) < this.metadata.numberOfChunks()) {
+        while (
+            this.connections.size() < numParallelConnections &&
+                this.chunksAvailableForDownload.previousSetBit(this.metadata.numberOfChunks()) >= 0)  {
             val connectionId = STR."\{clipId}-\{currentConnectionId.getAndIncrement()}";
             logger.debug("Starting new connection {}", connectionId);
             this.connections.put(connectionId, new ClipDownloadConnection(
