@@ -85,7 +85,7 @@ public class TrackingProxyServer implements ClipContentUrlGenerator {
             }
         });
         servletHandler.addServlet(holder, "/*");
-        webServer.getContextHandlerCollection().addHandler(servletHandler);
+        webServer.addHandler(servletHandler);
     }
 
     private void handleGetClip(HttpServletRequest request, HttpServletResponse response) throws IOException {
@@ -111,21 +111,21 @@ public class TrackingProxyServer implements ClipContentUrlGenerator {
         val clipIdString = pathInContext[pathInContext.length - 1];
         val clipId = new String(Base64.getDecoder().decode(clipIdString), StandardCharsets.UTF_8);
         log.debug(
-            "Loading clip for {} request: clip {}\n{}",
+            "Loading clip for {} request: clip {}, {}",
             request::getMethod,
             clipId::toString,
             () -> String.join(
-                "\n",
-                STR."   H:\{request.getServerName()}",
-                STR."   P:\{pathInContextString}",
+                ",",
+                STR."H:\{request.getServerName()}",
+                STR."P:\{pathInContextString}",
                 headerStrings(request)));
         return clipId;
     }
 
     private String headerStrings(HttpServletRequest request) {
         return StreamSupport.stream(((Iterable<String>) () -> request.getHeaderNames().asIterator()).spliterator(), false)
-            .map(h -> STR."   \{h}: \{request.getHeader(h)}")
-            .collect(Collectors.joining("\n"));
+            .map(h -> STR."\{h}: \{request.getHeader(h)}")
+            .collect(Collectors.joining("m"));
     }
 
     @Override

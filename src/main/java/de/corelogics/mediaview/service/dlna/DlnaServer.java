@@ -28,6 +28,7 @@ package de.corelogics.mediaview.service.dlna;
 import de.corelogics.mediaview.config.MainConfiguration;
 import de.corelogics.mediaview.service.base.lifecycle.ShutdownRegistry;
 import de.corelogics.mediaview.service.base.networking.WebServer;
+import de.corelogics.mediaview.service.base.threading.BaseThreading;
 import de.corelogics.mediaview.service.dlna.jupnp.DlnaUpnpServiceConfiguration;
 import de.corelogics.mediaview.service.dlna.jupnp.UpnpServiceImplFixed;
 import lombok.extern.log4j.Log4j2;
@@ -43,6 +44,7 @@ import org.jupnp.model.types.UDN;
 import java.nio.charset.StandardCharsets;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 @Log4j2
@@ -53,7 +55,7 @@ public class DlnaServer {
     private final UpnpServiceImplFixed upnpService;
     private final LocalDevice localDevice;
 
-    public DlnaServer(MainConfiguration mainConfiguration, WebServer webServer, ShutdownRegistry shutdownRegistry, Set<DlnaRequestHandler> handlers) throws ValidationException {
+    public DlnaServer(MainConfiguration mainConfiguration, WebServer webServer, ShutdownRegistry shutdownRegistry, BaseThreading baseThreading, Set<DlnaRequestHandler> handlers) throws ValidationException {
         this.shutdownRegistry = shutdownRegistry;
         this.mainConfiguration = mainConfiguration;
 
@@ -76,7 +78,14 @@ public class DlnaServer {
             details,
             service);
 
-        this.upnpService = new UpnpServiceImplFixed(new DlnaUpnpServiceConfiguration(webServer.getServer(), mainConfiguration.publicHttpPort()));
+        this.upnpService = new UpnpServiceImplFixed(
+            new DlnaUpnpServiceConfiguration(webServer.getServer(),
+                mainConfiguration.publicHttpPort()) {
+                @Override
+                protected ExecutorService createDefaultExecutorService() {
+                    return baseThreading.getUpnpIoExecutor();
+                }
+            });
         this.upnpService.activate(new UpnpServiceImpl.Config() {
             @Override
             public Class<UpnpServiceImpl.Config> annotationType() {

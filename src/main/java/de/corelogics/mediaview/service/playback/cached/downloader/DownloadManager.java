@@ -27,20 +27,19 @@ package de.corelogics.mediaview.service.playback.cached.downloader;
 import de.corelogics.mediaview.client.mediathekview.ClipEntry;
 import de.corelogics.mediaview.config.MainConfiguration;
 import de.corelogics.mediaview.service.base.lifecycle.ShutdownRegistry;
+import de.corelogics.mediaview.service.base.threading.BaseThreading;
 import lombok.extern.log4j.Log4j2;
 import lombok.val;
 import org.apache.commons.io.input.BoundedInputStream;
+import org.apache.logging.log4j.CloseableThreadContext;
 
 import java.io.EOFException;
 import java.time.Duration;
+import java.time.ZonedDateTime;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-
-import static java.lang.Thread.ofVirtual;
-import static java.util.concurrent.Executors.newScheduledThreadPool;
 
 @Log4j2
 public class DownloadManager {
@@ -50,11 +49,10 @@ public class DownloadManager {
 
     private final AtomicBoolean running = new AtomicBoolean(true);
 
-    public DownloadManager(MainConfiguration mainConfiguration, ShutdownRegistry shutdownRegistry, CacheDirectory cacheDirectory) {
+    public DownloadManager(MainConfiguration mainConfiguration, BaseThreading baseThreading, ShutdownRegistry shutdownRegistry, CacheDirectory cacheDirectory) {
         this.mainConfiguration = mainConfiguration;
         this.cacheDirectory = cacheDirectory;
-        newScheduledThreadPool(0, ofVirtual().name("prefetch-", 0).factory())
-            .scheduleAtFixedRate(this::closeIdlingDownloaders, 10, 10, TimeUnit.SECONDS);
+        baseThreading.schedulePeriodic(this::closeIdlingDownloaders, Duration.ofSeconds(10), Duration.ofSeconds(10));
         shutdownRegistry.registerShutdown(this::onShutdown);
     }
 
@@ -66,17 +64,22 @@ public class DownloadManager {
     }
 
     private synchronized void closeIdlingDownloaders() {
-        val tooOld = System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(30);
-        log.debug("Closing downloaders idling for 30s");
+        if (this.running.get()) {
+            val startedAt = ZonedDateTime.now();
+            try (val ignored = CloseableThreadContext.put("CLOSE_IDLE_STARTED_AT", startedAt.toLocalDateTime().toString())) {
+                log.debug("Closing downloaders idling for 30s");
+                val tooOld = startedAt.minusSeconds(30).toInstant().toEpochMilli();
 
-        clipIdToDl.entrySet().stream()
-            .filter(e -> e.getValue().getNumberOfOpenStreams() == 0)
-            .filter(e -> e.getValue().getLastReadTs() < tooOld)
-            .peek(e -> log.debug("Expiring downloader for {}", e.getKey()))
-            .peek(e -> e.getValue().close())
-            .map(Map.Entry::getKey)
-            .toList()
-            .forEach(clipIdToDl::remove);
+                clipIdToDl.entrySet().stream()
+                    .filter(e -> e.getValue().getNumberOfOpenStreams() == 0)
+                    .filter(e -> e.getValue().getLastReadTs() < tooOld)
+                    .peek(e -> log.debug("Expiring downloader for {}", e.getKey()))
+                    .peek(e -> e.getValue().close())
+                    .map(Map.Entry::getKey)
+                    .toList()
+                    .forEach(clipIdToDl::remove);
+            }
+        }
     }
 
     private synchronized void tryToRemoveOneIdlingDownloader() {

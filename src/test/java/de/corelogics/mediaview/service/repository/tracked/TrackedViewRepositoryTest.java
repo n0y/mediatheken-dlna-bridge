@@ -27,8 +27,7 @@ package de.corelogics.mediaview.service.repository.tracked;
 import de.corelogics.mediaview.client.mediathekview.ClipEntry;
 import de.corelogics.mediaview.config.MainConfiguration;
 import de.corelogics.mediaview.service.base.lucene.LuceneDirectory;
-import de.corelogics.mediaview.service.repository.tracked.TrackedContainedIn;
-import de.corelogics.mediaview.service.repository.tracked.TrackedViewRepository;
+import de.corelogics.mediaview.service.base.threading.BaseThreading;
 import lombok.val;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.IndexWriter;
@@ -63,6 +62,9 @@ class TrackedViewRepositoryTest {
 
         @Mock
         private IndexWriter writerMock;
+
+        @Mock
+        private BaseThreading baseThreading;
 
         @Mock(answer = Answers.RETURNS_SELF)
         private LuceneDirectory.DocumentBuilder documentBuilderMock;
@@ -113,11 +115,14 @@ class TrackedViewRepositoryTest {
         @Mock
         private MainConfiguration mainConfiguration;
 
+        @Mock
+        private BaseThreading baseThreading;
+
         private TrackedViewRepository sut;
 
         @BeforeEach
         void createSut() {
-            this.sut = new TrackedViewRepository(new LuceneDirectory(mainConfiguration));
+            this.sut = new TrackedViewRepository(new LuceneDirectory(mainConfiguration), baseThreading);
         }
 
         @Test

@@ -30,11 +30,15 @@ import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.log4j.Log4j2;
 import lombok.val;
+import org.eclipse.jetty.ee8.servlet.ServletContextHandler;
+import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.server.handler.ContextHandlerCollection;
 
+import javax.servlet.DispatcherType;
 import java.util.Arrays;
+import java.util.EnumSet;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
@@ -46,19 +50,19 @@ public class WebServer {
     private final ShutdownRegistry shutdownRegistry;
     private final AtomicBoolean started = new AtomicBoolean(false);
 
-    public ContextHandlerCollection getContextHandlerCollection() {
-        if (null == server.getContext()) {
+    Handler.Collection getHandlerCollection() {
+        if (server.getHandler() instanceof ContextHandlerCollection coll) {
+            return coll;
+        } else {
             val context = new ContextHandlerCollection();
             server.setHandler(context);
+            return context;
         }
-        final ContextHandlerCollection context;
-        if (server.getHandler() instanceof ContextHandlerCollection coll) {
-            context = coll;
-        } else {
-            context = new ContextHandlerCollection();
-            server.setHandler(context);
-        }
-        return context;
+    }
+
+    public void addHandler(ServletContextHandler servletHandler) {
+        getHandlerCollection().addHandler(servletHandler);
+        servletHandler.addFilter(LoggerContextInitializingFilter.class, "/*", EnumSet.of(DispatcherType.REQUEST));
     }
 
     @SneakyThrows
@@ -77,7 +81,9 @@ public class WebServer {
 
     @SneakyThrows
     private void stop() {
-        log.debug("Shutting down");
-        this.server.stop();
+        if (started.compareAndSet(true, false)) {
+            log.debug("Shutting down");
+            this.server.stop();
+        }
     }
 }

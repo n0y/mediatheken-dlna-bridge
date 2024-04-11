@@ -1,6 +1,8 @@
 package de.corelogics.mediaview.service.playback.cached.downloader;
 
 import com.github.benmanes.caffeine.cache.Ticker;
+import de.corelogics.mediaview.service.base.lifecycle.ShutdownRegistry;
+import de.corelogics.mediaview.service.base.threading.BaseThreading;
 import de.corelogics.mediaview.util.IdUtils;
 import lombok.val;
 import org.assertj.core.api.SoftAssertions;
@@ -12,6 +14,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.CleanupMode;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.io.EOFException;
@@ -36,13 +39,24 @@ class CacheDirectoryTest {
     @Mock
     private Ticker ticker;
 
+    @Mock
+    private BaseThreading baseThreading;
+
+    @Spy
+    private ShutdownRegistry shutdownRegistry = new ShutdownRegistry();
+
     @TempDir(cleanup = CleanupMode.ALWAYS)
     private File tempDir;
+
+    @AfterEach
+    void shutdownAtEnd() {
+        shutdownRegistry.shutdown();
+    }
 
     @Test
     void givenCacheSizeToSmall_whenCreating_thenExceptionIsThrown() {
         assertThatExceptionOfType(IllegalStateException.class)
-            .isThrownBy(() -> new CacheDirectory(5, tempDir, ticker).close());
+            .isThrownBy(() -> new CacheDirectory(baseThreading, shutdownRegistry, 5, tempDir, ticker));
     }
 
     @Nested
@@ -51,13 +65,12 @@ class CacheDirectoryTest {
 
         @BeforeEach
         void setupSut() {
-            sut = new CacheDirectory(10, tempDir, ticker);
+            sut = new CacheDirectory(baseThreading, shutdownRegistry, 10, tempDir, ticker);
         }
 
         @AfterEach
         void closeSut() {
             when(ticker.read()).thenReturn((long) Integer.MAX_VALUE);
-            sut.close();
         }
 
         @Test

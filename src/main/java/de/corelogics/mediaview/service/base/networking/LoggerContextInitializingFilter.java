@@ -22,28 +22,34 @@
  * SOFTWARE.
  */
 
-package de.corelogics.mediaview.service.base;
+package de.corelogics.mediaview.service.base.networking;
 
-import de.corelogics.mediaview.config.MainConfiguration;
-import de.corelogics.mediaview.service.base.lifecycle.ShutdownRegistry;
-import de.corelogics.mediaview.service.base.lucene.LuceneDirectory;
-import de.corelogics.mediaview.service.base.networking.NetworkingModule;
-import de.corelogics.mediaview.service.base.threading.BaseThreading;
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
+import lombok.val;
+import org.apache.logging.log4j.CloseableThreadContext;
 
-@RequiredArgsConstructor
-@Getter
-public class BaseServicesModule {
-    private final MainConfiguration mainConfiguration;
+import javax.servlet.FilterChain;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpFilter;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.util.Map;
 
-    private final ShutdownRegistry shutdownRegistry = new ShutdownRegistry();
-    private final BaseThreading baseThreading = new BaseThreading();
+public class LoggerContextInitializingFilter extends HttpFilter {
+    @Override
+    protected void doFilter(HttpServletRequest req, HttpServletResponse res, FilterChain chain) throws IOException, ServletException {
+        try (val ignored = CloseableThreadContext.putAll(Map.of(
+            "CONTEXT_PATH", optSetting(req.getContextPath()),
+            "METHOD", optSetting(req.getMethod()),
+            "PATHINFO", optSetting(req.getPathInfo()),
+            "QUERY", optSetting(req.getQueryString()),
+            "REMOTE_HOST", optSetting(req.getRemoteHost())
+        ))) {
+            super.doFilter(req, res, chain);
+        }
+    }
 
-    @Getter(lazy = true)
-    private final LuceneDirectory luceneDirectory = new LuceneDirectory(mainConfiguration);
-
-    @Getter(lazy = true)
-    private final NetworkingModule networkingModule = new NetworkingModule(mainConfiguration, baseThreading, shutdownRegistry);
-
+    private String optSetting(Object source) {
+        return null == source ? "<empty>" : source.toString();
+    }
 }

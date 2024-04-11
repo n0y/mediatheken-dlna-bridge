@@ -34,9 +34,6 @@ import org.jupnp.transport.spi.NetworkAddressFactory;
 import org.jupnp.transport.spi.StreamClient;
 import org.jupnp.transport.spi.StreamServer;
 
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-
 import static java.util.concurrent.TimeUnit.DAYS;
 
 public class DlnaUpnpServiceConfiguration extends DefaultUpnpServiceConfiguration {
@@ -49,11 +46,6 @@ public class DlnaUpnpServiceConfiguration extends DefaultUpnpServiceConfiguratio
     @Override
     protected Namespace createNamespace() {
         return new Namespace("/dlna");
-    }
-
-    @Override
-    protected ExecutorService createDefaultExecutorService() {
-        return Executors.newThreadPerTaskExecutor(Thread.ofVirtual().name("dlna-", 0L).factory());
     }
 
     @Override

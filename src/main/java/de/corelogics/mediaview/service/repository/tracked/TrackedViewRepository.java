@@ -27,11 +27,13 @@ package de.corelogics.mediaview.service.repository.tracked;
 import de.corelogics.mediaview.client.mediathekview.ClipEntry;
 import de.corelogics.mediaview.service.base.lucene.LuceneDirectory;
 import de.corelogics.mediaview.service.base.lucene.RepoTypeFields;
+import de.corelogics.mediaview.service.base.threading.BaseThreading;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.log4j.Log4j2;
 import lombok.val;
+import org.apache.logging.log4j.CloseableThreadContext;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.NumericDocValuesField;
@@ -40,13 +42,13 @@ import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -54,7 +56,6 @@ import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 
 
 @Log4j2
-@RequiredArgsConstructor
 public class TrackedViewRepository {
     @RequiredArgsConstructor
     @Getter
@@ -77,20 +78,24 @@ public class TrackedViewRepository {
         Thread.ofVirtual().name("trackedview-", 0L).factory());
 
     private final LuceneDirectory luceneDirectory;
+    private final BaseThreading baseThreading;
+
+
+    public TrackedViewRepository(LuceneDirectory luceneDirectory, BaseThreading baseThreading) {
+        this.luceneDirectory = luceneDirectory;
+        this.baseThreading = baseThreading;
+        scheduleCleanup();
+    }
 
     public void scheduleCleanup() {
         log.debug("Scheduling cleanup of Tracked Views every day, starting at {} (10 minutes from now)", ZonedDateTime.now().plusMinutes(10));
-        scheduledExecutorService.scheduleAtFixedRate(
-            this::cleanupOldTrackedViews,
-            TimeUnit.MINUTES.toMinutes(10),
-            TimeUnit.DAYS.toMinutes(1),
-            TimeUnit.MINUTES);
-
+        baseThreading.schedulePeriodic(this::cleanupOldTrackedViews, Duration.ofMinutes(10), Duration.ofDays(1));
     }
 
     private void cleanupOldTrackedViews() {
-        try {
-            val oldestDateToKeep = ZonedDateTime.now().minusDays(30).truncatedTo(ChronoUnit.DAYS);
+        val startedAt = ZonedDateTime.now();
+        try (val ignored = CloseableThreadContext.put("CLEANUP_STARTED_AT", startedAt.toLocalDateTime().toString())) {
+            val oldestDateToKeep = startedAt.minusDays(30).truncatedTo(ChronoUnit.DAYS);
             log.info("Cleaning tracked views older than {} (30 days)", oldestDateToKeep);
             luceneDirectory.performUpdate(new StandardAnalyzer(), writer ->
                 writer.deleteDocuments(new BooleanQuery.Builder()

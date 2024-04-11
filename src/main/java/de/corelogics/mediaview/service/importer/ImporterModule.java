@@ -41,11 +41,10 @@ public class ImporterModule {
     private final RepositoryModule repositoryModule;
 
     @Getter(lazy = true)
-    private final ImporterService importerService = createImporterService();
-
-    private ImporterService createImporterService() {
-        return new ImporterService(
+    private final ImporterService importerService =
+        new ImporterService(
             mainConfiguration,
+            baseServicesModule.getBaseThreading(),
             baseServicesModule.getShutdownRegistry(),
             new MediathekListClient(
                 mainConfiguration,
@@ -53,5 +52,5 @@ public class ImporterModule {
                 HttpClient.newBuilder().build()),
             new MediathekViewImporter(),
             repositoryModule.getClipRepository());
-    }
+
 }

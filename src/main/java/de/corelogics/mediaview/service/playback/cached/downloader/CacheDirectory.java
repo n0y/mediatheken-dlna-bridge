@@ -30,18 +30,22 @@ import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.github.benmanes.caffeine.cache.RemovalCause;
 import com.github.benmanes.caffeine.cache.Ticker;
 import de.corelogics.mediaview.config.MainConfiguration;
+import de.corelogics.mediaview.service.base.lifecycle.ShutdownRegistry;
+import de.corelogics.mediaview.service.base.threading.BaseThreading;
 import de.corelogics.mediaview.util.IdUtils;
 import lombok.extern.log4j.Log4j2;
 import lombok.val;
 import org.apache.commons.io.IOUtils;
+import org.apache.logging.log4j.CloseableThreadContext;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.*;
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -49,21 +53,18 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static java.util.Optional.ofNullable;
-import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 
 @Log4j2
 public class CacheDirectory {
     private final JsonFactory factory = new JsonFactory();
     private final File cacheDirFile;
     private final long cacheSizeBytes;
-    private final ScheduledExecutorService scheduledExecutorService = newSingleThreadScheduledExecutor(
-        Thread.ofVirtual().name("cache-cleanup-", 0L).factory());
     private final AtomicInteger downloaderNumber = new AtomicInteger();
     private final ThreadFactory downloaderThreadFactory = Thread.ofVirtual().factory();
 
     private final LoadingCache<String, RandomAccessFile> openFiles;
 
-    CacheDirectory(int cacheSizeGb, File cacheDir, Ticker cacheTicker) {
+    CacheDirectory(BaseThreading baseThreading, ShutdownRegistry shutdownRegistry, int cacheSizeGb, File cacheDir, Ticker cacheTicker) {
         this.openFiles = Caffeine.newBuilder()
             .maximumSize(40)
             .expireAfterAccess(120, TimeUnit.SECONDS)
@@ -81,12 +82,13 @@ public class CacheDirectory {
         if (!cacheDirFile.exists() && !cacheDirFile.mkdirs()) {
             throw new IllegalStateException(STR."Could not create nonexistent cache directory at \{this.cacheDirFile.getAbsolutePath()}");
         }
-        scheduledExecutorService.scheduleAtFixedRate(this::cleanUp, 10, 10, TimeUnit.SECONDS);
+        baseThreading.schedulePeriodic(this::cleanUp, Duration.ofSeconds(10), Duration.ofSeconds(10));
+        shutdownRegistry.registerShutdown(this::close);
         log.info("Successfully started cache download manager, with cache in directory [{}]", this.cacheDirFile::getAbsolutePath);
     }
 
-    public CacheDirectory(MainConfiguration mainConfiguration) {
-        this(mainConfiguration.cacheSizeGb(), mainConfiguration.cacheDir(), Ticker.systemTicker());
+    public CacheDirectory(MainConfiguration mainConfiguration, BaseThreading baseThreading, ShutdownRegistry shutdownRegistry) {
+        this(baseThreading, shutdownRegistry, mainConfiguration.cacheSizeGb(), mainConfiguration.cacheDir(), Ticker.systemTicker());
     }
 
     private RandomAccessFile openFile(String filename) throws FileNotFoundException {
@@ -236,8 +238,6 @@ public class CacheDirectory {
                     () -> metaFileToRemove.length() + contentFileToRemove.length());
                 this.openFiles.asMap().remove(metaFileToRemove.getName());
                 this.openFiles.asMap().remove(contentFileToRemove.getName());
-//                this.openFiles.invalidate(metaFileToRemove.getName());
-//                this.openFiles.invalidate(contentFileToRemove.getName());
                 this.openFiles.cleanUp();
                 return
                     (!metaFileToRemove.exists() || metaFileToRemove.delete()) &&
@@ -249,13 +249,14 @@ public class CacheDirectory {
     }
 
     void cleanUp() {
-        this.openFiles.cleanUp();
+        try (val ignored = CloseableThreadContext.put("CLEANUP_STARTED", LocalDateTime.now().toString())) {
+            this.openFiles.cleanUp();
+        }
     }
 
-    public synchronized void close() {
+    private synchronized void close() {
         this.openFiles.asMap().forEach((name, file) -> closeFile(name, file, RemovalCause.EXPLICIT));
         this.openFiles.invalidateAll();
-        this.scheduledExecutorService.shutdownNow();
     }
 
     public void startNewDownloaderThread(String threadName, Runnable runnable) {

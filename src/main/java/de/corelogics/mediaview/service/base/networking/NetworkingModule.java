@@ -26,7 +26,9 @@ package de.corelogics.mediaview.service.base.networking;
 
 import de.corelogics.mediaview.config.MainConfiguration;
 import de.corelogics.mediaview.service.base.lifecycle.ShutdownRegistry;
+import de.corelogics.mediaview.service.base.threading.BaseThreading;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import lombok.val;
 import org.eclipse.jetty.server.Server;
@@ -39,25 +41,23 @@ import org.jupnp.transport.spi.NetworkAddressFactory;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.UnknownHostException;
-import java.util.concurrent.Executors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 @Log4j2
+@RequiredArgsConstructor
 public class NetworkingModule {
-    @Getter
-    private final WebServer webserver;
     private final NetworkAddressFactory networkAddressFactory = new NetworkAddressFactoryImpl();
     private final MainConfiguration mainConfiguration;
+    private final BaseThreading baseThreading;
+    private final ShutdownRegistry shutdownRegistry;
 
-    public NetworkingModule(MainConfiguration mainConfiguration, ShutdownRegistry shutdownRegistry) {
-        this.mainConfiguration = mainConfiguration;
-        this.webserver = new WebServer(createJettyServer(), shutdownRegistry);
-    }
+    @Getter(lazy = true)
+    private final WebServer webserver = new WebServer(createJettyServer(), shutdownRegistry);
 
     private Server createJettyServer() {
         val threadPool = new QueuedThreadPool();
-        threadPool.setVirtualThreadsExecutor(Executors.newThreadPerTaskExecutor(Thread.ofVirtual().name("jetty-", 0L).factory()));
+        threadPool.setVirtualThreadsExecutor(baseThreading.getWebIoExecutor());
         val server = new Server(threadPool);
 
         StreamSupport

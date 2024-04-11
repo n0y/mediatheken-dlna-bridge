@@ -79,7 +79,8 @@ public class ForwardingProxyServer implements ClipContentUrlGenerator {
             }
         });
         servletHandler.addServlet(holder, "/*");
-        webServer.getContextHandlerCollection().addHandler(servletHandler);
+        webServer.addHandler(servletHandler);
+        webServer.addHandler(servletHandler);
         log.debug("Successfully registering prefetching HTTP servlet.");
     }
 
@@ -193,27 +194,27 @@ public class ForwardingProxyServer implements ClipContentUrlGenerator {
         val clipIdString = pathInContext[pathInContext.length - 1];
         val clipId = new String(Base64.getDecoder().decode(clipIdString), StandardCharsets.UTF_8);
         log.debug(
-            "Loading clip for {} request: clip {}\n{}",
+            "Loading clip for {} request: clip {}, {}",
             request::getMethod,
             clipId::toString,
             () -> String.join(
-                "\n",
-                    STR."   H:\{request.getServerName()}",
-                    STR."   P:\{pathInContextString}",
+                ",",
+                STR."H:\{request.getServerName()}",
+                STR."P:\{pathInContextString}",
                 headerStrings(request)));
         return clipId;
     }
 
     private String headerStrings(HttpServletRequest request) {
         return StreamSupport.stream(((Iterable<String>) () -> request.getHeaderNames().asIterator()).spliterator(), false)
-            .map(h -> STR."   \{h}: \{request.getHeader(h)}")
-            .collect(Collectors.joining("\n"));
+            .map(h -> STR."\{h}: \{request.getHeader(h)}")
+            .collect(Collectors.joining(","));
     }
 
     private String headerStrings(HttpServletResponse response) {
         return response.getHeaderNames().stream()
-            .map(h -> STR."   \{h}: \{response.getHeader(h)}")
-            .collect(Collectors.joining("\n"));
+            .map(h -> STR."\{h}: \{response.getHeader(h)}")
+            .collect(Collectors.joining(","));
     }
 
     private void copyBytes(InputStream from, HttpServletResponse to) {

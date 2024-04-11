@@ -52,6 +52,7 @@ public class DlnaServiceModule {
             mainConfiguration,
             baseServicesModule.getNetworkingModule().getWebserver(),
             baseServicesModule.getShutdownRegistry(),
+            baseServicesModule.getBaseThreading(),
             buildRequestHandlers());
     }
 

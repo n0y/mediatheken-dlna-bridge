@@ -129,7 +129,7 @@ class ClipDownloader implements Closeable {
             if (chunkNum >= 0 && chunkNum < this.metadata.numberOfChunks()) {
                 this.chunksAvailableForDownload.clear(chunkNum);
                 val chunk = new ClipChunk(chunkNum, chunkNum * CHUNK_SIZE_BYTES, (1 + chunkNum) * CHUNK_SIZE_BYTES - 1);
-                logger.debug("handing out {} to {}", chunk, connectionId);
+                logger.debug("next download: chunk {} to {}", chunk, connectionId);
                 return Optional.of(chunk);
             }
             logger.debug("no more chunks reported to {}", connectionId);

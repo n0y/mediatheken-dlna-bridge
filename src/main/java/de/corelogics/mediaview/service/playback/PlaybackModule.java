@@ -48,8 +48,12 @@ public class PlaybackModule {
                 repositoryModule.getClipRepository(),
                 new DownloadManager(
                     mainConfiguration,
+                    baseServicesModule.getBaseThreading(),
                     baseServicesModule.getShutdownRegistry(),
-                    new CacheDirectory(mainConfiguration))) :
+                    new CacheDirectory(
+                        mainConfiguration,
+                        baseServicesModule.getBaseThreading(),
+                        baseServicesModule.getShutdownRegistry()))) :
             new DirectDownloadClipContentUrlGenerator();
         this.clipContentUrlGenerator = mainConfiguration.isViewTrackingEnabled() ?
             new TrackingProxyServer(

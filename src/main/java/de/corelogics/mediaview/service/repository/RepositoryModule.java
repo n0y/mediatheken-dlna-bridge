@@ -35,16 +35,8 @@ public class RepositoryModule {
     private final BaseServicesModule baseServicesModule;
 
     @Getter(lazy = true)
-    private final ClipRepository clipRepository = createClipRepository();
+    private final ClipRepository clipRepository = new ClipRepository(baseServicesModule.getLuceneDirectory());
 
     @Getter(lazy = true)
-    private final TrackedViewRepository trackedViewRepository = createTrackedViewRepository();
-
-    private ClipRepository createClipRepository() {
-        return new ClipRepository(baseServicesModule.getLuceneDirectory());
-    }
-
-    private TrackedViewRepository createTrackedViewRepository() {
-        return new TrackedViewRepository(baseServicesModule.getLuceneDirectory());
-    }
+    private final TrackedViewRepository trackedViewRepository = new TrackedViewRepository(baseServicesModule.getLuceneDirectory(), baseServicesModule.getBaseThreading());
 }
