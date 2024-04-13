@@ -22,42 +22,10 @@
  * SOFTWARE.
  */
 
-package de.corelogics.mediaview.service.playback.cached.downloader;
+package de.corelogics.mediaview.service.playback.prefetched.downloader;
 
-import lombok.Getter;
-import lombok.ToString;
-import lombok.val;
-
-import java.util.Optional;
-
-import static java.lang.Long.parseLong;
-
-@Getter
-@ToString
-public class ByteRange {
-    private final boolean partial;
-    private final long firstPosition;
-    private final Optional<Long> lastPosition;
-
-    public ByteRange(String optionalRangeHeader) {
-        partial = null != optionalRangeHeader;
-        if (partial) {
-            val split = optionalRangeHeader.split("[-,=]");
-            this.firstPosition = split[1].isEmpty() ? 0 : parseLong(split[1]);
-            if (split.length > 2) {
-                this.lastPosition = Optional.of(parseLong(split[2]));
-            } else {
-                this.lastPosition = Optional.empty();
-            }
-        } else {
-            this.firstPosition = 0L;
-            this.lastPosition = Optional.empty();
-        }
-    }
-
-    public ByteRange(long firstPosition, long lastPosition) {
-        partial = true;
-        this.firstPosition = firstPosition;
-        this.lastPosition = Optional.of(lastPosition);
+public class CacheSizeExhaustedException extends Exception {
+    public CacheSizeExhaustedException(String message) {
+        super(message);
     }
 }

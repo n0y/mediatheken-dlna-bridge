@@ -1,4 +1,4 @@
-package de.corelogics.mediaview.service.playback.cached.downloader;
+package de.corelogics.mediaview.service.playback.prefetched.downloader;
 
 import com.github.benmanes.caffeine.cache.Ticker;
 import de.corelogics.mediaview.service.base.lifecycle.ShutdownRegistry;

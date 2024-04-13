@@ -27,9 +27,9 @@ package de.corelogics.mediaview.service.playback;
 import de.corelogics.mediaview.config.MainConfiguration;
 import de.corelogics.mediaview.service.ClipContentUrlGenerator;
 import de.corelogics.mediaview.service.base.BaseServicesModule;
-import de.corelogics.mediaview.service.playback.cached.ForwardingProxyServer;
-import de.corelogics.mediaview.service.playback.cached.downloader.CacheDirectory;
-import de.corelogics.mediaview.service.playback.cached.downloader.DownloadManager;
+import de.corelogics.mediaview.service.playback.prefetched.PrefetchingProxy;
+import de.corelogics.mediaview.service.playback.prefetched.downloader.CacheDirectory;
+import de.corelogics.mediaview.service.playback.prefetched.downloader.DownloadManager;
 import de.corelogics.mediaview.service.playback.directfromsource.DirectDownloadClipContentUrlGenerator;
 import de.corelogics.mediaview.service.playback.tracked.TrackingProxyServer;
 import de.corelogics.mediaview.service.repository.RepositoryModule;
@@ -42,7 +42,7 @@ public class PlaybackModule {
 
     public PlaybackModule(MainConfiguration mainConfiguration, BaseServicesModule baseServicesModule, RepositoryModule repositoryModule) {
         val baseLinkGenerator = mainConfiguration.isPrefetchingEnabled() ?
-            new ForwardingProxyServer(
+            new PrefetchingProxy(
                 mainConfiguration,
                 baseServicesModule.getNetworkingModule().getWebserver(),
                 repositoryModule.getClipRepository(),

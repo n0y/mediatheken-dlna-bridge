@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-package de.corelogics.mediaview.service.playback.cached.downloader;
+package de.corelogics.mediaview.service.playback.prefetched.downloader;
 
 import de.corelogics.mediaview.client.mediathekview.ClipEntry;
 import de.corelogics.mediaview.config.MainConfiguration;

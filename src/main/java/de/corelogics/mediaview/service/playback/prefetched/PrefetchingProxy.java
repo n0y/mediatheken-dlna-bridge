@@ -22,16 +22,18 @@
  * SOFTWARE.
  */
 
-package de.corelogics.mediaview.service.playback.cached;
+package de.corelogics.mediaview.service.playback.prefetched;
 
 import de.corelogics.mediaview.client.mediathekview.ClipEntry;
 import de.corelogics.mediaview.config.MainConfiguration;
 import de.corelogics.mediaview.service.ClipContentUrlGenerator;
 import de.corelogics.mediaview.service.base.networking.WebServer;
-import de.corelogics.mediaview.service.playback.cached.downloader.*;
+import de.corelogics.mediaview.service.playback.prefetched.downloader.*;
 import de.corelogics.mediaview.service.repository.clip.ClipRepository;
 import de.corelogics.mediaview.util.HttpUtils;
 import de.corelogics.mediaview.util.IdUtils;
+import lombok.AccessLevel;
+import lombok.Getter;
 import lombok.extern.log4j.Log4j2;
 import lombok.val;
 import org.apache.commons.io.IOUtils;
@@ -54,12 +56,27 @@ import java.util.stream.StreamSupport;
 import static javax.servlet.http.HttpServletResponse.*;
 
 @Log4j2
-public class ForwardingProxyServer implements ClipContentUrlGenerator {
+public class PrefetchingProxy implements ClipContentUrlGenerator {
+    protected class PrefetchingServlet extends HttpServlet {
+        @Override
+        public void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+            handleGetClip(req, resp);
+        }
+
+        @Override
+        public void doHead(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+            handleHead(req, resp);
+        }
+    }
+
     private final ClipRepository clipRepository;
     private final MainConfiguration mainConfiguration;
     private final DownloadManager downloadManager;
 
-    public ForwardingProxyServer(MainConfiguration mainConfiguration, WebServer webServer, ClipRepository clipRepository, DownloadManager downloadManager) {
+    @Getter(AccessLevel.PACKAGE)
+    private final PrefetchingServlet servlet = new PrefetchingServlet();
+
+    public PrefetchingProxy(MainConfiguration mainConfiguration, WebServer webServer, ClipRepository clipRepository, DownloadManager downloadManager) {
         this.mainConfiguration = mainConfiguration;
         this.downloadManager = downloadManager;
         this.clipRepository = clipRepository;
@@ -67,19 +84,8 @@ public class ForwardingProxyServer implements ClipContentUrlGenerator {
         val servletHandler = new ServletContextHandler(ServletContextHandler.NO_SESSIONS);
         servletHandler.setDisplayName("Buffered Playback");
         servletHandler.setContextPath("/api/v1/clip-contents");
-        val holder = new ServletHolder("jUpnpServlet", new HttpServlet() {
-            @Override
-            protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-                handleGetClip(req, resp);
-            }
-
-            @Override
-            protected void doHead(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-                handleHead(req, resp);
-            }
-        });
+        val holder = new ServletHolder("jUpnpServlet", this.servlet);
         servletHandler.addServlet(holder, "/*");
-        webServer.addHandler(servletHandler);
         webServer.addHandler(servletHandler);
         log.debug("Successfully registering prefetching HTTP servlet.");
     }

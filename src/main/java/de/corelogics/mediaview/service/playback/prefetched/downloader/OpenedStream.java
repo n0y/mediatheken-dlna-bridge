@@ -22,14 +22,31 @@
  * SOFTWARE.
  */
 
-package de.corelogics.mediaview.service.playback.cached.downloader;
+package de.corelogics.mediaview.service.playback.prefetched.downloader;
 
-record ClipChunk(
-    int chunkNumber,
-    long from,
-    long to) {
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.Setter;
+import org.apache.commons.io.IOUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import java.io.Closeable;
+import java.io.InputStream;
+
+@AllArgsConstructor
+@Getter
+public class OpenedStream implements Closeable {
+    private static final Logger logger = LogManager.getLogger(OpenedStream.class);
+
+    private final String contentType;
+    private final long maxSize;
+
+    @Setter
+    private InputStream stream;
+
     @Override
-    public String toString() {
-        return String.format("{#%d: %d-%d}", chunkNumber, from, to);
+    public void close() {
+        IOUtils.closeQuietly(stream, e -> logger.debug("Could not (quietly) close stream.", e));
     }
 }

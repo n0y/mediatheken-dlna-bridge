@@ -30,7 +30,7 @@
         </Console>
     </Appenders>
     <Loggers>
-        <Logger name="de.corelogics.mediaview" level="info"/>
+        <Logger name="de.corelogics.mediaview" level="debug"/>
         <Root level="warn">
             <AppenderRef ref="Console"/>
         </Root>

@@ -22,10 +22,14 @@
  * SOFTWARE.
  */
 
-package de.corelogics.mediaview.service.playback.cached.downloader;
+package de.corelogics.mediaview.service.playback.prefetched.downloader;
 
-public class UpstreamReadFailedException extends Exception {
-    public UpstreamReadFailedException(String message) {
-        super(message);
+record ClipChunk(
+    int chunkNumber,
+    long from,
+    long to) {
+    @Override
+    public String toString() {
+        return String.format("{#%d: %d-%d}", chunkNumber, from, to);
     }
 }

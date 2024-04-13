@@ -1,4 +1,4 @@
-package de.corelogics.mediaview.service.playback.cached.downloader;
+package de.corelogics.mediaview.service.playback.prefetched.downloader;
 
 import lombok.val;
 import org.junit.jupiter.api.Test;

@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-package de.corelogics.mediaview.service.playback.cached.downloader;
+package de.corelogics.mediaview.service.playback.prefetched.downloader;
 
 import com.fasterxml.jackson.core.JsonFactory;
 import com.github.benmanes.caffeine.cache.Caffeine;
