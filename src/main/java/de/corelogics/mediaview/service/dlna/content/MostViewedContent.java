@@ -24,10 +24,10 @@
 
 package de.corelogics.mediaview.service.dlna.content;
 
+import de.corelogics.mediaview.service.dlna.DlnaRequest;
 import de.corelogics.mediaview.service.repository.clip.ClipRepository;
 import de.corelogics.mediaview.service.repository.tracked.TrackedContainedIn;
 import de.corelogics.mediaview.service.repository.tracked.TrackedViewRepository;
-import de.corelogics.mediaview.service.dlna.DlnaRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import lombok.val;

@@ -24,8 +24,8 @@
 
 package de.corelogics.mediaview.service.dlna.content;
 
-import de.corelogics.mediaview.service.repository.clip.ClipRepository;
 import de.corelogics.mediaview.service.dlna.DlnaRequest;
+import de.corelogics.mediaview.service.repository.clip.ClipRepository;
 import de.corelogics.mediaview.util.IdUtils;
 import lombok.AllArgsConstructor;
 import lombok.extern.log4j.Log4j2;
