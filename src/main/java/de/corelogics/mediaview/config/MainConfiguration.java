@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2023 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2024 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -84,6 +84,10 @@ public class MainConfiguration {
 
     public boolean isPrefetchingEnabled() {
         return configAccessor.get("ENABLE_PREFETCHING", false);
+    }
+
+    public boolean isViewTrackingEnabled() {
+        return configAccessor.get("ENABLE_VIEWTRACKING", false);
     }
 
     public boolean isApplicationHeaderAdded() {

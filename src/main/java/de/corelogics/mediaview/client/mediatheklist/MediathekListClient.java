@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2023 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2024 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,9 +27,10 @@ package de.corelogics.mediaview.client.mediatheklist;
 import de.corelogics.mediaview.client.mediatheklist.model.MediathekListeMetadata;
 import de.corelogics.mediaview.client.mediatheklist.model.MediathekListeServer;
 import de.corelogics.mediaview.config.MainConfiguration;
+import de.corelogics.mediaview.service.base.lifecycle.ShutdownRegistry;
 import de.corelogics.mediaview.util.HttpUtils;
-import lombok.AllArgsConstructor;
 import lombok.NonNull;
+import lombok.extern.log4j.Log4j2;
 import lombok.val;
 import org.apache.commons.io.IOUtils;
 import org.tukaani.xz.XZInputStream;
@@ -48,13 +49,27 @@ import java.util.Comparator;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-@AllArgsConstructor
+@Log4j2
 public class MediathekListClient {
     @NonNull
     private final MainConfiguration mainConfiguration;
 
     @NonNull
     private final HttpClient httpClient;
+
+    public MediathekListClient(
+        MainConfiguration mainConfiguration,
+        ShutdownRegistry shutdownRegistry,
+        HttpClient httpClient) {
+        this.mainConfiguration = mainConfiguration;
+        this.httpClient = httpClient;
+        shutdownRegistry.registerShutdown(this::shutdown);
+    }
+
+    private void shutdown() {
+        log.debug("Shutting down");
+        httpClient.shutdownNow();
+    }
 
     private void downloadToTempFile(@NonNull File tempFile) throws IOException {
         try {

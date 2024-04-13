@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2023 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2024 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,17 +24,16 @@
 
 package de.corelogics.mediaview.service.dlna.jupnp;
 
+import lombok.experimental.UtilityClass;
+
 import java.net.InetAddress;
 import java.util.Optional;
 
 import static java.util.Optional.ofNullable;
 
+@UtilityClass
 public class LocalAddressHolder {
     private static final ThreadLocal<InetAddress> LOCAL_ADDRESS = new ThreadLocal<>();
-
-    private LocalAddressHolder() {
-        super();
-    }
 
     public static NoExceptionAutoCloseable memoizeLocalAddress(InetAddress localAddress) {
         LOCAL_ADDRESS.set(localAddress);

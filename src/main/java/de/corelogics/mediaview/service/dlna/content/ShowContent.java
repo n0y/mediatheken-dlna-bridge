@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2023 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2024 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,15 +24,17 @@
 
 package de.corelogics.mediaview.service.dlna.content;
 
-import de.corelogics.mediaview.repository.clip.ClipRepository;
 import de.corelogics.mediaview.service.dlna.DlnaRequest;
+import de.corelogics.mediaview.service.repository.clip.ClipRepository;
 import de.corelogics.mediaview.util.IdUtils;
 import lombok.AllArgsConstructor;
+import lombok.extern.log4j.Log4j2;
 import lombok.val;
 import org.jupnp.support.model.DIDLContent;
 import org.jupnp.support.model.container.StorageFolder;
 
 @AllArgsConstructor
+@Log4j2
 public class ShowContent extends BaseDlnaRequestHandler {
     private static final String URN_PREFIX_SHOW = "urn:corelogics.de:mediaview:show:";
 
@@ -46,15 +48,21 @@ public class ShowContent extends BaseDlnaRequestHandler {
     }
 
     public StorageFolder createAsLink(DlnaRequest request, String channelId, String containedIn) {
+        log.debug("Creating Show link for channel {} and show {}", channelId, containedIn);
         return this.createAsLink(request, channelId, containedIn,
             clipRepository.findAllClips(channelId, containedIn).size());
     }
 
     public StorageFolder createAsLink(DlnaRequest request, String channelId, String containedIn, int numberOfElements) {
+        return this.createAsLinkWithName(containedIn, request, channelId, containedIn, numberOfElements);
+    }
+
+    public StorageFolder createAsLinkWithName(String alternativeName, DlnaRequest request, String channelId, String containedIn, int numberOfElements) {
+        log.debug("Creating Show link for channel {} and show {} ({} elements} with name {}", channelId, containedIn, numberOfElements, alternativeName);
         return new StorageFolder(
             idShow(channelId, containedIn),
             request.objectId(),
-            containedIn,
+            alternativeName,
             "",
             numberOfElements,
             null);
@@ -67,6 +75,7 @@ public class ShowContent extends BaseDlnaRequestHandler {
             val split = request.objectId().split(":");
             val channelId = IdUtils.decodeId(split[split.length - 2]);
             val containedIn = IdUtils.decodeId(split[split.length - 1]);
+            log.debug("Creating content for channel {} and show {}", channelId, containedIn);
             clipRepository.findAllClips(channelId, containedIn).stream()
                 .map(e -> clipContent.createLinkWithDatePrefix(request, e))
                 .forEach(didl::addItem);
@@ -75,6 +84,6 @@ public class ShowContent extends BaseDlnaRequestHandler {
     }
 
     private String idShow(String channelId, String containedIn) {
-        return URN_PREFIX_SHOW + IdUtils.encodeId(channelId) + ":" + IdUtils.encodeId(containedIn);
+        return STR."\{URN_PREFIX_SHOW}\{IdUtils.encodeId(channelId)}:\{IdUtils.encodeId(containedIn)}";
     }
 }

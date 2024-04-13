@@ -72,6 +72,7 @@ services:
     # You may overwrite any property here, i.e. the Database Location
     environment:
        DISPLAY_NAME: "My Mediathek DLNA Bridge"
+    #  ENABLE_VIEWTRACKING: "true"
     #  DATABASE_LOCATION: /app/data/clipdb
     #  ENABLE_PREFETCHING: 'true'
     #  CACHE_SIZE_GB: '30'
@@ -85,6 +86,7 @@ Common configuration
 * _UPDATEINTERVAL_FULL_HOURS_ number of hours between full db updates. Defaults to `24`.
 * _DISPLAY_NAME_ under this name, the Mediatheken-DLNA-Bridge will be visible in your network. Defaults to `Mediatheken`.
 * _PUBLIC_HTTP_PORT_ all DLNA and media data (if prefetching is enabled) will be answered using this port number. Defaults to `9301`.
+* ENABLE_VIEWTRACKING: a boolean value (`true`) indicates that all views should be tracked, and it will give you another menu entry (_Meistgesehen_). Defaults to `false`
 
 Configuration for prefetching
 

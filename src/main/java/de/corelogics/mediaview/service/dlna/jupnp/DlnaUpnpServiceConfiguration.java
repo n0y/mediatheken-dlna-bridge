@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2023 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2024 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -34,9 +34,6 @@ import org.jupnp.transport.spi.NetworkAddressFactory;
 import org.jupnp.transport.spi.StreamClient;
 import org.jupnp.transport.spi.StreamServer;
 
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-
 import static java.util.concurrent.TimeUnit.DAYS;
 
 public class DlnaUpnpServiceConfiguration extends DefaultUpnpServiceConfiguration {
@@ -49,11 +46,6 @@ public class DlnaUpnpServiceConfiguration extends DefaultUpnpServiceConfiguratio
     @Override
     protected Namespace createNamespace() {
         return new Namespace("/dlna");
-    }
-
-    @Override
-    protected ExecutorService createDefaultExecutorService() {
-        return Executors.newVirtualThreadPerTaskExecutor();
     }
 
     @Override

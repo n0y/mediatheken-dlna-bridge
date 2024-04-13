@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2023 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2024 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,49 +24,33 @@
 
 package de.corelogics.mediaview;
 
-import de.corelogics.mediaview.client.mediatheklist.MediathekListClient;
-import de.corelogics.mediaview.client.mediathekview.MediathekViewImporter;
 import de.corelogics.mediaview.config.ConfigurationModule;
-import de.corelogics.mediaview.repository.clip.ClipRepository;
-import de.corelogics.mediaview.service.dlna.DlnaServer;
+import de.corelogics.mediaview.service.base.BaseServicesModule;
+import de.corelogics.mediaview.service.base.lifecycle.ShutdownRegistry;
 import de.corelogics.mediaview.service.dlna.DlnaServiceModule;
-import de.corelogics.mediaview.service.importer.ImporterService;
-import de.corelogics.mediaview.service.networking.NetworkingModule;
-import de.corelogics.mediaview.service.proxy.ForwardingProxyModule;
+import de.corelogics.mediaview.service.importer.ImporterModule;
+import de.corelogics.mediaview.service.playback.PlaybackModule;
+import de.corelogics.mediaview.service.repository.RepositoryModule;
 import lombok.val;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
-import java.net.http.HttpClient;
 
 public class Main {
-    private final Logger logger = LogManager.getLogger(Main.class);
-
-    private final ImporterService importerService;
-    private final DlnaServer dlnaServer;
+    private final ShutdownRegistry shutdownRegistry;
 
     public Main() throws IOException {
         val configModule = new ConfigurationModule();
-        val mainConfiguration = configModule.getMainConfiguration();
-        val networkingModule = new NetworkingModule(mainConfiguration);
+        val baseServicesModule = new BaseServicesModule(configModule.getMainConfiguration());
+        val repositoryModule = new RepositoryModule(baseServicesModule);
+        val playbackModule = new PlaybackModule(configModule.getMainConfiguration(), baseServicesModule, repositoryModule);
+        val dlnaServerModule = new DlnaServiceModule(configModule.getMainConfiguration(), baseServicesModule, playbackModule, repositoryModule);
+        val importerModule = new ImporterModule(configModule.getMainConfiguration(), baseServicesModule, repositoryModule);
 
-        val clipRepository = new ClipRepository(mainConfiguration);
-        this.dlnaServer =
-            new DlnaServiceModule(
-                mainConfiguration,
-                networkingModule.getJettyServer(),
-                new ForwardingProxyModule(mainConfiguration, networkingModule.getJettyServer(), clipRepository)
-                    .buildClipContentUrlGenerator(),
-                clipRepository)
-                .getDlnaServer();
-        networkingModule.startup();
-        this.importerService = new ImporterService(
-            mainConfiguration,
-            new MediathekListClient(mainConfiguration, HttpClient.newBuilder().build()),
-            new MediathekViewImporter(),
-            clipRepository);
-        this.importerService.scheduleImport();
+        dlnaServerModule.getDlnaServer().startup();
+        baseServicesModule.getNetworkingModule().getWebserver().startup();
+        importerModule.getImporterService().scheduleImport();
+
+        this.shutdownRegistry = baseServicesModule.getShutdownRegistry();
     }
 
     public static void main(String[] args) throws IOException {
@@ -75,12 +59,8 @@ public class Main {
     }
 
     private void listenForShutdown() {
-        Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
-    }
-
-    private void shutdown() {
-        logger.info("Shutting down");
-        importerService.shutdown();
-        dlnaServer.shutdown();
+        var shutdownThread = new Thread(this.shutdownRegistry::shutdown);
+        shutdownThread.setName("shutdown");
+        Runtime.getRuntime().addShutdownHook(shutdownThread);
     }
 }

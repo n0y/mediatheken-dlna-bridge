@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2023 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2024 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,45 +25,44 @@
 package de.corelogics.mediaview.service.dlna;
 
 import de.corelogics.mediaview.config.MainConfiguration;
-import de.corelogics.mediaview.repository.clip.ClipRepository;
-import de.corelogics.mediaview.service.ClipContentUrlGenerator;
+import de.corelogics.mediaview.service.base.BaseServicesModule;
 import de.corelogics.mediaview.service.dlna.content.*;
+import de.corelogics.mediaview.service.playback.PlaybackModule;
+import de.corelogics.mediaview.service.repository.RepositoryModule;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
 import lombok.val;
-import org.eclipse.jetty.server.Server;
-import org.jupnp.model.ValidationException;
 
 import java.util.Set;
 
+@RequiredArgsConstructor
 public class DlnaServiceModule {
     private final MainConfiguration mainConfiguration;
-    private final ClipContentUrlGenerator clipContentUrlGenerator;
-    private final ClipRepository clipRepository;
+    private final BaseServicesModule baseServicesModule;
+    private final PlaybackModule playbackModule;
+    private final RepositoryModule repositoryModule;
 
-    @Getter
-    private final DlnaServer dlnaServer;
+    @Getter(lazy = true)
+    private final DlnaServer dlnaServer = createDlnaServer();
 
-    public DlnaServiceModule(
-        MainConfiguration mainConfiguration,
-        Server jettyServer,
-        ClipContentUrlGenerator clipContentUrlGenerator,
-        ClipRepository clipRepository) {
-        try {
-            this.mainConfiguration = mainConfiguration;
-            this.clipContentUrlGenerator = clipContentUrlGenerator;
-            this.clipRepository = clipRepository;
-            this.dlnaServer = new DlnaServer(mainConfiguration, jettyServer, buildRequestHandlers());
-        } catch (ValidationException e) {
-            throw new RuntimeException("Initialization failed", e);
-        }
+    @SneakyThrows
+    private DlnaServer createDlnaServer() {
+        return new DlnaServer(
+            mainConfiguration,
+            baseServicesModule.getNetworkingModule().getWebserver(),
+            baseServicesModule.getShutdownRegistry(),
+            baseServicesModule.getBaseThreading(),
+            buildRequestHandlers());
     }
 
     private Set<DlnaRequestHandler> buildRequestHandlers() {
-        val clipContent = new ClipContent(this.clipContentUrlGenerator);
-        val showContent = new ShowContent(clipContent, this.clipRepository);
-        val sendungAzContent = new SendungAzContent(this.clipRepository, showContent);
-        val missedShowsContent = new MissedShowsContent(clipContent, this.clipRepository);
-        val rootContent = new RootContent(mainConfiguration, sendungAzContent, showContent, missedShowsContent);
-        return Set.of(clipContent, missedShowsContent, sendungAzContent, rootContent, showContent);
+        val clipContent = new ClipContent(playbackModule.getClipContentUrlGenerator());
+        val showContent = new ShowContent(clipContent, repositoryModule.getClipRepository());
+        val sendungAzContent = new SendungAzContent(repositoryModule.getClipRepository(), showContent);
+        val missedShowsContent = new MissedShowsContent(clipContent, repositoryModule.getClipRepository());
+        val mostViewedContent = new MostViewedContent(repositoryModule.getTrackedViewRepository(), repositoryModule.getClipRepository(), showContent);
+        val rootContent = new RootContent(mainConfiguration, sendungAzContent, showContent, missedShowsContent, mostViewedContent);
+        return Set.of(clipContent, missedShowsContent, sendungAzContent, rootContent, showContent, mostViewedContent);
     }
 }

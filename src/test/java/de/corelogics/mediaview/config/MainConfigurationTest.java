@@ -153,6 +153,14 @@ class MainConfigurationTest {
 
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
+    void whenGetIsViewTrackingEnabled_thenReturnValue(boolean value) {
+        when(configAccessor.get("ENABLE_VIEWTRACKING", false)).thenReturn(value);
+        assertThat(sut.isViewTrackingEnabled()).isEqualTo(value);
+        verify(configAccessor).get("ENABLE_VIEWTRACKING", false);
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
     void whenGetIsApplicationHeaderAdded_thenReturnValue(boolean value) {
         when(configAccessor.get("ADD_APPLICATION_HTTP_HEADERS", true)).thenReturn(value);
         assertThat(sut.isApplicationHeaderAdded()).isEqualTo(value);
@@ -182,43 +190,43 @@ class MainConfigurationTest {
         @Test
         void givenThreeFavouriteShowsConfigured_thenReturnConfiguredShows() {
             when(configAccessor.getStartingWith("FAVOURITE_")).thenReturn(Map.of(
-                    "FAVOURITE_1", "show:channel-a:ShowA",
-                    "FAVOURITE_2", "show:channel-b:ShowB",
-                    "FAVOURITE_3", "show:channel-c:ShowC"));
+                "FAVOURITE_1", "show:channel-a:ShowA",
+                "FAVOURITE_2", "show:channel-b:ShowB",
+                "FAVOURITE_3", "show:channel-c:ShowC"));
             assertThat(sut.getFavourites())
-                    .usingRecursiveFieldByFieldElementComparator()
-                    .containsExactly(
-                            new FavouriteShow("channel-a", "ShowA"),
-                            new FavouriteShow("channel-b", "ShowB"),
-                            new FavouriteShow("channel-c", "ShowC"));
+                .usingRecursiveFieldByFieldElementComparator()
+                .containsExactly(
+                    new FavouriteShow("channel-a", "ShowA"),
+                    new FavouriteShow("channel-b", "ShowB"),
+                    new FavouriteShow("channel-c", "ShowC"));
         }
 
         @Test
         void givenFavouriteShows_whenUsingVisitor_thenCallVisit() {
             when(configAccessor.getStartingWith("FAVOURITE_")).thenReturn(Map.of(
-                    "FAVOURITE_2", "show:channel-b:ShowB",
-                    "FAVOURITE_3", "show:channel-c:ShowC"));
+                "FAVOURITE_2", "show:channel-b:ShowB",
+                "FAVOURITE_3", "show:channel-c:ShowC"));
             assertThat(
-                    sut.getFavourites().stream().map(f -> f.accept(
-                            new FavouriteVisitor<String>() {
-                                @Override
-                                public String visitShow(FavouriteShow favouriteShow) {
-                                    return favouriteShow.channel() + ":" + favouriteShow.title();
-                                }
-                            })))
-                    .containsExactly("channel-b:ShowB", "channel-c:ShowC");
+                sut.getFavourites().stream().map(f -> f.accept(
+                    new FavouriteVisitor<String>() {
+                        @Override
+                        public String visitShow(FavouriteShow favouriteShow) {
+                            return favouriteShow.channel() + ":" + favouriteShow.title();
+                        }
+                    })))
+                .containsExactly("channel-b:ShowB", "channel-c:ShowC");
         }
 
         @Test
         void givenEntriesWithWrongFormat_thenOnlyReturnCorrectlyFormatted() {
             when(configAccessor.getStartingWith("FAVOURITE_")).thenReturn(Map.of(
-                    "FAVOURITE_NO_SHOW_TITLE", "show:channel1:",
-                    "FAVOURITE_WRONG_PREFIX", "clip:channel1:Title",
-                    "FAVOURITE_NO_VALUE", "",
-                    "FAVOURITE_CORRECT", "show:channel-a:ShowA"));
+                "FAVOURITE_NO_SHOW_TITLE", "show:channel1:",
+                "FAVOURITE_WRONG_PREFIX", "clip:channel1:Title",
+                "FAVOURITE_NO_VALUE", "",
+                "FAVOURITE_CORRECT", "show:channel-a:ShowA"));
             assertThat(sut.getFavourites())
-                    .usingRecursiveFieldByFieldElementComparator()
-                    .containsExactly(new FavouriteShow("channel-a", "ShowA"));
+                .usingRecursiveFieldByFieldElementComparator()
+                .containsExactly(new FavouriteShow("channel-a", "ShowA"));
         }
     }
 }

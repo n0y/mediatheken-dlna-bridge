@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2023 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2024 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -28,6 +28,7 @@ import de.corelogics.mediaview.client.mediathekview.ClipEntry;
 import de.corelogics.mediaview.service.ClipContentUrlGenerator;
 import de.corelogics.mediaview.service.dlna.DlnaRequest;
 import lombok.AllArgsConstructor;
+import lombok.extern.log4j.Log4j2;
 import org.jupnp.support.model.DIDLContent;
 import org.jupnp.support.model.Res;
 import org.jupnp.support.model.item.VideoItem;
@@ -36,6 +37,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 
 @AllArgsConstructor
+@Log4j2
 public class ClipContent extends BaseDlnaRequestHandler {
     private static final String MIME_TYPE_VIDEO_MP4 = "video/mp4";
     private static final String URN_PREFIX_CLIP = "urn:corelogics.de:mediaview:clip:";
@@ -52,14 +54,17 @@ public class ClipContent extends BaseDlnaRequestHandler {
 
     @Override
     protected DIDLContent respondWithException(DlnaRequest request) {
+        log.warn("Request for clip content received. This should not happen. Please report it stating the client you are using.");
         return new DIDLContent();
     }
 
     public VideoItem createLinkWithTimePrefix(DlnaRequest request, ClipEntry entry) {
+        log.debug("Creating timed link to clip {}", entry.getId());
         return createLink(request, entry, DTF_TIME);
     }
 
     public VideoItem createLinkWithDatePrefix(DlnaRequest request, ClipEntry entry) {
+        log.debug("Creating dated link to clip {}", entry.getId());
         return createLink(request, entry, DTF_DATE);
     }
 
@@ -67,7 +72,7 @@ public class ClipContent extends BaseDlnaRequestHandler {
         return new VideoItem(
             idClip(entry),
             request.objectId(),
-            dateTimeFormat.format(entry.getBroadcastedAt()) + " " + lengthLimit(entry.getTitle()),
+                STR."\{dateTimeFormat.format(entry.getBroadcastedAt())} \{lengthLimit(entry.getTitle())}",
             "",
             new Res(
                 MIME_TYPE_VIDEO_MP4,
