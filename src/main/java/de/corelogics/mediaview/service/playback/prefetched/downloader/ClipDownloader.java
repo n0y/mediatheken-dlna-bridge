@@ -29,7 +29,6 @@ import de.corelogics.mediaview.util.HttpUtils;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.Getter;
 import lombok.val;
-import okhttp3.ConnectionPool;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import org.apache.logging.log4j.LogManager;
@@ -45,16 +44,12 @@ import java.util.BitSet;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static java.util.Optional.ofNullable;
 
 class ClipDownloader implements Closeable {
-    private static final double REQUIRED_MB_PER_SECONDS = 1.3D;
-
     private static final long CHUNK_SIZE_BYTES = 5_000_000;
-    private static final long STOP_READING_AFTER_SECS = 30;
 
     private final AtomicInteger currentConnectionId = new AtomicInteger();
     private final Map<String, ClipDownloadConnection> connections = new HashMap<>();
@@ -76,6 +71,7 @@ class ClipDownloader implements Closeable {
     public ClipDownloader(
         MainConfiguration mainConfiguration,
         CacheDirectory cacheDir,
+        OkHttpClient httpClient,
         String clipId,
         String url) throws UpstreamNotFoundException, UpstreamReadFailedException, CacheSizeExhaustedException {
         this.mainConfiguration = mainConfiguration;
@@ -83,12 +79,7 @@ class ClipDownloader implements Closeable {
         this.url = url;
         this.clipId = clipId;
         this.numParallelConnections = mainConfiguration.cacheParallelDownloadsPerVideo();
-        this.httpClient = new OkHttpClient.Builder()
-            .connectionPool(new ConnectionPool(1, 10, TimeUnit.SECONDS))
-            .callTimeout(10, TimeUnit.SECONDS)
-            .readTimeout(10, TimeUnit.SECONDS)
-            .connectTimeout(5, TimeUnit.SECONDS)
-            .build();
+        this.httpClient = httpClient;
         logger.debug("Starting download for {}", this.url);
         this.metadata = loadOrFetchMetaData();
         logger.debug("Initialized metadata to {}", this.metadata);
@@ -145,14 +136,13 @@ class ClipDownloader implements Closeable {
     private synchronized void ensureDownloadersPresent() {
         while (
             this.connections.size() < numParallelConnections &&
-                this.chunksAvailableForDownload.previousSetBit(this.metadata.numberOfChunks()) >= 0)  {
+                this.chunksAvailableForDownload.previousSetBit(this.metadata.numberOfChunks()) >= 0) {
             val connectionId = STR."\{clipId}-\{currentConnectionId.getAndIncrement()}";
             logger.debug("Starting new connection {}", connectionId);
             this.connections.put(connectionId, new ClipDownloadConnection(
                 this, mainConfiguration,
-                connectionId,
-                CHUNK_SIZE_BYTES,
-                REQUIRED_MB_PER_SECONDS / numParallelConnections));
+                this.httpClient,
+                connectionId));
             cacheDir.startNewDownloaderThread(connectionId, this.connections.get(connectionId));
         }
     }

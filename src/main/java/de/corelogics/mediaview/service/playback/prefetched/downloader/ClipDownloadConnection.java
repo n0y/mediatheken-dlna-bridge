@@ -28,15 +28,11 @@ import de.corelogics.mediaview.config.MainConfiguration;
 import de.corelogics.mediaview.util.HttpUtils;
 import lombok.extern.log4j.Log4j2;
 import lombok.val;
-import okhttp3.ConnectionPool;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.time.Duration;
-import java.time.temporal.ChronoUnit;
-import java.util.concurrent.TimeUnit;
 
 @Log4j2
 class ClipDownloadConnection implements Runnable, Closeable {
@@ -49,23 +45,12 @@ class ClipDownloadConnection implements Runnable, Closeable {
     public ClipDownloadConnection(
         ClipDownloader downloader,
         MainConfiguration mainConfiguration,
-        String connectionId,
-        long chunkSizeBytes,
-        double reqMbPerSeconds) {
+        OkHttpClient httpClient,
+        String connectionId) {
         this.mainConfiguration = mainConfiguration;
         this.connectionId = connectionId;
         this.downloader = downloader;
-        val chunkSizeMb = chunkSizeBytes / (1024D * 1024D);
-        val timeoutSecs = chunkSizeMb / reqMbPerSeconds;
-        val callTimeout = Duration.of((long) (timeoutSecs * 1000), ChronoUnit.MILLIS);
-        log.debug("Setting call timeout to {}", callTimeout);
-
-        this.httpClient = new OkHttpClient.Builder()
-            .connectionPool(new ConnectionPool(1, 10, TimeUnit.SECONDS))
-            .callTimeout(callTimeout)
-            .readTimeout(1, TimeUnit.SECONDS)
-            .connectTimeout(2, TimeUnit.SECONDS)
-            .build();
+        this.httpClient = httpClient;
     }
 
     public void run() {
@@ -84,7 +69,6 @@ class ClipDownloadConnection implements Runnable, Closeable {
                 stopped = true;
             }
         }
-        this.httpClient.connectionPool().evictAll();
         downloader.onConnectionTerminated(connectionId);
     }
 

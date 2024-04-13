@@ -27,10 +27,10 @@ package de.corelogics.mediaview.service.playback;
 import de.corelogics.mediaview.config.MainConfiguration;
 import de.corelogics.mediaview.service.ClipContentUrlGenerator;
 import de.corelogics.mediaview.service.base.BaseServicesModule;
+import de.corelogics.mediaview.service.playback.directfromsource.DirectDownloadClipContentUrlGenerator;
 import de.corelogics.mediaview.service.playback.prefetched.PrefetchingProxy;
 import de.corelogics.mediaview.service.playback.prefetched.downloader.CacheDirectory;
 import de.corelogics.mediaview.service.playback.prefetched.downloader.DownloadManager;
-import de.corelogics.mediaview.service.playback.directfromsource.DirectDownloadClipContentUrlGenerator;
 import de.corelogics.mediaview.service.playback.tracked.TrackingProxyServer;
 import de.corelogics.mediaview.service.repository.RepositoryModule;
 import lombok.Getter;
@@ -50,6 +50,7 @@ public class PlaybackModule {
                     mainConfiguration,
                     baseServicesModule.getBaseThreading(),
                     baseServicesModule.getShutdownRegistry(),
+                    baseServicesModule.getHttpClient(),
                     new CacheDirectory(
                         mainConfiguration,
                         baseServicesModule.getBaseThreading(),

@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
 class ByteRangeTest {
@@ -48,5 +49,21 @@ class ByteRangeTest {
             a.assertThat(range.getFirstPosition()).isEqualTo(100L);
             a.assertThat(range.getLastPosition()).isPresent().get().isEqualTo(200L);
         });
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {120, 2000, 4040})
+    void whenConstructingFromValues_thenInitializeWithPartial(long lastPosition) {
+        val range = new ByteRange(lastPosition - 100, lastPosition);
+        assertSoftly(a -> {
+            a.assertThat(range.getFirstPosition()).isEqualTo(lastPosition - 100);
+            a.assertThat(range.getLastPosition()).isPresent().get().isEqualTo(lastPosition);
+            a.assertThat(range.isPartial()).isTrue();
+        });
+    }
+
+    @Test
+    void whenToString_thenAssertPresent() {
+        assertThat(new ByteRange(1, 100).toString()).isNotNull();
     }
 }

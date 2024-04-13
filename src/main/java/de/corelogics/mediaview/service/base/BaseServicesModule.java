@@ -31,12 +31,15 @@ import de.corelogics.mediaview.service.base.networking.NetworkingModule;
 import de.corelogics.mediaview.service.base.threading.BaseThreading;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import okhttp3.ConnectionPool;
+import okhttp3.OkHttpClient;
+
+import java.util.concurrent.TimeUnit;
 
 @RequiredArgsConstructor
 @Getter
 public class BaseServicesModule {
     private final MainConfiguration mainConfiguration;
-
     private final ShutdownRegistry shutdownRegistry = new ShutdownRegistry();
     private final BaseThreading baseThreading = new BaseThreading();
 
@@ -46,4 +49,11 @@ public class BaseServicesModule {
     @Getter(lazy = true)
     private final NetworkingModule networkingModule = new NetworkingModule(mainConfiguration, baseThreading, shutdownRegistry);
 
+    @Getter(lazy = true)
+    private final OkHttpClient httpClient = new OkHttpClient.Builder()
+        .connectionPool(new ConnectionPool(10, 10, TimeUnit.SECONDS))
+        .callTimeout(10, TimeUnit.SECONDS)
+        .readTimeout(10, TimeUnit.SECONDS)
+        .connectTimeout(5, TimeUnit.SECONDS)
+        .build();
 }

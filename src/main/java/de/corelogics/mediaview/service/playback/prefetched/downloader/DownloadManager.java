@@ -30,6 +30,7 @@ import de.corelogics.mediaview.service.base.lifecycle.ShutdownRegistry;
 import de.corelogics.mediaview.service.base.threading.BaseThreading;
 import lombok.extern.log4j.Log4j2;
 import lombok.val;
+import okhttp3.OkHttpClient;
 import org.apache.commons.io.input.BoundedInputStream;
 import org.apache.logging.log4j.CloseableThreadContext;
 
@@ -46,12 +47,14 @@ public class DownloadManager {
     private final Map<String, ClipDownloaderHolder> clipIdToDl = new HashMap<>();
     private final MainConfiguration mainConfiguration;
     private final CacheDirectory cacheDirectory;
+    private final OkHttpClient httpClient;
 
     private final AtomicBoolean running = new AtomicBoolean(true);
 
-    public DownloadManager(MainConfiguration mainConfiguration, BaseThreading baseThreading, ShutdownRegistry shutdownRegistry, CacheDirectory cacheDirectory) {
+    public DownloadManager(MainConfiguration mainConfiguration, BaseThreading baseThreading, ShutdownRegistry shutdownRegistry, OkHttpClient httpClient, CacheDirectory cacheDirectory) {
         this.mainConfiguration = mainConfiguration;
         this.cacheDirectory = cacheDirectory;
+        this.httpClient = httpClient;
         baseThreading.schedulePeriodic(this::closeIdlingDownloaders, Duration.ofSeconds(10), Duration.ofSeconds(10));
         shutdownRegistry.registerShutdown(this::onShutdown);
     }
@@ -130,6 +133,7 @@ public class DownloadManager {
                 return new ClipDownloader(
                     this.mainConfiguration,
                     this.cacheDirectory,
+                    this.httpClient,
                     clip.getId(),
                     clip.getBestUrl());
             } catch (final CacheSizeExhaustedException e) {
