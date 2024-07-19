@@ -85,7 +85,7 @@
             <dependency>
                 <groupId>org.jetbrains.kotlin</groupId>
                 <artifactId>kotlin-bom</artifactId>
-                <version>1.9.24</version>
+                <version>1.9.25</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
