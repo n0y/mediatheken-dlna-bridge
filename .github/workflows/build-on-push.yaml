@@ -5,9 +5,6 @@ on: [push]
 jobs:
   build:
     uses: ./.github/workflows/part-compile-and-test.yaml
-    with:
-      version: E-SNAPSHOT
-
   release:
     if: github.ref == 'refs/heads/master'
     needs: build
