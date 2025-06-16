@@ -39,7 +39,7 @@
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <jupnp.version>3.0.3</jupnp.version>
         <lucene.version>9.12.1</lucene.version>
-        <log4j.version>2.24.3</log4j.version>
+        <log4j.version>2.25.0</log4j.version>
         <junit.version>5.13.1</junit.version>
         <mockito.version>5.18.0</mockito.version>
         <kotlin.version>1.9.10</kotlin.version>
