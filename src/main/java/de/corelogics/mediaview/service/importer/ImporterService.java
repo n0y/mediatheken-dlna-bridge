@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2024 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2025 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -43,10 +43,12 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
+
 
 @Log4j2
 @RequiredArgsConstructor
-public class ImporterService {
+public final class ImporterService {
     private final MainConfiguration mainConfiguration;
     private final BaseThreading baseThreading;
     private final ShutdownRegistry shutdownRegistry;
@@ -54,7 +56,10 @@ public class ImporterService {
     private final MediathekViewImporter importer;
     private final ClipRepository clipRepository;
 
+    Supplier<ZonedDateTime> currentTimeProvider = ZonedDateTime::now;
+
     private final AtomicBoolean stopped = new AtomicBoolean(false);
+
 
     public void scheduleImport() {
         log.info("Starting import scheduler. Update interval: {} hours", mainConfiguration::updateIntervalFullHours);
@@ -63,7 +68,7 @@ public class ImporterService {
     }
 
     private void scheduleNextFullImport() {
-        val now = ZonedDateTime.now();
+        val now = this.currentTimeProvider.get();
         val nextFullUpdateAt = clipRepository
             .findLastFullImport()
             .map(t -> t.plusHours(mainConfiguration.updateIntervalFullHours()))
@@ -79,16 +84,17 @@ public class ImporterService {
         this.stopped.set(true);
     }
 
-    private void fullImport() {
-        val startedAt = ZonedDateTime.now();
+    void fullImport() {
+        val startedAt = this.currentTimeProvider.get();
         try (val ignored = CloseableThreadContext.put("IMPORT_STARTED", startedAt.toLocalDateTime().toString())) {
             log.info("Starting a full import");
             try {
-                val entryUpdateList = new ArrayList<ClipEntry>(1000);
+                var entryUpdateList = new ArrayList<ClipEntry>(1000);
                 val numImported = new AtomicInteger();
                 try (val input = mediathekListeClient.openMediathekListeFull()) {
                     val list = importer.createList(input);
                     val it = list.getStream().iterator();
+
                     while (it.hasNext()) {
                         if (stopped.get()) {
                             log.debug("Stopped: terminating import");
@@ -101,10 +107,12 @@ public class ImporterService {
                         entryUpdateList.add(e);
                         if (entryUpdateList.size() > 999) {
                             clipRepository.addClips(entryUpdateList, startedAt);
-                            entryUpdateList.clear();
+                            entryUpdateList = new ArrayList<>(1000);
                         }
                     }
-                    clipRepository.addClips(entryUpdateList, startedAt);
+                    if (!entryUpdateList.isEmpty()) {
+                        clipRepository.addClips(entryUpdateList, startedAt);
+                    }
                     clipRepository.deleteClipsImportedBefore(startedAt);
                     log.info("Successfully performed a full import, yielding {} clips", numImported::get);
                 }
@@ -112,7 +120,7 @@ public class ImporterService {
                 log.warn("Exception during import.", e);
             }
             try {
-                clipRepository.updateLastFullImport(ZonedDateTime.now());
+                clipRepository.updateLastFullImport(this.currentTimeProvider.get());
                 scheduleNextFullImport();
             } catch (Exception e) {
                 log.warn("Could not schedule next full import: ", e);

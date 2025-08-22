@@ -46,12 +46,12 @@ public class JettyServletContainerFixed implements ServletContainerAdapter {
     private final int port;
 
     @Override
-    public synchronized void setExecutorService(ExecutorService executorService) {
+    public void setExecutorService(ExecutorService executorService) {
         // jetty is already configured here
     }
 
     @Override
-    public synchronized int addConnector(String host, int port) {
+    public int addConnector(String host, int port) {
         return this.port;
     }
 
@@ -81,12 +81,12 @@ public class JettyServletContainerFixed implements ServletContainerAdapter {
     }
 
     @Override
-    public synchronized void startIfNotRunning() {
+    public void startIfNotRunning() {
         // won't do that here
     }
 
     @Override
-    public synchronized void stopIfRunning() {
+    public void stopIfRunning() {
         // won't do that here
     }
 }
