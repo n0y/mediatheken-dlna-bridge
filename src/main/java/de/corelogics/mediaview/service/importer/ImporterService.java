@@ -48,7 +48,7 @@ import java.util.function.Supplier;
 
 @Log4j2
 @RequiredArgsConstructor
-public final class ImporterService {
+public class ImporterService {
     private final MainConfiguration mainConfiguration;
     private final BaseThreading baseThreading;
     private final ShutdownRegistry shutdownRegistry;
