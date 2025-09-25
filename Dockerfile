@@ -1,4 +1,4 @@
-FROM amazoncorretto:21.0.8-alpine
+FROM amazoncorretto:25.0.0-alpine
 
 LABEL org.label-schema.schema-version="1.0"
 LABEL org.label-schema.name="Mediatheken-DLNA-Bridge"
