@@ -69,11 +69,11 @@ class ClipDownloader implements Closeable {
     private boolean stopped = false;
 
     public ClipDownloader(
-        MainConfiguration mainConfiguration,
-        CacheDirectory cacheDir,
-        OkHttpClient httpClient,
-        String clipId,
-        String url) throws UpstreamNotFoundException, UpstreamReadFailedException, CacheSizeExhaustedException {
+            MainConfiguration mainConfiguration,
+            CacheDirectory cacheDir,
+            OkHttpClient httpClient,
+            String clipId,
+            String url) throws UpstreamNotFoundException, UpstreamReadFailedException, CacheSizeExhaustedException {
         this.mainConfiguration = mainConfiguration;
         this.cacheDir = cacheDir;
         this.url = url;

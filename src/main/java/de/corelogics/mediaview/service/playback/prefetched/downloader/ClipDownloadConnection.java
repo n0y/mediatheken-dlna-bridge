@@ -26,6 +26,7 @@ package de.corelogics.mediaview.service.playback.prefetched.downloader;
 
 import de.corelogics.mediaview.config.MainConfiguration;
 import de.corelogics.mediaview.util.HttpUtils;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import lombok.val;
 import okhttp3.OkHttpClient;
@@ -35,23 +36,13 @@ import java.io.Closeable;
 import java.io.IOException;
 
 @Log4j2
+@RequiredArgsConstructor
 class ClipDownloadConnection implements Runnable, Closeable {
-    private final OkHttpClient httpClient;
-    private final MainConfiguration mainConfiguration;
-    private final String connectionId;
     private final ClipDownloader downloader;
+    private final MainConfiguration mainConfiguration;
+    private final OkHttpClient httpClient;
+    private final String connectionId;
     private boolean stopped = false;
-
-    public ClipDownloadConnection(
-        ClipDownloader downloader,
-        MainConfiguration mainConfiguration,
-        OkHttpClient httpClient,
-        String connectionId) {
-        this.mainConfiguration = mainConfiguration;
-        this.connectionId = connectionId;
-        this.downloader = downloader;
-        this.httpClient = httpClient;
-    }
 
     public void run() {
         while (!stopped) {

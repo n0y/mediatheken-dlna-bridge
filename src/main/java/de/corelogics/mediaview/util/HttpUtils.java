@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2024 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2025 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,6 +25,7 @@
 package de.corelogics.mediaview.util;
 
 import de.corelogics.mediaview.config.MainConfiguration;
+import lombok.experimental.UtilityClass;
 import okhttp3.Request;
 
 import java.net.http.HttpRequest;
@@ -32,6 +33,7 @@ import java.util.function.BiConsumer;
 
 import static java.lang.String.format;
 
+@UtilityClass
 public class HttpUtils {
     public static final String HEADER_CONTENT_TYPE = "Content-Type";
     public static final String HEADER_RANGE = "Range";

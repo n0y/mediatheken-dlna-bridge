@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2024 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2025 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,15 +24,15 @@
 
 package de.corelogics.mediaview.util;
 
+import lombok.experimental.UtilityClass;
+
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 
+@UtilityClass
 public class IdUtils {
     private static final Base64.Encoder ENCODER = Base64.getEncoder().withoutPadding();
     private static final Base64.Decoder DECODER = Base64.getDecoder();
-
-    private IdUtils() {
-    }
 
     public static String encodeId(String data) {
         return ENCODER.encodeToString(data.getBytes(StandardCharsets.UTF_8));

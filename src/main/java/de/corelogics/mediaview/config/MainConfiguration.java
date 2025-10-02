@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2024 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2025 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,6 +24,7 @@
 
 package de.corelogics.mediaview.config;
 
+import lombok.RequiredArgsConstructor;
 import lombok.val;
 
 import java.io.File;
@@ -35,12 +36,9 @@ import java.util.stream.Collectors;
 
 import static java.util.Optional.ofNullable;
 
+@RequiredArgsConstructor
 public class MainConfiguration {
     private final TypedConfigurationAccessor configAccessor;
-
-    MainConfiguration(TypedConfigurationAccessor configAccessor) {
-        this.configAccessor = configAccessor;
-    }
 
     public String displayName() {
         return configAccessor.get("DISPLAY_NAME", "Mediatheken");
