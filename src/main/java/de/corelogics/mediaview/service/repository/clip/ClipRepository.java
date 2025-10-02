@@ -120,8 +120,7 @@ public class ClipRepository {
         return luceneDirectory.performSearch(searcher -> {
             val query = luceneDirectory.createDoctypeQuery(DOCTYPE_CLIP);
             val state = new DefaultSortedSetDocValuesReaderState(searcher.getIndexReader(), ClipField.CHANNELNAME.facet(), new FacetsConfig());
-            val fcm = new FacetsCollectorManager();
-            val facetResults = FacetsCollectorManager.search(searcher, query, 10000, fcm);
+            val facetResults = FacetsCollectorManager.search(searcher, query, 10000, new FacetsCollectorManager());
             val facets = new SortedSetDocValuesFacetCounts(state, facetResults.facetsCollector());
             return Stream.of(facets.getTopChildren(10000, ClipField.CHANNELNAME.facet()).labelValues)
                 .map(l -> l.label)
@@ -140,8 +139,7 @@ public class ClipRepository {
                 .add(new TermQuery(new Term(ClipField.CHANNELNAME.termLower(), ClipField.CHANNELNAME.termLower(channelName))), BooleanClause.Occur.MUST)
                 .build();
             val state = new DefaultSortedSetDocValuesReaderState(searcher.getIndexReader(), ClipField.CONTAINEDIN.facet(), new FacetsConfig());
-            val fcm = new FacetsCollectorManager();
-            val facetResults = FacetsCollectorManager.search(searcher, query, 10000, fcm);
+            val facetResults = FacetsCollectorManager.search(searcher, query, 10000, new FacetsCollectorManager());
             val facets = new SortedSetDocValuesFacetCounts(state, facetResults.facetsCollector());
             return Stream.of(facets.getTopChildren(10000, ClipField.CONTAINEDIN.facet()).labelValues)
                 .map(l -> Map.entry(l.label, l.value.intValue()))
@@ -162,8 +160,7 @@ public class ClipRepository {
                 .add(new PrefixQuery(new Term(ClipField.CONTAINEDIN.termLower(), ClipField.CONTAINEDIN.termLower(startingWith))), BooleanClause.Occur.MUST)
                 .build();
             val state = new DefaultSortedSetDocValuesReaderState(searcher.getIndexReader(), ClipField.CONTAINEDIN.facet(), new FacetsConfig());
-            val fcm = new FacetsCollectorManager();
-            val facetResults = FacetsCollectorManager.search(searcher, query, 10000, fcm);
+            val facetResults = FacetsCollectorManager.search(searcher, query, 10000, new FacetsCollectorManager());
             val facets = new SortedSetDocValuesFacetCounts(state, facetResults.facetsCollector());
             return Stream.of(facets.getTopChildren(10000, ClipField.CONTAINEDIN.facet()).labelValues)
                 .map(l -> Map.entry(l.label, l.value.intValue()))
