@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2024 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2025 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -74,7 +74,7 @@ public class WebServer {
                 () -> Arrays.stream(server.getConnectors())
                     .filter(c -> c instanceof ServerConnector)
                     .map(c -> (ServerConnector) c)
-                    .map(sc -> STR."\{sc.getHost()}:\{sc.getPort()}")
+                    .map(sc -> sc.getHost() + ":" + sc.getPort())
                     .collect(Collectors.joining(", ")));
         }
     }

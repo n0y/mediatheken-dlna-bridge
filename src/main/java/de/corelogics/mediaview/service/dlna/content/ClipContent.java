@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2024 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2025 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -72,7 +72,7 @@ public class ClipContent extends BaseDlnaRequestHandler {
         return new VideoItem(
             idClip(entry),
             request.objectId(),
-                STR."\{dateTimeFormat.format(entry.getBroadcastedAt())} \{lengthLimit(entry.getTitle())}",
+            dateTimeFormat.format(entry.getBroadcastedAt()) + " " + lengthLimit(entry.getTitle()),
             "",
             new Res(
                 MIME_TYPE_VIDEO_MP4,

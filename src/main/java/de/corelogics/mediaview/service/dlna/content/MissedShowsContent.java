@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2024 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2025 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -147,9 +147,9 @@ public class MissedShowsContent extends BaseDlnaRequestHandler {
         val today = ZonedDateTime.now();
         LongStream.rangeClosed(0, 6).mapToObj(l -> Map.entry(l, today.minusDays(l))).flatMap(day ->
                 Arrays.stream(ChannelTime.values()).map(ct -> new StorageFolder(
-                        STR."\{URN_PREFIX_CHANNELTIME}\{IdUtils.encodeId(channelName)}:\{day.getKey()}:\{ct.ordinal()}",
+                    URN_PREFIX_CHANNELTIME + IdUtils.encodeId(channelName) + ":" + day.getKey() + ":" + ct.ordinal(),
                     request.objectId(),
-                        STR."\{DATE_TIME_FORMAT.format(day.getValue())} \{ct.getTitle()}",
+                    DATE_TIME_FORMAT.format(day.getValue()) + " " + ct.getTitle(),
                     "",
                     10,
                     null)))

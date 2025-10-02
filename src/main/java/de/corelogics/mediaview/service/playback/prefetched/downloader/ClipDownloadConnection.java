@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2024 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2025 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -78,13 +78,13 @@ class ClipDownloadConnection implements Runnable, Closeable {
                     this.mainConfiguration,
                     new Request.Builder()
                         .url(downloader.getUrl())
-                        .addHeader(HttpUtils.HEADER_RANGE, STR."bytes=\{chunk.from()}-\{chunk.to()}"))
+                        .addHeader(HttpUtils.HEADER_RANGE, "bytes=" + chunk.from() + "-" + chunk.to()))
                 .build();
         try (val response = httpClient.newCall(request).execute()) {
             if (response.isSuccessful()) {
                 return response.body().bytes();
             }
-            throw new IOException(STR."No body, status code was \{response.code()}");
+            throw new IOException("No body, status code was " + response.code());
         }
     }
 

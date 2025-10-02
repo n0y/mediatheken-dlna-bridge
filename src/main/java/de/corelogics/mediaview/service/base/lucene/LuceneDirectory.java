@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2024 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2025 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -67,6 +67,7 @@ public class LuceneDirectory {
     }
 
     public static final FieldType TYPE_NO_TOKENIZE = new FieldType();
+
     static {
         TYPE_NO_TOKENIZE.setTokenized(false);
         TYPE_NO_TOKENIZE.setIndexOptions(IndexOptions.DOCS);
@@ -75,6 +76,7 @@ public class LuceneDirectory {
     }
 
     public static final FieldType TYPE_DOCVALUES_TEXT = new FieldType();
+
     static {
         TYPE_DOCVALUES_TEXT.setTokenized(false);
         TYPE_DOCVALUES_TEXT.setIndexOptions(IndexOptions.DOCS);
@@ -145,7 +147,7 @@ public class LuceneDirectory {
             IndexSearcher.setDefaultQueryCache(new LRUQueryCache(1000, cacheSize));
             this.searcherManager = new SearcherManager(this.index, null);
         } catch (final IOException e) {
-            throw new IllegalStateException(STR."Could not initialize FS directory on '\{indexPath}'.", e);
+            throw new IllegalStateException("Could not initialize FS directory on '" + indexPath + "'.", e);
         }
     }
 

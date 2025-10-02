@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2024 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2025 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -115,7 +115,7 @@ public class TrackedViewRepository {
     @SneakyThrows(IOException.class)
     public void addTrackedView(ClipEntry forClip, ZonedDateTime atTime) {
         log.debug("Adding TrackedView for {} at {}", forClip, atTime);
-        val trackedViewId = STR."\{forClip.getId()}@\{atTime.truncatedTo(ChronoUnit.DAYS)}";
+        val trackedViewId = forClip.getId() + "@" + atTime.truncatedTo(ChronoUnit.DAYS);
         val document = luceneDirectory.buildDocument(DOCTYPE_TRACKEDVIEW, SCHEMA_VERSION)
             .addField(TrackedViewField.ID, trackedViewId)
             .addField(TrackedViewField.CHANNELNAME, forClip.getChannelName())
@@ -144,7 +144,7 @@ public class TrackedViewRepository {
                 .map(this::trackedViewFromDocument)
                 .map(tv -> new TrackedContainedIn(tv.channelName(), tv.containedIn(), tv.lastViewedAt(), tv.lastViewedAt(), 1))
                 .collect(Collectors.toMap(
-                    tci -> STR."\{tci.channelName()}::\{tci.containedIn()}",
+                    tci -> tci.channelName() + "::" + tci.containedIn(),
                     Function.identity(),
                     (one, two) -> new TrackedContainedIn(
                         one.channelName(),

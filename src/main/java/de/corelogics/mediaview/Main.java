@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2024 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2025 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,11 +22,8 @@
  * SOFTWARE.
  */
 
-package de.corelogics.mediaview;
-
 import de.corelogics.mediaview.config.ConfigurationModule;
 import de.corelogics.mediaview.service.base.BaseServicesModule;
-import de.corelogics.mediaview.service.base.lifecycle.ShutdownRegistry;
 import de.corelogics.mediaview.service.dlna.DlnaServiceModule;
 import de.corelogics.mediaview.service.importer.ImporterModule;
 import de.corelogics.mediaview.service.playback.PlaybackModule;
@@ -35,32 +32,23 @@ import lombok.val;
 
 import java.io.IOException;
 
-public class Main {
-    private final ShutdownRegistry shutdownRegistry;
+void main() throws IOException {
+    System.setProperty("java.util.logging.manager", "org.apache.logging.log4j.jul.LogManager");
 
-    public Main() throws IOException {
-        val configModule = new ConfigurationModule();
-        val baseServicesModule = new BaseServicesModule(configModule.getMainConfiguration());
-        val repositoryModule = new RepositoryModule(baseServicesModule);
-        val playbackModule = new PlaybackModule(configModule.getMainConfiguration(), baseServicesModule, repositoryModule);
-        val dlnaServerModule = new DlnaServiceModule(configModule.getMainConfiguration(), baseServicesModule, playbackModule, repositoryModule);
-        val importerModule = new ImporterModule(configModule.getMainConfiguration(), baseServicesModule, repositoryModule);
+    val configModule = new ConfigurationModule();
+    val baseServicesModule = new BaseServicesModule(configModule.getMainConfiguration());
+    val repositoryModule = new RepositoryModule(baseServicesModule);
+    val playbackModule = new PlaybackModule(configModule.getMainConfiguration(), baseServicesModule, repositoryModule);
+    val dlnaServerModule = new DlnaServiceModule(configModule.getMainConfiguration(), baseServicesModule, playbackModule, repositoryModule);
+    val importerModule = new ImporterModule(configModule.getMainConfiguration(), baseServicesModule, repositoryModule);
 
-        dlnaServerModule.getDlnaServer().startup();
-        baseServicesModule.getNetworkingModule().getWebserver().startup();
-        importerModule.getImporterService().scheduleImport();
+    dlnaServerModule.getDlnaServer().startup();
+    baseServicesModule.getNetworkingModule().getWebserver().startup();
+    importerModule.getImporterService().scheduleImport();
 
-        this.shutdownRegistry = baseServicesModule.getShutdownRegistry();
-    }
+    val shutdownRegistry = baseServicesModule.getShutdownRegistry();
 
-    public static void main(String[] args) throws IOException {
-        System.setProperty("java.util.logging.manager", "org.apache.logging.log4j.jul.LogManager");
-        new Main().listenForShutdown();
-    }
-
-    private void listenForShutdown() {
-        var shutdownThread = new Thread(this.shutdownRegistry::shutdown);
-        shutdownThread.setName("shutdown");
-        Runtime.getRuntime().addShutdownHook(shutdownThread);
-    }
+    var shutdownThread = new Thread(shutdownRegistry::shutdown);
+    shutdownThread.setName("shutdown");
+    Runtime.getRuntime().addShutdownHook(shutdownThread);
 }

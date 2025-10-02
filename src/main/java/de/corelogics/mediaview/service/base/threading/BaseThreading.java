@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2024 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2025 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -71,7 +71,7 @@ public class BaseThreading {
 
     private void startScheduledTask(Runnable runnable) {
         val thread = virtualThreadFactory.newThread(runnable);
-        thread.setName(STR."sched-\{scheduledWorkerNumber.getAndIncrement()}");
+        thread.setName("sched-" + scheduledWorkerNumber.getAndIncrement());
         thread.setUncaughtExceptionHandler(this::exectionInScheduledTask);
         thread.start();
     }
