@@ -60,7 +60,6 @@ public class ImporterService {
 
     private final AtomicBoolean stopped = new AtomicBoolean(false);
 
-
     public void scheduleImport() {
         log.info("Starting import scheduler. Update interval: {} hours", mainConfiguration::updateIntervalFullHours);
         scheduleNextFullImport();

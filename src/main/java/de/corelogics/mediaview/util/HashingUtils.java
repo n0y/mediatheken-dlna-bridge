@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2024 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2025 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,6 +25,7 @@
 package de.corelogics.mediaview.util;
 
 import io.whitfin.siphash.SipHasher;
+import lombok.experimental.UtilityClass;
 import lombok.val;
 
 import java.nio.ByteBuffer;
@@ -33,6 +34,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Base64;
 
+@UtilityClass
 public class HashingUtils {
     // test vector from siphash24.c at https://www.131002.net/siphash/siphash24.c
     private static final byte[] SIP42_KEY_BYTES = ByteBuffer
