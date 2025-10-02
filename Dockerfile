@@ -1,4 +1,4 @@
-FROM amazoncorretto:25.0.0-alpine
+FROM eclipse-temurin:25_36-jre-alpine-3.22
 
 LABEL org.label-schema.schema-version="1.0"
 LABEL org.label-schema.name="Mediatheken-DLNA-Bridge"
@@ -30,5 +30,6 @@ CMD ["s6-setuidgid", "medlna", \
     "-XX:+UseShenandoahGC", \
     "-XX:+UseCompactObjectHeaders", \
     "-XX:ShenandoahGCMode=generational", \
+    "--add-modules", "jdk.incubator.vector", \
     "-jar", \
     "mediatheken-dlna-bridge.jar"]
