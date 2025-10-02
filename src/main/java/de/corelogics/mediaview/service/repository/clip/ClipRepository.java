@@ -35,7 +35,8 @@ import lombok.val;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.NumericDocValuesField;
-import org.apache.lucene.facet.FacetsCollector;
+import org.apache.lucene.facet.FacetsCollectorManager;
+import org.apache.lucene.facet.FacetsConfig;
 import org.apache.lucene.facet.sortedset.DefaultSortedSetDocValuesReaderState;
 import org.apache.lucene.facet.sortedset.SortedSetDocValuesFacetCounts;
 import org.apache.lucene.index.Term;
@@ -119,10 +120,10 @@ public class ClipRepository {
         log.debug("Finding all channels");
         return luceneDirectory.performSearch(searcher -> {
             val query = luceneDirectory.createDoctypeQuery(DOCTYPE_CLIP);
-            val state = new DefaultSortedSetDocValuesReaderState(searcher.getIndexReader(), ClipField.CHANNELNAME.facet(), null);
-            val fc = new FacetsCollector();
-            FacetsCollector.search(searcher, query, 10000, fc);
-            val facets = new SortedSetDocValuesFacetCounts(state, fc);
+            val state = new DefaultSortedSetDocValuesReaderState(searcher.getIndexReader(), ClipField.CHANNELNAME.facet(), new FacetsConfig());
+            val fcm = new FacetsCollectorManager();
+            val facetResults = FacetsCollectorManager.search(searcher, query, 10000, fcm);
+            val facets = new SortedSetDocValuesFacetCounts(state, facetResults.facetsCollector());
             return Stream.of(facets.getTopChildren(10000, ClipField.CHANNELNAME.facet()).labelValues)
                 .map(l -> l.label)
                 .collect(Collectors.toList());
@@ -139,10 +140,10 @@ public class ClipRepository {
                 .add(luceneDirectory.createDoctypeQuery(DOCTYPE_CLIP), BooleanClause.Occur.MUST)
                 .add(new TermQuery(new Term(ClipField.CHANNELNAME.termLower(), ClipField.CHANNELNAME.termLower(channelName))), BooleanClause.Occur.MUST)
                 .build();
-            val state = new DefaultSortedSetDocValuesReaderState(searcher.getIndexReader(), ClipField.CONTAINEDIN.facet(), null);
-            val fc = new FacetsCollector();
-            FacetsCollector.search(searcher, query, 10000, fc);
-            val facets = new SortedSetDocValuesFacetCounts(state, fc);
+            val state = new DefaultSortedSetDocValuesReaderState(searcher.getIndexReader(), ClipField.CONTAINEDIN.facet(), new FacetsConfig());
+            val fcm = new FacetsCollectorManager();
+            val facetResults = FacetsCollectorManager.search(searcher, query, 10000, fcm);
+            val facets = new SortedSetDocValuesFacetCounts(state, facetResults.facetsCollector());
             return Stream.of(facets.getTopChildren(10000, ClipField.CONTAINEDIN.facet()).labelValues)
                 .map(l -> Map.entry(l.label, l.value.intValue()))
                 .collect(toMap(Map.Entry::getKey, Map.Entry::getValue));
@@ -161,10 +162,10 @@ public class ClipRepository {
                 .add(new TermQuery(new Term(ClipField.CHANNELNAME.termLower(), ClipField.CHANNELNAME.termLower(channelName))), BooleanClause.Occur.MUST)
                 .add(new PrefixQuery(new Term(ClipField.CONTAINEDIN.termLower(), ClipField.CONTAINEDIN.termLower(startingWith))), BooleanClause.Occur.MUST)
                 .build();
-            val state = new DefaultSortedSetDocValuesReaderState(searcher.getIndexReader(), ClipField.CONTAINEDIN.facet(), null);
-            val fc = new FacetsCollector();
-            FacetsCollector.search(searcher, query, 10000, fc);
-            val facets = new SortedSetDocValuesFacetCounts(state, fc);
+            val state = new DefaultSortedSetDocValuesReaderState(searcher.getIndexReader(), ClipField.CONTAINEDIN.facet(), new FacetsConfig());
+            val fcm = new FacetsCollectorManager();
+            val facetResults = FacetsCollectorManager.search(searcher, query, 10000, fcm);
+            val facets = new SortedSetDocValuesFacetCounts(state, facetResults.facetsCollector());
             return Stream.of(facets.getTopChildren(10000, ClipField.CONTAINEDIN.facet()).labelValues)
                 .map(l -> Map.entry(l.label, l.value.intValue()))
                 .collect(toMap(Map.Entry::getKey, Map.Entry::getValue));
