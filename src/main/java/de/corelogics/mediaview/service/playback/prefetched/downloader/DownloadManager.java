@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2024 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2025 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -115,7 +115,7 @@ public class DownloadManager {
             }
         }
         if (null == clipDownloaderHolder) {
-            throw new TooManyConcurrentConnectionsException(STR."More then \{mainConfiguration.cacheMaxParallelDownloads()} connections active. Can't proxy more.");
+            throw new TooManyConcurrentConnectionsException("More then " + mainConfiguration.cacheMaxParallelDownloads() + "connections active. Can't proxy more.");
         } else {
             val openedStream = clipDownloaderHolder.openInputStreamStartingFrom(byteRange.getFirstPosition(), Duration.ofSeconds(20));
             if (byteRange.getLastPosition().isPresent()) {

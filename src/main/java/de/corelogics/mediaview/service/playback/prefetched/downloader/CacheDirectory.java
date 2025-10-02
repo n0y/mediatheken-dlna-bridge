@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2024 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2025 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -74,13 +74,13 @@ public class CacheDirectory {
             .build(this::openFile);
 
         if (cacheSizeGb < 10) {
-            throw new IllegalStateException(STR."Configuration: CACHE_SIZE_GB is \{cacheSizeGb}, but at least 10 GB are required");
+            throw new IllegalStateException("Configuration: CACHE_SIZE_GB is " + cacheSizeGb + ", but at least 10 GB are required");
         }
         this.cacheSizeBytes = 1024L * 1024L * 1024L * cacheSizeGb;
         this.cacheDirFile = cacheDir;
         log.debug("Initializing cache download manager, with cache in directory [{}]", this.cacheDirFile::getAbsolutePath);
         if (!cacheDirFile.exists() && !cacheDirFile.mkdirs()) {
-            throw new IllegalStateException(STR."Could not create nonexistent cache directory at \{this.cacheDirFile.getAbsolutePath()}");
+            throw new IllegalStateException("Could not create nonexistent cache directory at " + this.cacheDirFile.getAbsolutePath());
         }
         baseThreading.schedulePeriodic(this::cleanUp, Duration.ofSeconds(10), Duration.ofSeconds(10));
         shutdownRegistry.registerShutdown(this::close);
@@ -261,7 +261,7 @@ public class CacheDirectory {
 
     public void startNewDownloaderThread(String threadName, Runnable runnable) {
         val thread = this.downloaderThreadFactory.newThread(runnable);
-        thread.setName(STR."dl-\{downloaderNumber.getAndIncrement()}-\{threadName}");
+        thread.setName("dl-" + downloaderNumber.getAndIncrement() + "-" + threadName);
         thread.start();
     }
 }

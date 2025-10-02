@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2024 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2025 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -84,6 +84,6 @@ public class ShowContent extends BaseDlnaRequestHandler {
     }
 
     private String idShow(String channelId, String containedIn) {
-        return STR."\{URN_PREFIX_SHOW}\{IdUtils.encodeId(channelId)}:\{IdUtils.encodeId(containedIn)}";
+        return URN_PREFIX_SHOW + IdUtils.encodeId(channelId) + ":" + IdUtils.encodeId(containedIn);
     }
 }

@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2024 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2025 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -154,7 +154,7 @@ public class PrefetchingProxy implements ClipContentUrlGenerator {
                     } else {
                         if (byteRange.isPartial()) {
                             response.setStatus(SC_PARTIAL_CONTENT);
-                            response.addHeader(HttpUtils.HEADER_CONTENT_RANGE, STR."bytes \{byteRange.getFirstPosition()}-\{byteRange.getLastPosition().orElse(stream.getMaxSize() - 1)}/\{stream.getMaxSize()}");
+                            response.addHeader(HttpUtils.HEADER_CONTENT_RANGE, "bytes " + byteRange.getFirstPosition() + "-" + byteRange.getLastPosition().orElse(stream.getMaxSize() - 1) + "/" + stream.getMaxSize());
                             response.addHeader(HttpUtils.HEADER_CONTENT_LENGTH, Long.toString(byteRange.getLastPosition().orElse(stream.getMaxSize()) - byteRange.getFirstPosition()));
                         } else {
                             response.setStatus(SC_OK);
@@ -195,7 +195,7 @@ public class PrefetchingProxy implements ClipContentUrlGenerator {
         val pathInContextString = request.getPathInfo();
         val pathInContext = pathInContextString.split("/");
         if (pathInContext.length == 0) {
-            throw new RuntimeException(STR."cant extract clip from URL \{pathInContextString}");
+            throw new RuntimeException("cant extract clip from URL " + pathInContextString);
         }
         val clipIdString = pathInContext[pathInContext.length - 1];
         val clipId = new String(Base64.getDecoder().decode(clipIdString), StandardCharsets.UTF_8);
@@ -205,21 +205,21 @@ public class PrefetchingProxy implements ClipContentUrlGenerator {
             clipId::toString,
             () -> String.join(
                 ",",
-                STR."H:\{request.getServerName()}",
-                STR."P:\{pathInContextString}",
+                "H:" + request.getServerName(),
+                "P:" + pathInContextString,
                 headerStrings(request)));
         return clipId;
     }
 
     private String headerStrings(HttpServletRequest request) {
         return StreamSupport.stream(((Iterable<String>) () -> request.getHeaderNames().asIterator()).spliterator(), false)
-            .map(h -> STR."\{h}: \{request.getHeader(h)}")
+            .map(h -> h + ": " + request.getHeader(h))
             .collect(Collectors.joining(","));
     }
 
     private String headerStrings(HttpServletResponse response) {
         return response.getHeaderNames().stream()
-            .map(h -> STR."\{h}: \{response.getHeader(h)}")
+            .map(h -> h + ": " + response.getHeader(h))
             .collect(Collectors.joining(","));
     }
 

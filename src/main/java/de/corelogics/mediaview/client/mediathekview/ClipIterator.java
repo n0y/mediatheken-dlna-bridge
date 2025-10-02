@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2024 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2025 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -152,7 +152,7 @@ class ClipIterator implements Iterator<ClipEntry> {
                     timeFormat.format(currentEntry
                         .map(ClipEntry::getBroadcastedAt)
                         .orElseGet(() -> LocalDateTime.now().atZone(ZONE_BERLIN))));
-            val broadcastTime = LocalDateTime.from(dateTimeFormat.parse(STR."\{date} \{time}")).atZone(ZONE_BERLIN);
+            val broadcastTime = LocalDateTime.from(dateTimeFormat.parse(date + " " + time)).atZone(ZONE_BERLIN);
             return Optional.of(new ClipEntry(
                 ofNullable(res.get("Sender")).orElseGet(() -> currentEntry.map(ClipEntry::getChannelName).orElse("")),
                 ofNullable(res.get("Thema")).map(this::cleanString).orElseGet(() -> currentEntry.map(ClipEntry::getContainedIn).orElse("")),
@@ -164,7 +164,7 @@ class ClipIterator implements Iterator<ClipEntry> {
                 patchUrl(url, res.getOrDefault("Url HD", ""))
             ));
         } catch (final RuntimeException e) {
-            System.out.println(STR."\{e.getClass().getSimpleName()}: \{e.getMessage()}\n\{res}");
+            System.out.println(e.getClass().getSimpleName() + ": " + e.getMessage() + "\n" + res);
         }
         return Optional.empty();
     }
@@ -178,7 +178,7 @@ class ClipIterator implements Iterator<ClipEntry> {
             try {
                 return Long.parseLong(stringValue.trim());
             } catch (NumberFormatException e) {
-                System.out.println(STR."NFE: \{stringValue}");
+                System.out.println("NFE: " + stringValue);
             }
         }
         return 0L;

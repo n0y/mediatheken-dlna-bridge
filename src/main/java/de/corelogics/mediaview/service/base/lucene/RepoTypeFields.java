@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020-2024 Mediatheken DLNA Bridge Authors.
+ * Copyright (c) 2020-2025 Mediatheken DLNA Bridge Authors.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -42,7 +42,7 @@ public interface RepoTypeFields {
     }
 
     default String sorted() {
-        return STR."\{this.value()}$$sorted";
+        return this.value() + "$$sorted";
     }
 
     default String sorted(String val) {
@@ -50,7 +50,7 @@ public interface RepoTypeFields {
     }
 
     default String term() {
-        return STR."\{this.value()}$$term";
+        return this.value() + "$$term";
     }
 
     default String term(String val) {
@@ -58,7 +58,7 @@ public interface RepoTypeFields {
     }
 
     default String termLower() {
-        return STR."\{this.value()}$$lowerterm";
+        return this.value() + "$$lowerterm";
     }
 
     default String termLower(String val) {
@@ -66,7 +66,7 @@ public interface RepoTypeFields {
     }
 
     default String facet() {
-        return STR."\{this.value()}$$facet";
+        return this.value() + "$$facet";
     }
 
     default String facet(String val) {
