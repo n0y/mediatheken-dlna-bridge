@@ -39,7 +39,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <jupnp.version>3.0.3</jupnp.version>
-        <lucene.version>10.3.0</lucene.version>
+        <lucene.version>10.3.1</lucene.version>
         <lombok.version>1.18.42</lombok.version>
         <log4j.version>2.25.2</log4j.version>
         <junit.version>6.0.0</junit.version>
