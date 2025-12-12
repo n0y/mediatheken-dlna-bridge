@@ -35,7 +35,7 @@ jobs:
         run: mvn -B verify --file pom.xml
 
       - name: upload built binaries
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: target
           path: target
