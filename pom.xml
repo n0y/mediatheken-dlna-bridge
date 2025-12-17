@@ -38,7 +38,7 @@
         <maven.compiler.source>${maven.compiler.release}</maven.compiler.source>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <jupnp.version>3.0.3</jupnp.version>
+        <jupnp.version>3.0.4</jupnp.version>
         <lucene.version>10.3.2</lucene.version>
         <lombok.version>1.18.42</lombok.version>
         <log4j.version>2.25.3</log4j.version>
