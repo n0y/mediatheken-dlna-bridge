@@ -24,7 +24,7 @@
 
 package de.corelogics.mediaview.util;
 
-import io.whitfin.siphash.SipHasher;
+import io.whitfin.siphash.SipHash;
 import lombok.experimental.UtilityClass;
 import lombok.val;
 
@@ -45,7 +45,7 @@ public class HashingUtils {
         .array();
 
     public static String idHash(String... idStrings) {
-        val hasher = SipHasher.init(SIP42_KEY_BYTES, 2, 4);
+        val hasher = SipHash.init(SIP42_KEY_BYTES, 2, 4);
         Arrays.stream(idStrings)
             .map(s -> s.getBytes(StandardCharsets.UTF_8))
             .forEach(hasher::update);
