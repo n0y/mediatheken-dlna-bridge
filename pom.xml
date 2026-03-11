@@ -43,7 +43,7 @@
         <lombok.version>1.18.44</lombok.version>
         <log4j.version>2.25.3</log4j.version>
         <junit.version>6.0.3</junit.version>
-        <mockito.version>5.22.0</mockito.version>
+        <mockito.version>5.23.0</mockito.version>
         <kotlin.version>1.9.10</kotlin.version>
         <argLine>--add-modules jdk.incubator.vector</argLine>
     </properties>
