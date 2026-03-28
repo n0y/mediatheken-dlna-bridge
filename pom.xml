@@ -41,7 +41,7 @@
         <jupnp.version>3.0.4</jupnp.version>
         <lucene.version>10.4.0</lucene.version>
         <lombok.version>1.18.44</lombok.version>
-        <log4j.version>2.25.3</log4j.version>
+        <log4j.version>2.25.4</log4j.version>
         <junit.version>6.0.3</junit.version>
         <mockito.version>5.23.0</mockito.version>
         <kotlin.version>1.9.10</kotlin.version>
