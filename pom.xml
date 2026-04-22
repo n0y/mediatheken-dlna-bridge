@@ -40,7 +40,7 @@
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <jupnp.version>3.0.4</jupnp.version>
         <lucene.version>10.4.0</lucene.version>
-        <lombok.version>1.18.44</lombok.version>
+        <lombok.version>1.18.46</lombok.version>
         <log4j.version>2.25.4</log4j.version>
         <junit.version>6.0.3</junit.version>
         <mockito.version>5.23.0</mockito.version>
