@@ -1,4 +1,4 @@
-FROM eclipse-temurin:25.0.2_10-jre-alpine-3.22
+FROM eclipse-temurin:25.0.3_9-jre-alpine-3.22
 
 LABEL org.label-schema.schema-version="1.0"
 LABEL org.label-schema.name="Mediatheken-DLNA-Bridge"
